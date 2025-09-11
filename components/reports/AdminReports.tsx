@@ -12,6 +12,8 @@ type ReportItem = {
   reportType: "RealEstate" | "Salvage" | "Asset" | string;
   createdAt: string;
   reportModel?: string;
+  fileType?: "pdf" | "docx" | "xlsx";
+  approvalStatus?: "pending" | "approved" | "rejected";
 };
 
 type ApiResponse = {
@@ -273,6 +275,8 @@ export default function AdminReports() {
                       <th className="py-2 pr-4">Address</th>
                       <th className="py-2 pr-4">FMV</th>
                       <th className="py-2 pr-4">Type</th>
+                      <th className="py-2 pr-4">Format</th>
+                      <th className="py-2 pr-4">Status</th>
                       <th className="py-2 pr-4">Created At</th>
                       <th className="py-2 pr-4">Created By</th>
                       <th className="py-2 pr-4">Actions</th>
@@ -306,6 +310,34 @@ export default function AdminReports() {
                             {r.reportType}
                           </span>
                         </td>
+                        <td className="py-2 pr-4">
+                          <span
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+                              r.fileType === "pdf"
+                                ? "bg-red-50 text-red-800 border-red-200"
+                                : r.fileType === "docx"
+                                ? "bg-blue-50 text-blue-800 border-blue-200"
+                                : r.fileType === "xlsx"
+                                ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                                : "bg-gray-50 text-gray-700 border-gray-200"
+                            }`}
+                          >
+                            {(r.fileType || r.filename.split(".").pop() || "").toUpperCase()}
+                          </span>
+                        </td>
+                        <td className="py-2 pr-4">
+                          <span
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+                              r.approvalStatus === "approved"
+                                ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                                : r.approvalStatus === "rejected"
+                                ? "bg-red-50 text-red-800 border-red-200"
+                                : "bg-amber-50 text-amber-800 border-amber-200"
+                            }`}
+                          >
+                            {r.approvalStatus || "pending"}
+                          </span>
+                        </td>
                         <td className="py-2 pr-4 text-gray-700">
                           {new Date(r.createdAt).toLocaleString()}
                         </td>
@@ -314,26 +346,47 @@ export default function AdminReports() {
                         </td>
                         <td className="py-2 pr-4">
                           <div className="flex items-center gap-2">
-                            <a
-                              href={`/api/admin/reports/${r._id}/download`}
-                              className="cursor-pointer inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-rose-300 text-rose-700 bg-white hover:bg-rose-50 active:bg-rose-100 shadow-sm hover:shadow transition-all"
-                            >
-                              <svg
-                                width="16"
-                                height="16"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
+                            {r.approvalStatus === "approved" ? (
+                              <a
+                                href={`/api/admin/reports/${r._id}/download`}
+                                className="cursor-pointer inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-rose-300 text-rose-700 bg-white hover:bg-rose-50 active:bg-rose-100 shadow-sm hover:shadow transition-all"
                               >
-                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                                <polyline points="7 10 12 15 17 10" />
-                                <line x1="12" y1="15" x2="12" y2="3" />
-                              </svg>
-                              Download
-                            </a>
+                                <svg
+                                  width="16"
+                                  height="16"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                >
+                                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                  <polyline points="7 10 12 15 17 10" />
+                                  <line x1="12" y1="15" x2="12" y2="3" />
+                                </svg>
+                                Download
+                              </a>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed select-none">
+                                <svg
+                                  width="16"
+                                  height="16"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  className="opacity-60"
+                                >
+                                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                  <polyline points="7 10 12 15 17 10" />
+                                  <line x1="12" y1="15" x2="12" y2="3" />
+                                </svg>
+                                Awaiting Approval
+                              </span>
+                            )}
                             <button
                               onClick={() => openDelete(r._id)}
                               className="cursor-pointer inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-red-300 text-red-700 bg-white hover:bg-red-50 active:bg-red-100 shadow-sm hover:shadow transition-all"
@@ -400,9 +453,21 @@ export default function AdminReports() {
                         </div>
                       </div>
                       <div>
+                        <div className="text-gray-500">Format</div>
+                        <div className="font-medium text-gray-900">
+                          {(r.fileType || r.filename.split(".").pop() || "").toUpperCase()}
+                        </div>
+                      </div>
+                      <div>
                         <div className="text-gray-500">Created</div>
                         <div className="font-medium text-gray-900">
                           {new Date(r.createdAt).toLocaleString()}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-gray-500">Status</div>
+                        <div className="font-medium text-gray-900 capitalize">
+                          {r.approvalStatus || "pending"}
                         </div>
                       </div>
                       <div className="col-span-2">
@@ -413,26 +478,47 @@ export default function AdminReports() {
                       </div>
                     </div>
                     <div className="mt-3 flex items-center gap-2">
-                      <a
-                        href={`/api/admin/reports/${r._id}/download`}
-                        className="cursor-pointer inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-rose-300 text-rose-700 bg-white hover:bg-rose-50 active:bg-rose-100 shadow-sm hover:shadow transition-all"
-                      >
-                        <svg
-                          width="16"
-                          height="16"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
+                      {r.approvalStatus === "approved" ? (
+                        <a
+                          href={`/api/admin/reports/${r._id}/download`}
+                          className="cursor-pointer inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-rose-300 text-rose-700 bg-white hover:bg-rose-50 active:bg-rose-100 shadow-sm hover:shadow transition-all"
                         >
-                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                          <polyline points="7 10 12 15 17 10" />
-                          <line x1="12" y1="15" x2="12" y2="3" />
-                        </svg>
-                        Download
-                      </a>
+                          <svg
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                            <polyline points="7 10 12 15 17 10" />
+                            <line x1="12" y1="15" x2="12" y2="3" />
+                          </svg>
+                          Download
+                        </a>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed select-none">
+                          <svg
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="opacity-60"
+                          >
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                            <polyline points="7 10 12 15 17 10" />
+                            <line x1="12" y1="15" x2="12" y2="3" />
+                          </svg>
+                          Awaiting Approval
+                        </span>
+                      )}
                       <button
                         onClick={() => openDelete(r._id)}
                         className="cursor-pointer inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-red-300 text-red-700 bg-white hover:bg-red-50 active:bg-red-100 shadow-sm hover:shadow transition-all"
