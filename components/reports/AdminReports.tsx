@@ -12,7 +12,7 @@ type ReportItem = {
   reportType: "RealEstate" | "Salvage" | "Asset" | string;
   createdAt: string;
   reportModel?: string;
-  fileType?: "pdf" | "docx" | "xlsx";
+  fileType?: "pdf" | "docx" | "xlsx" | "images";
   approvalStatus?: "pending" | "approved" | "rejected";
 };
 
