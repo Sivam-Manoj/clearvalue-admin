@@ -14,6 +14,7 @@ type ReportItem = {
   reportModel?: string;
   fileType?: "pdf" | "docx" | "xlsx" | "images";
   approvalStatus?: "pending" | "approved" | "rejected";
+  contract_no?: string;
 };
 
 type ApiResponse = {
@@ -273,6 +274,7 @@ export default function AdminReports() {
                     <tr className="text-gray-600">
                       <th className="py-2 pr-4">Filename</th>
                       <th className="py-2 pr-4">Address</th>
+                      <th className="py-2 pr-4">Contract No</th>
                       <th className="py-2 pr-4">FMV</th>
                       <th className="py-2 pr-4">Type</th>
                       <th className="py-2 pr-4">Format</th>
@@ -293,6 +295,9 @@ export default function AdminReports() {
                         </td>
                         <td className="py-2 pr-4 text-gray-700 break-words max-w-xs">
                           {r.address}
+                        </td>
+                        <td className="py-2 pr-4 text-gray-700">
+                          {r.contract_no || "-"}
                         </td>
                         <td className="py-2 pr-4">
                           {formatFMV(r.fairMarketValue)}
@@ -431,6 +436,10 @@ export default function AdminReports() {
                         </div>
                         <div className="text-sm text-gray-600 break-words">
                           {r.address}
+                        </div>
+                        <div className="text-xs text-gray-600 mt-1">
+                          <span className="text-gray-500">Contract: </span>
+                          {r.contract_no || "-"}
                         </div>
                       </div>
                       <span

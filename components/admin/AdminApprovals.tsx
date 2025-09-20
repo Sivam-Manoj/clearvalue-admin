@@ -12,6 +12,7 @@ type ReportItem = {
   reportType: "RealEstate" | "Salvage" | "Asset" | string;
   createdAt: string;
   user?: { email?: string; username?: string } | null;
+  contract_no?: string;
 };
 
 type ApiResponse = { items: ReportItem[]; total: number; page: number; limit: number };
@@ -138,6 +139,7 @@ export default function AdminApprovals() {
                   <thead>
                     <tr className="text-gray-600">
                       <th className="py-2 pr-4">Report</th>
+                      <th className="py-2 pr-4">Contract</th>
                       <th className="py-2 pr-4">User</th>
                       <th className="py-2 pr-4">FMV</th>
                       <th className="py-2 pr-4">Created</th>
@@ -151,6 +153,7 @@ export default function AdminApprovals() {
                           <div className="font-medium text-gray-900">{r.address || r.filename}</div>
                           <div className="text-xs text-gray-600">{r.filename}</div>
                         </td>
+                        <td className="py-2 pr-4 text-gray-700">{r.contract_no || "-"}</td>
                         <td className="py-2 pr-4 text-gray-700">{r.user?.email || "-"}</td>
                         <td className="py-2 pr-4">{formatFMV(r.fairMarketValue)}</td>
                         <td className="py-2 pr-4 text-gray-700">{new Date(r.createdAt).toLocaleString()}</td>
@@ -197,6 +200,7 @@ export default function AdminApprovals() {
                   <div key={r._id} className="rounded-xl border border-rose-200 bg-white/90 backdrop-blur p-4 shadow-md">
                     <div className="font-semibold text-gray-900">{r.address || r.filename}</div>
                     <div className="text-sm text-gray-600">{r.user?.email || "-"}</div>
+                    <div className="text-xs text-gray-600 mt-1"><span className="text-gray-500">Contract: </span>{r.contract_no || "-"}</div>
                     <div className="mt-2 grid grid-cols-2 gap-3 text-sm">
                       <div>
                         <div className="text-gray-500">FMV</div>
