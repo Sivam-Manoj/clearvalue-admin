@@ -129,7 +129,7 @@ export default function AdminApprovals() {
     const map = new Map<string, Group>();
     const items = (data?.items || []) as ReportItem[];
     for (const r of items) {
-      const key = String(((r as any).report as string | undefined) || r._id);
+      const key = String((r.report as string | undefined) || r._id);
       let g = map.get(key);
       if (!g) {
         const base = r.reportType === 'RealEstate' ? 'Real Estate' : r.reportType === 'Salvage' ? 'Salvage' : 'Asset';
