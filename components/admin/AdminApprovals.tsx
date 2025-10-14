@@ -13,6 +13,9 @@ type ReportItem = {
   createdAt: string;
   user?: { email?: string; username?: string } | null;
   contract_no?: string;
+  fileType?: "pdf" | "docx" | "xlsx" | "images";
+  approvalStatus?: "pending" | "approved" | "rejected";
+  report?: string;
 };
 
 type ApiResponse = { items: ReportItem[]; total: number; page: number; limit: number };
@@ -111,6 +114,48 @@ export default function AdminApprovals() {
     return value;
   }
 
+  type Group = {
+    key: string;
+    title: string;
+    contract_no?: string;
+    reportType: string;
+    userEmail?: string;
+    createdAt: string;
+    fairMarketValue: string;
+    variants: { pdf?: ReportItem; docx?: ReportItem; xlsx?: ReportItem; images?: ReportItem };
+  };
+
+  const groups = useMemo<Group[]>(() => {
+    const map = new Map<string, Group>();
+    const items = (data?.items || []) as ReportItem[];
+    for (const r of items) {
+      const key = String(((r as any).report as string | undefined) || r._id);
+      let g = map.get(key);
+      if (!g) {
+        const base = r.reportType === 'RealEstate' ? 'Real Estate' : r.reportType === 'Salvage' ? 'Salvage' : 'Asset';
+        const title = r.contract_no ? `${base} - ${r.contract_no}` : (r.address || base);
+        g = {
+          key,
+          title,
+          contract_no: r.contract_no,
+          reportType: r.reportType,
+          userEmail: r.user?.email || undefined,
+          createdAt: r.createdAt,
+          fairMarketValue: r.fairMarketValue,
+          variants: {},
+        };
+        map.set(key, g);
+      }
+      if (new Date(r.createdAt).getTime() > new Date(g.createdAt).getTime()) g.createdAt = r.createdAt;
+      const ft = ((r.fileType || r.filename.split('.').pop() || '') as string).toLowerCase();
+      if (ft === 'pdf') g.variants.pdf = r;
+      else if (ft === 'docx') g.variants.docx = r;
+      else if (ft === 'xlsx') g.variants.xlsx = r;
+      else if (ft === 'images' || ft === 'zip') g.variants.images = r;
+    }
+    return Array.from(map.values());
+  }, [data]);
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-rose-50">
       <main className="max-w-6xl mx-auto px-4 py-8 space-y-8">
@@ -147,46 +192,24 @@ export default function AdminApprovals() {
                     </tr>
                   </thead>
                   <tbody>
-                    {(data?.items || []).map((r) => (
-                      <tr key={r._id} className="border-t border-rose-100/70 hover:bg-rose-50/40">
+                    {groups.map((g) => (
+                      <tr key={g.key} className="border-t border-rose-100/70 hover:bg-rose-50/40">
                         <td className="py-2 pr-4">
-                          <div className="font-medium text-gray-900">{r.address || r.filename}</div>
-                          <div className="text-xs text-gray-600">{r.filename}</div>
+                          <div className="font-medium text-gray-900">{g.title}</div>
                         </td>
-                        <td className="py-2 pr-4 text-gray-700">{r.contract_no || "-"}</td>
-                        <td className="py-2 pr-4 text-gray-700">{r.user?.email || "-"}</td>
-                        <td className="py-2 pr-4">{formatFMV(r.fairMarketValue)}</td>
-                        <td className="py-2 pr-4 text-gray-700">{new Date(r.createdAt).toLocaleString()}</td>
-                        <td className="py-2 pr-4 space-x-2">
-                          <a
-                            href={`/api/admin/reports/${r._id}/download`}
-                            download
-                            className="cursor-pointer inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-rose-300 text-rose-700 bg-white hover:bg-rose-50 active:bg-rose-100 shadow-sm hover:shadow transition-all"
-                          >
-                            <svg
-                              width="16"
-                              height="16"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            >
-                              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                              <polyline points="7 10 12 15 17 10" />
-                              <line x1="12" y1="15" x2="12" y2="3" />
-                            </svg>
-                            Download
-                          </a>
-                          <button
-                            onClick={() => { setTargetId(r._id); setMode("approve"); setConfirmOpen(true); }}
-                            className="cursor-pointer px-3 py-1.5 rounded-xl border border-emerald-300 text-emerald-700 bg-white hover:bg-emerald-50 active:bg-emerald-100 shadow-sm hover:shadow transition-all"
-                          >Approve</button>
-                          <button
-                            onClick={() => { setTargetId(r._id); setRejectOpen(true); }}
-                            className="cursor-pointer px-3 py-1.5 rounded-xl border border-red-300 text-red-700 bg-white hover:bg-red-50 active:bg-red-100 shadow-sm hover:shadow transition-all"
-                          >Reject</button>
+                        <td className="py-2 pr-4 text-gray-700">{g.contract_no || "-"}</td>
+                        <td className="py-2 pr-4 text-gray-700">{g.userEmail || "-"}</td>
+                        <td className="py-2 pr-4">{formatFMV(g.fairMarketValue)}</td>
+                        <td className="py-2 pr-4 text-gray-700">{new Date(g.createdAt).toLocaleString()}</td>
+                        <td className="py-2 pr-4">
+                          <div className="flex items-center gap-2">
+                            <a href={g.variants.pdf ? `/api/admin/reports/${g.variants.pdf._id}/download` : undefined} className={`cursor-pointer inline-flex items-center justify-center rounded-xl px-2.5 py-1.5 text-xs font-semibold shadow-sm ${g.variants.pdf ? 'bg-blue-600 text-white hover:bg-blue-500 hover:shadow' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>PDF</a>
+                            <a href={g.variants.docx ? `/api/admin/reports/${g.variants.docx._id}/download` : undefined} className={`cursor-pointer inline-flex items-center justify-center rounded-xl px-2.5 py-1.5 text-xs font-semibold shadow-sm ${g.variants.docx ? 'bg-blue-600 text-white hover:bg-blue-500 hover:shadow' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>DOCX</a>
+                            <a href={g.variants.xlsx ? `/api/admin/reports/${g.variants.xlsx._id}/download` : undefined} className={`cursor-pointer inline-flex items-center justify-center rounded-xl px-2.5 py-1.5 text-xs font-semibold shadow-sm ${g.variants.xlsx ? 'bg-blue-600 text-white hover:bg-blue-500 hover:shadow' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>Excel</a>
+                            <a href={g.variants.images ? `/api/admin/reports/${g.variants.images._id}/download` : undefined} className={`cursor-pointer inline-flex items-center justify-center rounded-xl px-2.5 py-1.5 text-xs font-semibold shadow-sm ${g.variants.images ? 'bg-blue-600 text-white hover:bg-blue-500 hover:shadow' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>Images</a>
+                            <button onClick={() => { setTargetId(g.variants.pdf?._id || g.variants.docx?._id || g.variants.xlsx?._id || g.variants.images?._id || null); setMode('approve'); setConfirmOpen(true); }} className="cursor-pointer px-3 py-1.5 rounded-xl border border-emerald-300 text-emerald-700 bg-white hover:bg-emerald-50 active:bg-emerald-100 shadow-sm hover:shadow transition-all">Approve</button>
+                            <button onClick={() => { setTargetId(g.variants.pdf?._id || g.variants.docx?._id || g.variants.xlsx?._id || g.variants.images?._id || null); setRejectOpen(true); }} className="cursor-pointer px-3 py-1.5 rounded-xl border border-red-300 text-red-700 bg-white hover:bg-red-50 active:bg-red-100 shadow-sm hover:shadow transition-all">Reject</button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -196,45 +219,28 @@ export default function AdminApprovals() {
 
               {/* Mobile Cards */}
               <div className="grid grid-cols-1 gap-4 md:hidden">
-                {(data?.items || []).map((r) => (
-                  <div key={r._id} className="rounded-xl border border-rose-200 bg-white/90 backdrop-blur p-4 shadow-md">
-                    <div className="font-semibold text-gray-900">{r.address || r.filename}</div>
-                    <div className="text-sm text-gray-600">{r.user?.email || "-"}</div>
-                    <div className="text-xs text-gray-600 mt-1"><span className="text-gray-500">Contract: </span>{r.contract_no || "-"}</div>
+                {groups.map((g) => (
+                  <div key={g.key} className="rounded-xl border border-rose-200 bg-white/90 backdrop-blur p-4 shadow-md">
+                    <div className="font-semibold text-gray-900">{g.title}</div>
+                    <div className="text-sm text-gray-600">{g.userEmail || "-"}</div>
+                    <div className="text-xs text-gray-600 mt-1"><span className="text-gray-500">Contract: </span>{g.contract_no || "-"}</div>
                     <div className="mt-2 grid grid-cols-2 gap-3 text-sm">
                       <div>
                         <div className="text-gray-500">FMV</div>
-                        <div className="font-medium text-gray-900">{formatFMV(r.fairMarketValue)}</div>
+                        <div className="font-medium text-gray-900">{formatFMV(g.fairMarketValue)}</div>
                       </div>
                       <div>
                         <div className="text-gray-500">Created</div>
-                        <div className="font-medium text-gray-900">{new Date(r.createdAt).toLocaleString()}</div>
+                        <div className="font-medium text-gray-900">{new Date(g.createdAt).toLocaleString()}</div>
                       </div>
                     </div>
                     <div className="mt-3 flex items-center gap-2">
-                      <a
-                        href={`/api/admin/reports/${r._id}/download`}
-                        download
-                        className="cursor-pointer inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-rose-300 text-rose-700 bg-white hover:bg-rose-50 active:bg-rose-100 shadow-sm hover:shadow transition-all"
-                      >
-                        <svg
-                          width="16"
-                          height="16"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                          <polyline points="7 10 12 15 17 10" />
-                          <line x1="12" y1="15" x2="12" y2="3" />
-                        </svg>
-                        Download
-                      </a>
-                      <button onClick={() => { setTargetId(r._id); setMode("approve"); setConfirmOpen(true); }} className="cursor-pointer px-3 py-1.5 rounded-xl border border-emerald-300 text-emerald-700 bg-white hover:bg-emerald-50 active:bg-emerald-100 shadow-sm hover:shadow transition-all">Approve</button>
-                      <button onClick={() => { setTargetId(r._id); setRejectOpen(true); }} className="cursor-pointer px-3 py-1.5 rounded-xl border border-red-300 text-red-700 bg-white hover:bg-red-50 active:bg-red-100 shadow-sm hover:shadow transition-all">Reject</button>
+                      <a href={g.variants.pdf ? `/api/admin/reports/${g.variants.pdf._id}/download` : undefined} className={`cursor-pointer inline-flex items-center justify-center rounded-xl px-3 py-1.5 text-xs font-semibold shadow-sm ${g.variants.pdf ? 'bg-blue-600 text-white hover:bg-blue-500 hover:shadow' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>PDF</a>
+                      <a href={g.variants.docx ? `/api/admin/reports/${g.variants.docx._id}/download` : undefined} className={`cursor-pointer inline-flex items-center justify-center rounded-xl px-3 py-1.5 text-xs font-semibold shadow-sm ${g.variants.docx ? 'bg-blue-600 text-white hover:bg-blue-500 hover:shadow' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>DOCX</a>
+                      <a href={g.variants.xlsx ? `/api/admin/reports/${g.variants.xlsx._id}/download` : undefined} className={`cursor-pointer inline-flex items-center justify-center rounded-xl px-3 py-1.5 text-xs font-semibold shadow-sm ${g.variants.xlsx ? 'bg-blue-600 text-white hover:bg-blue-500 hover:shadow' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>Excel</a>
+                      <a href={g.variants.images ? `/api/admin/reports/${g.variants.images._id}/download` : undefined} className={`cursor-pointer inline-flex items-center justify-center rounded-xl px-3 py-1.5 text-xs font-semibold shadow-sm ${g.variants.images ? 'bg-blue-600 text-white hover:bg-blue-500 hover:shadow' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>Images</a>
+                      <button onClick={() => { setTargetId(g.variants.pdf?._id || g.variants.docx?._id || g.variants.xlsx?._id || g.variants.images?._id || null); setMode('approve'); setConfirmOpen(true); }} className="cursor-pointer px-3 py-1.5 rounded-xl border border-emerald-300 text-emerald-700 bg-white hover:bg-emerald-50 active:bg-emerald-100 shadow-sm hover:shadow transition-all">Approve</button>
+                      <button onClick={() => { setTargetId(g.variants.pdf?._id || g.variants.docx?._id || g.variants.xlsx?._id || g.variants.images?._id || null); setRejectOpen(true); }} className="cursor-pointer px-3 py-1.5 rounded-xl border border-red-300 text-red-700 bg-white hover:bg-red-50 active:bg-red-100 shadow-sm hover:shadow transition-all">Reject</button>
                     </div>
                   </div>
                 ))}

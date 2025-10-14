@@ -132,6 +132,48 @@ export default function AdminReports() {
       : 1;
   }, [data, limit]);
 
+  type Group = {
+    key: string;
+    title: string;
+    contract_no?: string;
+    reportType: string;
+    createdAt: string;
+    fairMarketValue: string;
+    userEmail?: string;
+    variants: { pdf?: ReportItem; docx?: ReportItem; xlsx?: ReportItem; images?: ReportItem };
+  };
+
+  const groups = useMemo<Group[]>(() => {
+    const map = new Map<string, Group>();
+    const items = (data?.items || []) as ReportItem[];
+    for (const r of items) {
+      const key = String(((r as any).report as string | undefined) || r._id);
+      let g = map.get(key);
+      if (!g) {
+        const base = r.reportType === "RealEstate" ? "Real Estate" : r.reportType === "Salvage" ? "Salvage" : "Asset";
+        const title = r.contract_no ? `${base} - ${r.contract_no}` : (r.address || base);
+        g = {
+          key,
+          title,
+          contract_no: r.contract_no,
+          reportType: r.reportType,
+          createdAt: r.createdAt,
+          fairMarketValue: r.fairMarketValue,
+          userEmail: r.user?.email || undefined,
+          variants: {},
+        };
+        map.set(key, g);
+      }
+      if (new Date(r.createdAt).getTime() > new Date(g.createdAt).getTime()) g.createdAt = r.createdAt;
+      const ft = ((r.fileType || r.filename.split(".").pop() || "") as string).toLowerCase();
+      if (ft === "pdf") g.variants.pdf = r;
+      else if (ft === "docx") g.variants.docx = r;
+      else if (ft === "xlsx") g.variants.xlsx = r;
+      else if (ft === "images" || ft === "zip") g.variants.images = r;
+    }
+    return Array.from(map.values());
+  }, [data]);
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-rose-50">
       <main className="max-w-6xl mx-auto px-4 py-8 space-y-6">
@@ -272,146 +314,34 @@ export default function AdminReports() {
                 <table className="min-w-full text-left text-sm">
                   <thead>
                     <tr className="text-gray-600">
-                      <th className="py-2 pr-4">Filename</th>
-                      <th className="py-2 pr-4">Address</th>
+                      <th className="py-2 pr-4">Report</th>
                       <th className="py-2 pr-4">Contract No</th>
                       <th className="py-2 pr-4">FMV</th>
                       <th className="py-2 pr-4">Type</th>
-                      <th className="py-2 pr-4">Format</th>
-                      <th className="py-2 pr-4">Status</th>
                       <th className="py-2 pr-4">Created At</th>
                       <th className="py-2 pr-4">Created By</th>
                       <th className="py-2 pr-4">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {(data?.items || []).map((r) => (
-                      <tr
-                        key={r._id}
-                        className="border-t border-rose-100/70 hover:bg-rose-50/40"
-                      >
-                        <td className="py-2 pr-4 text-gray-900">
-                          {r.filename}
-                        </td>
-                        <td className="py-2 pr-4 text-gray-700 break-words max-w-xs">
-                          {r.address}
-                        </td>
-                        <td className="py-2 pr-4 text-gray-700">
-                          {r.contract_no || "-"}
-                        </td>
+                    {groups.map((g) => (
+                      <tr key={g.key} className="border-t border-rose-100/70 hover:bg-rose-50/40">
+                        <td className="py-2 pr-4 text-gray-900">{g.title}</td>
+                        <td className="py-2 pr-4 text-gray-700">{g.contract_no || "-"}</td>
+                        <td className="py-2 pr-4">{formatFMV(g.fairMarketValue)}</td>
                         <td className="py-2 pr-4">
-                          {formatFMV(r.fairMarketValue)}
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${g.reportType === "RealEstate" ? "bg-emerald-50 text-emerald-800 border-emerald-200" : g.reportType === "Salvage" ? "bg-amber-50 text-amber-800 border-amber-200" : "bg-sky-50 text-sky-800 border-sky-200"}`}>{g.reportType}</span>
                         </td>
-                        <td className="py-2 pr-4">
-                          <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
-                              r.reportType === "RealEstate"
-                                ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-                                : r.reportType === "Salvage"
-                                ? "bg-amber-50 text-amber-800 border-amber-200"
-                                : "bg-sky-50 text-sky-800 border-sky-200"
-                            }`}
-                          >
-                            {r.reportType}
-                          </span>
-                        </td>
-                        <td className="py-2 pr-4">
-                          <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
-                              r.fileType === "pdf"
-                                ? "bg-red-50 text-red-800 border-red-200"
-                                : r.fileType === "docx"
-                                ? "bg-blue-50 text-blue-800 border-blue-200"
-                                : r.fileType === "xlsx"
-                                ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-                                : "bg-gray-50 text-gray-700 border-gray-200"
-                            }`}
-                          >
-                            {(r.fileType || r.filename.split(".").pop() || "").toUpperCase()}
-                          </span>
-                        </td>
-                        <td className="py-2 pr-4">
-                          <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
-                              r.approvalStatus === "approved"
-                                ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-                                : r.approvalStatus === "rejected"
-                                ? "bg-red-50 text-red-800 border-red-200"
-                                : "bg-amber-50 text-amber-800 border-amber-200"
-                            }`}
-                          >
-                            {r.approvalStatus || "pending"}
-                          </span>
-                        </td>
-                        <td className="py-2 pr-4 text-gray-700">
-                          {new Date(r.createdAt).toLocaleString()}
-                        </td>
-                        <td className="py-2 pr-4 text-gray-700">
-                          {r.user?.email || "-"}
-                        </td>
+                        <td className="py-2 pr-4 text-gray-700">{new Date(g.createdAt).toLocaleString()}</td>
+                        <td className="py-2 pr-4 text-gray-700">{g.userEmail || "-"}</td>
                         <td className="py-2 pr-4">
                           <div className="flex items-center gap-2">
-                            {r.approvalStatus === "approved" ? (
-                              <a
-                                href={`/api/admin/reports/${r._id}/download`}
-                                className="cursor-pointer inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-rose-300 text-rose-700 bg-white hover:bg-rose-50 active:bg-rose-100 shadow-sm hover:shadow transition-all"
-                              >
-                                <svg
-                                  width="16"
-                                  height="16"
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth="2"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                >
-                                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                                  <polyline points="7 10 12 15 17 10" />
-                                  <line x1="12" y1="15" x2="12" y2="3" />
-                                </svg>
-                                Download
-                              </a>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed select-none">
-                                <svg
-                                  width="16"
-                                  height="16"
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth="2"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  className="opacity-60"
-                                >
-                                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                                  <polyline points="7 10 12 15 17 10" />
-                                  <line x1="12" y1="15" x2="12" y2="3" />
-                                </svg>
-                                Awaiting Approval
-                              </span>
-                            )}
-                            <button
-                              onClick={() => openDelete(r._id)}
-                              className="cursor-pointer inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-red-300 text-red-700 bg-white hover:bg-red-50 active:bg-red-100 shadow-sm hover:shadow transition-all"
-                            >
-                              <svg
-                                width="16"
-                                height="16"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                              >
-                                <polyline points="3 6 5 6 21 6" />
-                                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                                <path d="M10 11v6" />
-                                <path d="M14 11v6" />
-                                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-                              </svg>
+                            <a href={g.variants.pdf && g.variants.pdf.approvalStatus === 'approved' ? `/api/admin/reports/${g.variants.pdf._id}/download` : undefined} className={`cursor-pointer inline-flex items-center justify-center rounded-xl px-2.5 py-1.5 text-xs font-semibold shadow-sm ${g.variants.pdf && g.variants.pdf.approvalStatus === 'approved' ? 'bg-blue-600 text-white hover:bg-blue-500 hover:shadow' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>PDF</a>
+                            <a href={g.variants.docx && g.variants.docx.approvalStatus === 'approved' ? `/api/admin/reports/${g.variants.docx._id}/download` : undefined} className={`cursor-pointer inline-flex items-center justify-center rounded-xl px-2.5 py-1.5 text-xs font-semibold shadow-sm ${g.variants.docx && g.variants.docx.approvalStatus === 'approved' ? 'bg-blue-600 text-white hover:bg-blue-500 hover:shadow' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>DOCX</a>
+                            <a href={g.variants.xlsx && g.variants.xlsx.approvalStatus === 'approved' ? `/api/admin/reports/${g.variants.xlsx._id}/download` : undefined} className={`cursor-pointer inline-flex items-center justify-center rounded-xl px-2.5 py-1.5 text-xs font-semibold shadow-sm ${g.variants.xlsx && g.variants.xlsx.approvalStatus === 'approved' ? 'bg-blue-600 text-white hover:bg-blue-500 hover:shadow' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>Excel</a>
+                            <a href={g.variants.images && g.variants.images.approvalStatus === 'approved' ? `/api/admin/reports/${g.variants.images._id}/download` : undefined} className={`cursor-pointer inline-flex items-center justify-center rounded-xl px-2.5 py-1.5 text-xs font-semibold shadow-sm ${g.variants.images && g.variants.images.approvalStatus === 'approved' ? 'bg-blue-600 text-white hover:bg-blue-500 hover:shadow' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>Images</a>
+                            <button onClick={() => openDelete(g.variants.pdf?._id || g.variants.docx?._id || g.variants.xlsx?._id || g.variants.images?._id || "")} className="cursor-pointer inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-red-300 text-red-700 bg-white hover:bg-red-50 active:bg-red-100 shadow-sm hover:shadow transition-all">
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /></svg>
                               Delete
                             </button>
                           </div>
@@ -424,130 +354,36 @@ export default function AdminReports() {
 
               {/* Cards on mobile */}
               <div className="grid grid-cols-1 gap-4 md:hidden">
-                {(data?.items || []).map((r) => (
-                  <div
-                    key={r._id}
-                    className="rounded-xl border border-rose-200 bg-white/90 backdrop-blur p-4 shadow-md"
-                  >
+                {groups.map((g) => (
+                  <div key={g.key} className="rounded-xl border border-rose-200 bg-white/90 backdrop-blur p-4 shadow-md">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <div className="font-semibold text-gray-900">
-                          {r.filename}
-                        </div>
-                        <div className="text-sm text-gray-600 break-words">
-                          {r.address}
-                        </div>
-                        <div className="text-xs text-gray-600 mt-1">
-                          <span className="text-gray-500">Contract: </span>
-                          {r.contract_no || "-"}
-                        </div>
+                        <div className="font-semibold text-gray-900">{g.title}</div>
+                        <div className="text-xs text-gray-600 mt-1"><span className="text-gray-500">Contract: </span>{g.contract_no || "-"}</div>
                       </div>
-                      <span
-                        className={`shrink-0 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
-                          r.reportType === "RealEstate"
-                            ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-                            : r.reportType === "Salvage"
-                            ? "bg-amber-50 text-amber-800 border-amber-200"
-                            : "bg-sky-50 text-sky-800 border-sky-200"
-                        }`}
-                      >
-                        {r.reportType}
-                      </span>
+                      <span className={`shrink-0 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${g.reportType === "RealEstate" ? "bg-emerald-50 text-emerald-800 border-emerald-200" : g.reportType === "Salvage" ? "bg-amber-50 text-amber-800 border-amber-200" : "bg-sky-50 text-sky-800 border-sky-200"}`}>{g.reportType}</span>
                     </div>
-                    <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+                    <div className="mt-2 grid grid-cols-2 gap-3 text-sm">
                       <div>
                         <div className="text-gray-500">FMV</div>
-                        <div className="font-medium text-gray-900">
-                          {formatFMV(r.fairMarketValue)}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-gray-500">Format</div>
-                        <div className="font-medium text-gray-900">
-                          {(r.fileType || r.filename.split(".").pop() || "").toUpperCase()}
-                        </div>
+                        <div className="font-medium text-gray-900">{formatFMV(g.fairMarketValue)}</div>
                       </div>
                       <div>
                         <div className="text-gray-500">Created</div>
-                        <div className="font-medium text-gray-900">
-                          {new Date(r.createdAt).toLocaleString()}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-gray-500">Status</div>
-                        <div className="font-medium text-gray-900 capitalize">
-                          {r.approvalStatus || "pending"}
-                        </div>
+                        <div className="font-medium text-gray-900">{new Date(g.createdAt).toLocaleString()}</div>
                       </div>
                       <div className="col-span-2">
                         <div className="text-gray-500">Created By</div>
-                        <div className="font-medium text-gray-900">
-                          {r.user?.email || "-"}
-                        </div>
+                        <div className="font-medium text-gray-900">{g.userEmail || '-'}</div>
                       </div>
                     </div>
                     <div className="mt-3 flex items-center gap-2">
-                      {r.approvalStatus === "approved" ? (
-                        <a
-                          href={`/api/admin/reports/${r._id}/download`}
-                          className="cursor-pointer inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-rose-300 text-rose-700 bg-white hover:bg-rose-50 active:bg-rose-100 shadow-sm hover:shadow transition-all"
-                        >
-                          <svg
-                            width="16"
-                            height="16"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          >
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                            <polyline points="7 10 12 15 17 10" />
-                            <line x1="12" y1="15" x2="12" y2="3" />
-                          </svg>
-                          Download
-                        </a>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed select-none">
-                          <svg
-                            width="16"
-                            height="16"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            className="opacity-60"
-                          >
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                            <polyline points="7 10 12 15 17 10" />
-                            <line x1="12" y1="15" x2="12" y2="3" />
-                          </svg>
-                          Awaiting Approval
-                        </span>
-                      )}
-                      <button
-                        onClick={() => openDelete(r._id)}
-                        className="cursor-pointer inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-red-300 text-red-700 bg-white hover:bg-red-50 active:bg-red-100 shadow-sm hover:shadow transition-all"
-                      >
-                        <svg
-                          width="16"
-                          height="16"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <polyline points="3 6 5 6 21 6" />
-                          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                          <path d="M10 11v6" />
-                          <path d="M14 11v6" />
-                          <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-                        </svg>
+                      <a href={g.variants.pdf && g.variants.pdf.approvalStatus === 'approved' ? `/api/admin/reports/${g.variants.pdf._id}/download` : undefined} className={`cursor-pointer inline-flex items-center justify-center rounded-xl px-3 py-1.5 text-xs font-semibold shadow-sm ${g.variants.pdf && g.variants.pdf.approvalStatus === 'approved' ? 'bg-blue-600 text-white hover:bg-blue-500 hover:shadow' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>PDF</a>
+                      <a href={g.variants.docx && g.variants.docx.approvalStatus === 'approved' ? `/api/admin/reports/${g.variants.docx._id}/download` : undefined} className={`cursor-pointer inline-flex items-center justify-center rounded-xl px-3 py-1.5 text-xs font-semibold shadow-sm ${g.variants.docx && g.variants.docx.approvalStatus === 'approved' ? 'bg-blue-600 text-white hover:bg-blue-500 hover:shadow' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>DOCX</a>
+                      <a href={g.variants.xlsx && g.variants.xlsx.approvalStatus === 'approved' ? `/api/admin/reports/${g.variants.xlsx._id}/download` : undefined} className={`cursor-pointer inline-flex items-center justify-center rounded-xl px-3 py-1.5 text-xs font-semibold shadow-sm ${g.variants.xlsx && g.variants.xlsx.approvalStatus === 'approved' ? 'bg-blue-600 text-white hover:bg-blue-500 hover:shadow' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>Excel</a>
+                      <a href={g.variants.images && g.variants.images.approvalStatus === 'approved' ? `/api/admin/reports/${g.variants.images._id}/download` : undefined} className={`cursor-pointer inline-flex items-center justify-center rounded-xl px-3 py-1.5 text-xs font-semibold shadow-sm ${g.variants.images && g.variants.images.approvalStatus === 'approved' ? 'bg-blue-600 text-white hover:bg-blue-500 hover:shadow' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>Images</a>
+                      <button onClick={() => openDelete(g.variants.pdf?._id || g.variants.docx?._id || g.variants.xlsx?._id || g.variants.images?._id || "")} className="cursor-pointer inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-red-300 text-red-700 bg-white hover:bg-red-50 active:bg-red-100 shadow-sm hover:shadow transition-all">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /></svg>
                         Delete
                       </button>
                     </div>
