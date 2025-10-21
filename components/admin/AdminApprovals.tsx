@@ -25,7 +25,7 @@ export default function AdminApprovals() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
-  const [limit] = useState(50);
+  const [limit] = useState(200);
 
   const [toasts, setToasts] = useState<{ id: number; type: "success" | "error" | "info"; message: string }[]>([]);
   function pushToast(message: string, type: "success" | "error" | "info" = "info") {

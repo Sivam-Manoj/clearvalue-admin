@@ -33,7 +33,7 @@ export default function AdminReports() {
   const [to, setTo] = useState<string>("");
   const [userEmail, setUserEmail] = useState<string>("");
   const [page, setPage] = useState<number>(1);
-  const [limit] = useState<number>(50);
+  const [limit] = useState<number>(200);
 
   // Data
   const [data, setData] = useState<ApiResponse | null>(null);
