@@ -44,16 +44,9 @@ export default function AdminReports() {
   const [deleting, setDeleting] = useState(false);
 
   function formatFMV(value: string) {
-    // Try to parse number safely and format as currency
-    const numeric = Number(String(value).replace(/[^\d.-]/g, ""));
-    if (!isNaN(numeric)) {
-      return new Intl.NumberFormat(undefined, {
-        style: "currency",
-        currency: "USD",
-        maximumFractionDigits: 0,
-      }).format(numeric);
-    }
-    return value;
+    // Value already includes currency code (e.g., "CAD 123,456" or "USD 123,456")
+    // Display as-is without reformatting
+    return value || "N/A";
   }
 
   const queryString = useMemo(() => {
