@@ -13,9 +13,11 @@ type ReportItem = {
   createdAt: string;
   user?: { email?: string; username?: string } | null;
   contract_no?: string;
-  fileType?: "pdf" | "docx" | "xlsx" | "images";
+  fileType?: "pdf" | "docx" | "xlsx" | "images" | "zip" | "asset-preview";
   approvalStatus?: "pending" | "approved" | "rejected";
   report?: string;
+  preview_files?: { docx?: string; excel?: string; images?: string };
+  isAssetReport?: boolean;
 };
 
 type ApiResponse = { items: ReportItem[]; total: number; page: number; limit: number };
@@ -145,8 +147,8 @@ export default function AdminApprovals() {
           createdAt: r.createdAt,
           fairMarketValue: r.fairMarketValue,
           variants: {},
-          preview_files: (r as any).preview_files,
-          isAssetReport: (r as any).isAssetReport,
+          preview_files: r.preview_files,
+          isAssetReport: r.isAssetReport,
         };
         map.set(key, g);
       }
@@ -156,9 +158,9 @@ export default function AdminApprovals() {
       else if (ft === 'docx') g.variants.docx = r;
       else if (ft === 'xlsx') g.variants.xlsx = r;
       else if (ft === 'images' || ft === 'zip') g.variants.images = r;
-      else if (ft === 'asset-preview' && (r as any).preview_files) {
+      else if (ft === 'asset-preview' && r.preview_files) {
         // AssetReport with preview files - set preview_files
-        g.preview_files = (r as any).preview_files;
+        g.preview_files = r.preview_files;
         g.isAssetReport = true;
       }
     }
