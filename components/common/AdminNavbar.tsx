@@ -192,7 +192,7 @@ export default function AdminNavbar() {
             <NavLink href="/dashboard" label="Dashboard" onClick={() => setMenuOpen(false)}
               icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12l2-2 4 4 8-8 4 4" /></svg>}
             />
-            <NavLink href="/reports" label="Reports" onClick={() => setMenuOpen(false)}
+            <NavLink href="/reports" label="Approved Reports" onClick={() => setMenuOpen(false)}
               icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>}
             />
             {(role === "admin" || role === "superadmin") && (
@@ -201,7 +201,7 @@ export default function AdminNavbar() {
               />
             )}
             {(role === "admin" || role === "superadmin") && (
-              <NavLink href="/approvals" label="Approvals" onClick={() => setMenuOpen(false)}
+              <NavLink href="/approvals" label="Pending Approvals" onClick={() => setMenuOpen(false)}
                 icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M9 12l2 2 4-4" /></svg>}
               />
             )}
