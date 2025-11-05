@@ -1,4 +1,4 @@
-import AdminManagement from "@/components/admin/AdminManagement";
+import AdminManagement from "@/app/components/admin/AdminManagement";
 import { SERVER_URL } from "@/lib/api";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";

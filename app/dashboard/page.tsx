@@ -1,5 +1,5 @@
-import DashboardShell from "@/components/dashboard/DashboardShell";
-import AdminNavbar from "@/components/common/AdminNavbar";
+import DashboardShell from "@/app/components/dashboard/DashboardShell";
+import AdminNavbar from "@/app/components/common/AdminNavbar";
 
 export default function Page() {
   return (

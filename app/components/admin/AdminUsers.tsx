@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import ConfirmModal from "@/components/common/ConfirmModal";
+import ConfirmModal from "@/app/components/common/ConfirmModal";
 
 type UserItem = {
   _id: string;

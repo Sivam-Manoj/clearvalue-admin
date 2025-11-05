@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Modal from "@/components/common/Modal";
-import ConfirmModal from "@/components/common/ConfirmModal";
+import Modal from "@/app/components/common/Modal";
+import ConfirmModal from "@/app/components/common/ConfirmModal";
 
 type ReportItem = {
   _id: string;

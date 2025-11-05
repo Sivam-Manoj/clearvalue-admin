@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import MonthlyCharts from "@/components/dashboard/MonthlyCharts";
+import MonthlyCharts from "@/app/components/dashboard/MonthlyCharts";
 import Link from "next/link";
 
 export default function DashboardShell() {

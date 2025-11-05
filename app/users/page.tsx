@@ -1,5 +1,5 @@
-import AdminNavbar from "@/components/common/AdminNavbar";
-import AdminUsers from "@/components/admin/AdminUsers";
+import AdminNavbar from "@/app/components/common/AdminNavbar";
+import AdminUsers from "@/app/components/admin/AdminUsers";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { SERVER_URL } from "@/lib/api";

@@ -8,8 +8,8 @@ import {
   listAdminsAPI,
 } from "@/lib/api";
 import Link from "next/link";
-import Modal from "@/components/common/Modal";
-import ConfirmModal from "@/components/common/ConfirmModal";
+import Modal from "@/app/components/common/Modal";
+import ConfirmModal from "@/app/components/common/ConfirmModal";
 
 type AdminUser = {
   _id: string;

@@ -1,5 +1,5 @@
-import AdminApprovals from "@/components/admin/AdminApprovals";
-import AdminNavbar from "@/components/common/AdminNavbar";
+import AdminApprovals from "@/app/components/admin/AdminApprovals";
+import AdminNavbar from "@/app/components/common/AdminNavbar";
 import { SERVER_URL } from "@/lib/api";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
