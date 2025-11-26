@@ -16,6 +16,10 @@ type ReportItem = {
   approvalStatus?: "pending" | "approved" | "rejected";
   report?: string;
   contract_no?: string;
+  preview_files?: { docx?: string; excel?: string; images?: string };
+  isRealEstateReport?: boolean;
+  property_type?: string;
+  language?: string;
 };
 
 type ApiResponse = {
@@ -136,6 +140,7 @@ export default function AdminReports() {
     userEmail?: string;
     variants: { pdf?: ReportItem; docx?: ReportItem; xlsx?: ReportItem; images?: ReportItem };
     isAssetReport?: boolean;
+    isRealEstateReport?: boolean;
     preview_files?: { docx?: string; excel?: string; images?: string };
   };
 
@@ -157,7 +162,8 @@ export default function AdminReports() {
           fairMarketValue: r.fairMarketValue,
           userEmail: r.user?.email || undefined,
           variants: {},
-          isAssetReport: !!(r as any).preview_files,
+          isAssetReport: !!(r as any).preview_files && r.reportType === 'Asset',
+          isRealEstateReport: !!(r as any).preview_files && (r.reportType === 'RealEstate' || (r as any).isRealEstateReport),
           preview_files: (r as any).preview_files,
         };
         map.set(key, g);
@@ -169,7 +175,10 @@ export default function AdminReports() {
       else if (ft === "xlsx") g.variants.xlsx = r;
       else if (ft === "images" || ft === "zip") g.variants.images = r;
     }
-    return Array.from(map.values());
+    // Sort by newest first regardless of report type
+    return Array.from(map.values()).sort((a, b) => 
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
   }, [data]);
 
   return (
@@ -334,12 +343,12 @@ export default function AdminReports() {
                         <td className="py-2 pr-4 text-gray-700">{g.userEmail || "-"}</td>
                         <td className="py-2 pr-4">
                           <div className="flex items-center gap-2">
-                            {g.isAssetReport && g.preview_files ? (
-                              // AssetReport with preview files (direct R2 links)
+                            {(g.isAssetReport || g.isRealEstateReport) && g.preview_files ? (
+                              // AssetReport or RealEstateReport with preview files (direct R2 links)
                               <>
-                                <a href={g.preview_files.docx} target="_blank" rel="noopener noreferrer" className={`cursor-pointer inline-flex items-center justify-center rounded-xl px-2.5 py-1.5 text-xs font-semibold shadow-sm ${g.preview_files.docx ? 'bg-blue-600 text-white hover:bg-blue-500 hover:shadow' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>DOCX</a>
-                                <a href={g.preview_files.excel} target="_blank" rel="noopener noreferrer" className={`cursor-pointer inline-flex items-center justify-center rounded-xl px-2.5 py-1.5 text-xs font-semibold shadow-sm ${g.preview_files.excel ? 'bg-blue-600 text-white hover:bg-blue-500 hover:shadow' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>Excel</a>
-                                <a href={g.preview_files.images} target="_blank" rel="noopener noreferrer" className={`cursor-pointer inline-flex items-center justify-center rounded-xl px-2.5 py-1.5 text-xs font-semibold shadow-sm ${g.preview_files.images ? 'bg-blue-600 text-white hover:bg-blue-500 hover:shadow' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>Images</a>
+                                <a href={g.preview_files.docx} target="_blank" rel="noopener noreferrer" className={`cursor-pointer inline-flex items-center justify-center rounded-xl px-2.5 py-1.5 text-xs font-semibold shadow-sm ${g.preview_files.docx ? (g.isRealEstateReport ? 'bg-emerald-600 text-white hover:bg-emerald-500 hover:shadow' : 'bg-blue-600 text-white hover:bg-blue-500 hover:shadow') : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>DOCX</a>
+                                <a href={g.preview_files.excel} target="_blank" rel="noopener noreferrer" className={`cursor-pointer inline-flex items-center justify-center rounded-xl px-2.5 py-1.5 text-xs font-semibold shadow-sm ${g.preview_files.excel ? (g.isRealEstateReport ? 'bg-emerald-600 text-white hover:bg-emerald-500 hover:shadow' : 'bg-blue-600 text-white hover:bg-blue-500 hover:shadow') : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>Excel</a>
+                                <a href={g.preview_files.images} target="_blank" rel="noopener noreferrer" className={`cursor-pointer inline-flex items-center justify-center rounded-xl px-2.5 py-1.5 text-xs font-semibold shadow-sm ${g.preview_files.images ? (g.isRealEstateReport ? 'bg-emerald-600 text-white hover:bg-emerald-500 hover:shadow' : 'bg-blue-600 text-white hover:bg-blue-500 hover:shadow') : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>Images</a>
                               </>
                             ) : (
                               // Legacy PdfReport with backend download
@@ -387,12 +396,12 @@ export default function AdminReports() {
                       </div>
                     </div>
                     <div className="mt-3 flex items-center gap-2 flex-wrap">
-                      {g.isAssetReport && g.preview_files ? (
-                        // AssetReport with preview files (direct R2 links)
+                      {(g.isAssetReport || g.isRealEstateReport) && g.preview_files ? (
+                        // AssetReport or RealEstateReport with preview files (direct R2 links)
                         <>
-                          <a href={g.preview_files.docx} target="_blank" rel="noopener noreferrer" className={`cursor-pointer inline-flex items-center justify-center rounded-xl px-3 py-1.5 text-xs font-semibold shadow-sm ${g.preview_files.docx ? 'bg-blue-600 text-white hover:bg-blue-500 hover:shadow' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>DOCX</a>
-                          <a href={g.preview_files.excel} target="_blank" rel="noopener noreferrer" className={`cursor-pointer inline-flex items-center justify-center rounded-xl px-3 py-1.5 text-xs font-semibold shadow-sm ${g.preview_files.excel ? 'bg-blue-600 text-white hover:bg-blue-500 hover:shadow' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>Excel</a>
-                          <a href={g.preview_files.images} target="_blank" rel="noopener noreferrer" className={`cursor-pointer inline-flex items-center justify-center rounded-xl px-3 py-1.5 text-xs font-semibold shadow-sm ${g.preview_files.images ? 'bg-blue-600 text-white hover:bg-blue-500 hover:shadow' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>Images</a>
+                          <a href={g.preview_files.docx} target="_blank" rel="noopener noreferrer" className={`cursor-pointer inline-flex items-center justify-center rounded-xl px-3 py-1.5 text-xs font-semibold shadow-sm ${g.preview_files.docx ? (g.isRealEstateReport ? 'bg-emerald-600 text-white hover:bg-emerald-500 hover:shadow' : 'bg-blue-600 text-white hover:bg-blue-500 hover:shadow') : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>DOCX</a>
+                          <a href={g.preview_files.excel} target="_blank" rel="noopener noreferrer" className={`cursor-pointer inline-flex items-center justify-center rounded-xl px-3 py-1.5 text-xs font-semibold shadow-sm ${g.preview_files.excel ? (g.isRealEstateReport ? 'bg-emerald-600 text-white hover:bg-emerald-500 hover:shadow' : 'bg-blue-600 text-white hover:bg-blue-500 hover:shadow') : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>Excel</a>
+                          <a href={g.preview_files.images} target="_blank" rel="noopener noreferrer" className={`cursor-pointer inline-flex items-center justify-center rounded-xl px-3 py-1.5 text-xs font-semibold shadow-sm ${g.preview_files.images ? (g.isRealEstateReport ? 'bg-emerald-600 text-white hover:bg-emerald-500 hover:shadow' : 'bg-blue-600 text-white hover:bg-blue-500 hover:shadow') : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>Images</a>
                         </>
                       ) : (
                         // Legacy PdfReport with backend download
