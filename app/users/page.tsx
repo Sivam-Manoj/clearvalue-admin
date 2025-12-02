@@ -18,7 +18,7 @@ export default async function Page() {
     .json()
     .catch(() => ({} as unknown as { user?: { role?: string } }));
   const role = data?.user?.role;
-  if (role !== "admin" && role !== "superadmin") redirect("/dashboard");
+  if (role !== "superadmin") redirect("/dashboard");
 
   return (
     <>

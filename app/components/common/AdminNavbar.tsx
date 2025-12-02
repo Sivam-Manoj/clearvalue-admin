@@ -128,7 +128,7 @@ export default function AdminNavbar() {
               </svg>
             }
           />
-          {(role === "admin" || role === "superadmin") && (
+          {role === "superadmin" && (
             <NavLink
               href="/users"
               label="Users"
@@ -195,7 +195,7 @@ export default function AdminNavbar() {
             <NavLink href="/reports" label="Approved Reports" onClick={() => setMenuOpen(false)}
               icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>}
             />
-            {(role === "admin" || role === "superadmin") && (
+            {role === "superadmin" && (
               <NavLink href="/users" label="Users" onClick={() => setMenuOpen(false)}
                 icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-3-3.87" /><path d="M7 21v-2a4 4 0 0 1 3-3.87" /><circle cx="10" cy="7" r="4" /></svg>}
               />
