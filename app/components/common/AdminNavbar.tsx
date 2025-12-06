@@ -77,7 +77,7 @@ export default function AdminNavbar() {
     <nav className="sticky top-0 z-40 backdrop-blur bg-white/75 border-b border-rose-200/80">
       <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Link href="/dashboard" className="flex items-center gap-2">
+          <Link href={role === "admin" ? "/reports" : "/dashboard"} className="flex items-center gap-2">
             <div className="h-9 w-9 rounded-xl bg-rose-500 shadow-md shadow-rose-200 ring-1 ring-rose-300 flex items-center justify-center text-white font-bold">
               CV
             </div>
@@ -109,64 +109,74 @@ export default function AdminNavbar() {
 
         {/* Desktop links */}
         <div className="hidden md:flex items-center gap-2">
-          <NavLink
-            href="/dashboard"
-            label="Dashboard"
-            icon={
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 12l2-2 4 4 8-8 4 4" />
-              </svg>
-            }
-          />
-          <NavLink
-            href="/reports"
-            label="Approved Reports"
-            icon={
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-              </svg>
-            }
-          />
-          {role === "superadmin" && (
+          {/* Regular admin only sees Approved Reports */}
+          {role === "admin" ? (
             <NavLink
-              href="/users"
-              label="Users"
+              href="/reports"
+              label="Approved Reports"
               icon={
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M20 21v-2a4 4 0 0 0-3-3.87" />
-                  <path d="M7 21v-2a 4 4 0 0 1 3-3.87" />
-                  <circle cx="10" cy="7" r="4" />
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
                 </svg>
               }
             />
-          )}
-          {(role === "admin" || role === "superadmin") && (
-            <NavLink
-              href="/approvals"
-              label="Pending Approvals"
-              icon={
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M9 12l2 2 4-4" />
-                </svg>
-              }
-            />
-          )}
-          {role === "superadmin" && (
-            <NavLink
-              href="/admins"
-              label="Admins"
-              icon={
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M16 21v-2a4 4 0 0 0-3-3.87" />
-                  <path d="M7 21v-2a4 4 0 0 1 3-3.87" />
-                  <circle cx="9" cy="7" r="4" />
-                  <path d="M19 8a4 4 0 1 1-4-4" />
-                </svg>
-              }
-            />
-          )}
+          ) : role === "superadmin" ? (
+            <>
+              <NavLink
+                href="/dashboard"
+                label="Dashboard"
+                icon={
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 12l2-2 4 4 8-8 4 4" />
+                  </svg>
+                }
+              />
+              <NavLink
+                href="/reports"
+                label="Approved Reports"
+                icon={
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                  </svg>
+                }
+              />
+              <NavLink
+                href="/users"
+                label="Users"
+                icon={
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-3-3.87" />
+                    <path d="M7 21v-2a 4 4 0 0 1 3-3.87" />
+                    <circle cx="10" cy="7" r="4" />
+                  </svg>
+                }
+              />
+              <NavLink
+                href="/approvals"
+                label="Pending Approvals"
+                icon={
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M9 12l2 2 4-4" />
+                  </svg>
+                }
+              />
+              <NavLink
+                href="/admins"
+                label="Admins"
+                icon={
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M16 21v-2a4 4 0 0 0-3-3.87" />
+                    <path d="M7 21v-2a4 4 0 0 1 3-3.87" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M19 8a4 4 0 1 1-4-4" />
+                  </svg>
+                }
+              />
+            </>
+          ) : null}
         </div>
         {/* Desktop logout */}
         <div className="hidden md:flex items-center gap-2">
@@ -189,27 +199,30 @@ export default function AdminNavbar() {
       {menuOpen && (
         <div className="md:hidden border-t border-rose-200/80 bg-white/90 backdrop-blur shadow-inner">
           <div className="max-w-6xl mx-auto px-4 py-3 flex flex-col gap-2">
-            <NavLink href="/dashboard" label="Dashboard" onClick={() => setMenuOpen(false)}
-              icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12l2-2 4 4 8-8 4 4" /></svg>}
-            />
-            <NavLink href="/reports" label="Approved Reports" onClick={() => setMenuOpen(false)}
-              icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>}
-            />
-            {role === "superadmin" && (
-              <NavLink href="/users" label="Users" onClick={() => setMenuOpen(false)}
-                icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-3-3.87" /><path d="M7 21v-2a4 4 0 0 1 3-3.87" /><circle cx="10" cy="7" r="4" /></svg>}
+            {/* Regular admin only sees Approved Reports */}
+            {role === "admin" ? (
+              <NavLink href="/reports" label="Approved Reports" onClick={() => setMenuOpen(false)}
+                icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>}
               />
-            )}
-            {(role === "admin" || role === "superadmin") && (
-              <NavLink href="/approvals" label="Pending Approvals" onClick={() => setMenuOpen(false)}
-                icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M9 12l2 2 4-4" /></svg>}
-              />
-            )}
-            {role === "superadmin" && (
-              <NavLink href="/admins" label="Admins" onClick={() => setMenuOpen(false)}
-                icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-3-3.87" /><path d="M7 21v-2a4 4 0 0 1 3-3.87" /><circle cx="9" cy="7" r="4" /><path d="M19 8a4 4 0 1 1-4-4" /></svg>}
-              />
-            )}
+            ) : role === "superadmin" ? (
+              <>
+                <NavLink href="/dashboard" label="Dashboard" onClick={() => setMenuOpen(false)}
+                  icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12l2-2 4 4 8-8 4 4" /></svg>}
+                />
+                <NavLink href="/reports" label="Approved Reports" onClick={() => setMenuOpen(false)}
+                  icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>}
+                />
+                <NavLink href="/users" label="Users" onClick={() => setMenuOpen(false)}
+                  icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-3-3.87" /><path d="M7 21v-2a4 4 0 0 1 3-3.87" /><circle cx="10" cy="7" r="4" /></svg>}
+                />
+                <NavLink href="/approvals" label="Pending Approvals" onClick={() => setMenuOpen(false)}
+                  icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M9 12l2 2 4-4" /></svg>}
+                />
+                <NavLink href="/admins" label="Admins" onClick={() => setMenuOpen(false)}
+                  icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-3-3.87" /><path d="M7 21v-2a4 4 0 0 1 3-3.87" /><circle cx="9" cy="7" r="4" /><path d="M19 8a4 4 0 1 1-4-4" /></svg>}
+                />
+              </>
+            ) : null}
             <button
               onClick={() => { setMenuOpen(false); onLogout(); }}
               disabled={loggingOut}
