@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
+import Image from "next/image";
 
 type Report = {
   _id: string;
@@ -49,7 +50,12 @@ export default function ReportImages({
   const [downloading, setDownloading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [livePreviewEnabled, setLivePreviewEnabled] = useState(true);
+  const [imageLoadStates, setImageLoadStates] = useState<Record<string, boolean>>({});
 
+  // Debounced settings for live preview to avoid too many API calls
+  const [debouncedSettings, setDebouncedSettings] = useState<ImageSettings>(settings);
+  
   const buildTransformUrl = useCallback((url: string, s: ImageSettings) => {
     const params = new URLSearchParams();
     params.set("url", url);
@@ -60,6 +66,27 @@ export default function ReportImages({
     params.set("maintainAspect", String(s.maintainAspect));
     return `/api/admin/gallery/transform?${params.toString()}`;
   }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSettings(settings);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [settings]);
+
+  // Build live preview URLs for selected images
+  const livePreviewUrls = useMemo(() => {
+    if (!livePreviewEnabled || selectedImages.size === 0) return new Map();
+    const urls = new Map<string, string>();
+    selectedImages.forEach((url) => {
+      urls.set(url, buildTransformUrl(url, debouncedSettings));
+    });
+    return urls;
+  }, [livePreviewEnabled, selectedImages, debouncedSettings, buildTransformUrl]);
+
+  const handleImageLoad = (url: string) => {
+    setImageLoadStates((prev) => ({ ...prev, [url]: true }));
+  };
 
   const toggleImage = (url: string) => {
     setSelectedImages((prev) => {
@@ -379,23 +406,87 @@ export default function ReportImages({
           {/* Images Grid */}
           <div className="lg:col-span-3">
             <section className="rounded-2xl border border-rose-200 bg-white/80 backdrop-blur shadow-lg p-4">
+              {/* Live Preview Toggle */}
+              <div className="flex items-center justify-between mb-4 pb-3 border-b border-rose-100">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-gray-700">
+                    {report.imageUrls.length} images
+                  </span>
+                  {selectedImages.size > 0 && livePreviewEnabled && (
+                    <span className="px-2 py-0.5 text-xs rounded-full bg-rose-100 text-rose-700">
+                      Live Preview ON
+                    </span>
+                  )}
+                </div>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={livePreviewEnabled}
+                    onChange={(e) => setLivePreviewEnabled(e.target.checked)}
+                    className="w-4 h-4 rounded border-rose-300 text-rose-500 focus:ring-rose-300"
+                  />
+                  <span className="text-sm text-gray-600">
+                    Show live preview on selected
+                  </span>
+                </label>
+              </div>
+              
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                {report.imageUrls.map((url, idx) => (
-                  <div
-                    key={url}
-                    className={`relative group rounded-xl overflow-hidden border-2 transition-all cursor-pointer ${
-                      selectedImages.has(url)
-                        ? "border-rose-500 shadow-lg shadow-rose-200"
-                        : "border-transparent hover:border-rose-200"
-                    }`}
-                    onClick={() => toggleImage(url)}
-                  >
-                    <img
-                      src={url}
-                      alt={`Image ${idx + 1}`}
-                      className="w-full aspect-[4/3] object-cover"
-                      loading="lazy"
-                    />
+                {report.imageUrls.map((url, idx) => {
+                  const isSelected = selectedImages.has(url);
+                  const liveUrl = livePreviewUrls.get(url);
+                  const showTransformed = isSelected && livePreviewEnabled && liveUrl;
+                  
+                  return (
+                    <div
+                      key={url}
+                      className={`relative group rounded-xl overflow-hidden border-2 transition-all cursor-pointer ${
+                        isSelected
+                          ? "border-rose-500 shadow-lg shadow-rose-200 ring-2 ring-rose-300"
+                          : "border-transparent hover:border-rose-200"
+                      }`}
+                      onClick={() => toggleImage(url)}
+                    >
+                      {/* Blur placeholder skeleton */}
+                      {!imageLoadStates[showTransformed ? liveUrl! : url] && (
+                        <div className="absolute inset-0 bg-gradient-to-br from-rose-100 to-rose-50 animate-pulse" />
+                      )}
+                      
+                      {/* Image - use transformed URL for selected, original for others */}
+                      {showTransformed ? (
+                        <Image
+                          src={liveUrl!}
+                          alt={`Image ${idx + 1} (transformed)`}
+                          width={400}
+                          height={300}
+                          className={`w-full aspect-[4/3] object-cover transition-opacity duration-300 ${
+                            imageLoadStates[liveUrl!] ? "opacity-100" : "opacity-0"
+                          }`}
+                          onLoad={() => handleImageLoad(liveUrl!)}
+                          unoptimized
+                          priority={idx < 8}
+                        />
+                      ) : (
+                        <Image
+                          src={url}
+                          alt={`Image ${idx + 1}`}
+                          width={400}
+                          height={300}
+                          className={`w-full aspect-[4/3] object-cover transition-opacity duration-300 ${
+                            imageLoadStates[url] ? "opacity-100" : "opacity-0"
+                          }`}
+                          onLoad={() => handleImageLoad(url)}
+                          unoptimized
+                          loading={idx < 8 ? "eager" : "lazy"}
+                        />
+                      )}
+                      
+                      {/* Live preview indicator */}
+                      {showTransformed && (
+                        <div className="absolute top-2 right-2 px-1.5 py-0.5 text-[10px] font-medium rounded bg-rose-500 text-white shadow">
+                          LIVE
+                        </div>
+                      )}
                     {/* Selection checkbox */}
                     <div
                       className={`absolute top-2 left-2 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
@@ -478,7 +569,8 @@ export default function ReportImages({
                       {idx + 1}
                     </div>
                   </div>
-                ))}
+                );
+              })}
               </div>
             </section>
           </div>
@@ -517,12 +609,18 @@ export default function ReportImages({
                   <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-rose-500"></div>
                 </div>
               ) : previewUrl ? (
-                <img
-                  src={previewUrl}
-                  alt="Preview"
-                  className="max-w-full max-h-[85vh] object-contain"
-                  onLoad={() => setPreviewLoading(false)}
-                />
+                <div className="relative">
+                  <Image
+                    src={previewUrl}
+                    alt="Preview with applied settings"
+                    width={settings.width || 1200}
+                    height={settings.height || 900}
+                    className="max-w-full max-h-[85vh] object-contain"
+                    onLoad={() => setPreviewLoading(false)}
+                    unoptimized
+                    priority
+                  />
+                </div>
               ) : null}
               <div className="absolute bottom-4 left-4 right-4 flex justify-between items-center">
                 <div className="px-3 py-1.5 rounded-lg bg-black/50 text-white text-sm">
