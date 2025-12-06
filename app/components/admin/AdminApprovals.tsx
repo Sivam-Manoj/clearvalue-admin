@@ -11,6 +11,7 @@ type ReportItem = {
   fairMarketValue: string;
   reportType: "RealEstate" | "Salvage" | "Asset" | string;
   createdAt: string;
+  updatedAt?: string;
   user?: { email?: string; username?: string } | null;
   contract_no?: string;
   fileType?: "pdf" | "docx" | "xlsx" | "images" | "zip" | "asset-preview" | "realestate-preview";
@@ -127,6 +128,7 @@ export default function AdminApprovals() {
     reportType: string;
     userEmail?: string;
     createdAt: string;
+    updatedAt?: string;
     fairMarketValue: string;
     variants: { pdf?: ReportItem; docx?: ReportItem; xlsx?: ReportItem; images?: ReportItem };
     preview_files?: { docx?: string; excel?: string; images?: string };
@@ -151,6 +153,7 @@ export default function AdminApprovals() {
           reportType: r.reportType,
           userEmail: r.user?.email || undefined,
           createdAt: r.createdAt,
+          updatedAt: r.updatedAt,
           fairMarketValue: r.fairMarketValue,
           variants: {},
           preview_files: r.preview_files,
@@ -160,7 +163,11 @@ export default function AdminApprovals() {
         };
         map.set(key, g);
       }
+      // Track the most recent createdAt and updatedAt
       if (new Date(r.createdAt).getTime() > new Date(g.createdAt).getTime()) g.createdAt = r.createdAt;
+      if (r.updatedAt && (!g.updatedAt || new Date(r.updatedAt).getTime() > new Date(g.updatedAt).getTime())) {
+        g.updatedAt = r.updatedAt;
+      }
       const ft = ((r.fileType || r.filename.split('.').pop() || '') as string).toLowerCase();
       if (ft === 'pdf') g.variants.pdf = r;
       else if (ft === 'docx') g.variants.docx = r;
@@ -176,10 +183,18 @@ export default function AdminApprovals() {
         g.isRealEstateReport = true;
       }
     }
-    // Sort by newest first regardless of report type
-    return Array.from(map.values()).sort((a, b) => 
-      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
+    // Sort by most recently created or updated first
+    return Array.from(map.values()).sort((a, b) => {
+      const aLatest = Math.max(
+        new Date(a.createdAt).getTime(),
+        a.updatedAt ? new Date(a.updatedAt).getTime() : 0
+      );
+      const bLatest = Math.max(
+        new Date(b.createdAt).getTime(),
+        b.updatedAt ? new Date(b.updatedAt).getTime() : 0
+      );
+      return bLatest - aLatest;
+    });
   }, [data]);
 
   return (
@@ -226,7 +241,22 @@ export default function AdminApprovals() {
                         <td className="py-2 pr-4 text-gray-700">{g.contract_no || "-"}</td>
                         <td className="py-2 pr-4 text-gray-700">{g.userEmail || "-"}</td>
                         <td className="py-2 pr-4">{formatFMV(g.fairMarketValue)}</td>
-                        <td className="py-2 pr-4 text-gray-700">{new Date(g.createdAt).toLocaleString()}</td>
+                        <td className="py-2 pr-4 text-gray-700">
+                          {(() => {
+                            const created = new Date(g.createdAt).getTime();
+                            const updated = g.updatedAt ? new Date(g.updatedAt).getTime() : 0;
+                            const latestDate = updated > created ? new Date(g.updatedAt!) : new Date(g.createdAt);
+                            const isEdited = updated > created;
+                            return (
+                              <span className="flex items-center gap-1">
+                                {latestDate.toLocaleString()}
+                                {isEdited && (
+                                  <span className="text-xs text-amber-600 font-medium">(edited)</span>
+                                )}
+                              </span>
+                            );
+                          })()}
+                        </td>
                         <td className="py-2 pr-4">
                           <div className="flex items-center gap-2">
                             {(g.isAssetReport || g.isRealEstateReport) && g.preview_files ? (
