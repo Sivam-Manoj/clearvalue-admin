@@ -21,6 +21,7 @@ type ReportItem = {
   isRealEstateReport?: boolean;
   property_type?: string;
   language?: string;
+  files_regenerating?: boolean;
 };
 
 type ApiResponse = { items: ReportItem[]; total: number; page: number; limit: number };
@@ -131,6 +132,7 @@ export default function AdminApprovals() {
     preview_files?: { docx?: string; excel?: string; images?: string };
     isAssetReport?: boolean;
     isRealEstateReport?: boolean;
+    files_regenerating?: boolean;
   };
 
   const groups = useMemo<Group[]>(() => {
@@ -154,6 +156,7 @@ export default function AdminApprovals() {
           preview_files: r.preview_files,
           isAssetReport: r.isAssetReport,
           isRealEstateReport: r.isRealEstateReport,
+          files_regenerating: r.files_regenerating,
         };
         map.set(key, g);
       }
@@ -229,10 +232,22 @@ export default function AdminApprovals() {
                             {(g.isAssetReport || g.isRealEstateReport) && g.preview_files ? (
                               // AssetReport or RealEstateReport with preview files
                               <>
+                                {g.files_regenerating && (
+                                  <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg animate-pulse">
+                                    <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                    Regenerating...
+                                  </span>
+                                )}
                                 <a href={g.preview_files.docx} target="_blank" rel="noopener noreferrer" className={`cursor-pointer inline-flex items-center justify-center rounded-xl px-2.5 py-1.5 text-xs font-semibold shadow-sm ${g.preview_files.docx ? (g.isRealEstateReport ? 'bg-emerald-600 text-white hover:bg-emerald-500 hover:shadow' : 'bg-blue-600 text-white hover:bg-blue-500 hover:shadow') : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>DOCX</a>
                                 <a href={g.preview_files.excel} target="_blank" rel="noopener noreferrer" className={`cursor-pointer inline-flex items-center justify-center rounded-xl px-2.5 py-1.5 text-xs font-semibold shadow-sm ${g.preview_files.excel ? (g.isRealEstateReport ? 'bg-emerald-600 text-white hover:bg-emerald-500 hover:shadow' : 'bg-blue-600 text-white hover:bg-blue-500 hover:shadow') : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>Excel</a>
                                 <a href={g.preview_files.images} target="_blank" rel="noopener noreferrer" className={`cursor-pointer inline-flex items-center justify-center rounded-xl px-2.5 py-1.5 text-xs font-semibold shadow-sm ${g.preview_files.images ? (g.isRealEstateReport ? 'bg-emerald-600 text-white hover:bg-emerald-500 hover:shadow' : 'bg-blue-600 text-white hover:bg-blue-500 hover:shadow') : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>Images</a>
                               </>
+                            ) : (g.isAssetReport || g.isRealEstateReport) && g.files_regenerating ? (
+                              // Files being generated for first time or after resubmit
+                              <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg animate-pulse">
+                                <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                Generating files...
+                              </span>
                             ) : (
                               // PdfReport with normal variants
                               <>
