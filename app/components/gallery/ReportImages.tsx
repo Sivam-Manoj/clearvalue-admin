@@ -1,23 +1,9 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { CldImage } from "next-cloudinary";
-import { Cloudinary } from "@cloudinary/url-gen";
-import { scale } from "@cloudinary/url-gen/actions/resize";
-import { quality, format } from "@cloudinary/url-gen/actions/delivery";
-import { auto as autoQuality, autoGood, autoBest, autoEco, autoLow } from "@cloudinary/url-gen/qualifiers/quality";
-import { auto as autoFormat } from "@cloudinary/url-gen/qualifiers/format";
-import { improve, sharpen, unsharpMask } from "@cloudinary/url-gen/actions/adjust";
-import { enhance as enhanceEffect } from "@cloudinary/url-gen/actions/effect";
 
 // Cloudinary cloud name for URL generation
 const CLOUDINARY_CLOUD = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD || "dxgupmiv5";
-
-// Initialize Cloudinary instance
-const cld = new Cloudinary({
-  cloud: { cloudName: CLOUDINARY_CLOUD },
-  url: { secure: true },
-});
 
 type Report = {
   _id: string;
@@ -114,7 +100,7 @@ export default function ReportImages({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
 
-  // Build Cloudinary fetch URL using SDK for image transformation with AI enhancement
+  // Build Cloudinary fetch URL manually (SDK has encoding issues with query params)
   const buildCloudinaryUrl = useCallback((
     url: string, 
     s: ImageSettings, 
@@ -127,68 +113,49 @@ export default function ReportImages({
       return url;
     }
 
-    // Create Cloudinary image from external URL (fetch)
-    // URL-encode the source URL to handle query params properly
-    const encodedUrl = encodeURIComponent(url);
-    const image = cld.image(encodedUrl).setDeliveryType("fetch");
+    // Build transformations array manually
+    const transforms: string[] = [];
 
-    // AI Enhancement - use only one at a time to avoid conflicts
-    // e_improve and e_enhance shouldn't be combined
+    // AI Enhancement - use only one at a time
     if (ai.enhance) {
-      // Enhance takes priority - better for underexposed/dark images
-      image.effect(enhanceEffect());
+      transforms.push("e_enhance");
     } else if (ai.improve) {
-      // Improve - colors/contrast for normal images
-      image.adjust(improve());
+      transforms.push("e_improve");
     }
 
     // Sharpening
     if (sharpening.enabled) {
       if (sharpening.type === "sharpen") {
-        image.adjust(sharpen().strength(sharpening.strength));
+        transforms.push(`e_sharpen:${sharpening.strength}`);
       } else {
-        image.adjust(unsharpMask().strength(sharpening.strength));
+        transforms.push(`e_unsharp_mask:${sharpening.strength}`);
       }
     }
 
-    // Size transformations - scale with limit
-    if (s.width > 0) {
-      image.resize(scale().width(s.width));
-    }
-    if (s.height > 0) {
-      image.resize(scale().height(s.height));
+    // Size - use limit crop to maintain aspect ratio
+    if (s.width > 0 && s.height > 0) {
+      transforms.push(`c_limit,w_${s.width},h_${s.height}`);
+    } else if (s.width > 0) {
+      transforms.push(`c_scale,w_${s.width}`);
+    } else if (s.height > 0) {
+      transforms.push(`c_scale,h_${s.height}`);
     }
 
-    // Quality - use Cloudinary's smart auto quality
+    // Quality
     if (typeof s.quality === "string") {
-      switch (s.quality) {
-        case "auto:best":
-          image.delivery(quality(autoBest()));
-          break;
-        case "auto:good":
-          image.delivery(quality(autoGood()));
-          break;
-        case "auto:eco":
-          image.delivery(quality(autoEco()));
-          break;
-        case "auto:low":
-          image.delivery(quality(autoLow()));
-          break;
-        default:
-          image.delivery(quality(autoQuality()));
-      }
+      transforms.push(`q_${s.quality.replace(":", "_")}`);
     } else {
-      image.delivery(quality(s.quality));
+      transforms.push(`q_${s.quality}`);
     }
 
-    // Format - auto serves WebP/AVIF where supported
-    if (s.format === "auto") {
-      image.delivery(format(autoFormat()));
-    } else {
-      image.delivery(format(s.format));
-    }
+    // Format
+    transforms.push(`f_${s.format}`);
 
-    return image.toURL();
+    // Build final URL - encode the source URL properly
+    const transformStr = transforms.join("/");
+    const encodedSourceUrl = encodeURIComponent(url);
+    
+    return `https://res.cloudinary.com/${CLOUDINARY_CLOUD}/image/fetch/${transformStr}/${encodedSourceUrl}`;
   }, []);
 
   const toggleImage = (url: string) => {
