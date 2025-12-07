@@ -128,16 +128,18 @@ export default function ReportImages({
     }
 
     // Create Cloudinary image from external URL (fetch)
-    const image = cld.image(url).setDeliveryType("fetch");
+    // URL-encode the source URL to handle query params properly
+    const encodedUrl = encodeURIComponent(url);
+    const image = cld.image(encodedUrl).setDeliveryType("fetch");
 
-    // AI Enhancement - improve (colors/contrast)
-    if (ai.improve) {
-      image.adjust(improve());
-    }
-
-    // AI Enhancement - enhance (better for underexposed/dark images)
+    // AI Enhancement - use only one at a time to avoid conflicts
+    // e_improve and e_enhance shouldn't be combined
     if (ai.enhance) {
+      // Enhance takes priority - better for underexposed/dark images
       image.effect(enhanceEffect());
+    } else if (ai.improve) {
+      // Improve - colors/contrast for normal images
+      image.adjust(improve());
     }
 
     // Sharpening
@@ -450,49 +452,46 @@ export default function ReportImages({
                   </div>
                 </div>
 
-                {/* AI Enhancement Toggles */}
-                <div className="pt-2 border-t border-rose-100 space-y-3">
+                {/* AI Enhancement - Radio Buttons (only one can be active) */}
+                <div className="pt-2 border-t border-rose-100 space-y-2">
                   <span className="text-sm font-medium text-gray-700">AI Enhancement</span>
+                  <p className="text-xs text-gray-400">Choose one (or none)</p>
                   
-                  {/* Improve - Color/Contrast */}
-                  <label className="flex items-center justify-between cursor-pointer">
-                    <div>
-                      <span className="text-sm text-gray-600">Improve</span>
-                      <p className="text-xs text-gray-400">Colors & contrast</p>
-                    </div>
+                  <div className="flex flex-wrap gap-1">
                     <button
-                      onClick={() => setAiEnhance(s => ({ ...s, improve: !s.improve }))}
-                      className={`relative w-12 h-6 rounded-full transition-colors ${
-                        aiEnhance.improve ? "bg-rose-500" : "bg-gray-300"
+                      onClick={() => setAiEnhance({ improve: false, enhance: false })}
+                      className={`px-3 py-1.5 text-xs rounded border transition-all ${
+                        !aiEnhance.improve && !aiEnhance.enhance
+                          ? "bg-rose-500 text-white border-rose-500"
+                          : "bg-white border-rose-200 hover:border-rose-400"
                       }`}
                     >
-                      <span
-                        className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                          aiEnhance.improve ? "translate-x-6" : ""
-                        }`}
-                      />
+                      None
                     </button>
-                  </label>
-
-                  {/* Enhance - AI Enhancement */}
-                  <label className="flex items-center justify-between cursor-pointer">
-                    <div>
-                      <span className="text-sm text-gray-600">Enhance</span>
-                      <p className="text-xs text-gray-400">Underexposed/dark images</p>
-                    </div>
                     <button
-                      onClick={() => setAiEnhance(s => ({ ...s, enhance: !s.enhance }))}
-                      className={`relative w-12 h-6 rounded-full transition-colors ${
-                        aiEnhance.enhance ? "bg-rose-500" : "bg-gray-300"
+                      onClick={() => setAiEnhance({ improve: true, enhance: false })}
+                      className={`px-3 py-1.5 text-xs rounded border transition-all ${
+                        aiEnhance.improve && !aiEnhance.enhance
+                          ? "bg-rose-500 text-white border-rose-500"
+                          : "bg-white border-rose-200 hover:border-rose-400"
                       }`}
                     >
-                      <span
-                        className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                          aiEnhance.enhance ? "translate-x-6" : ""
-                        }`}
-                      />
+                      Improve
                     </button>
-                  </label>
+                    <button
+                      onClick={() => setAiEnhance({ improve: false, enhance: true })}
+                      className={`px-3 py-1.5 text-xs rounded border transition-all ${
+                        aiEnhance.enhance
+                          ? "bg-rose-500 text-white border-rose-500"
+                          : "bg-white border-rose-200 hover:border-rose-400"
+                      }`}
+                    >
+                      Enhance
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-400">
+                    {aiEnhance.improve ? "Colors & contrast" : aiEnhance.enhance ? "For dark/underexposed" : "No AI enhancement"}
+                  </p>
                 </div>
 
                 {/* Sharpening Controls */}
