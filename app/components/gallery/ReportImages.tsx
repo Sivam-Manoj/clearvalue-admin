@@ -17,18 +17,67 @@ type ImageSettings = {
   width: number;
   height: number;
   quality: number;
-  format: "jpeg" | "png" | "webp";
+  format: "jpeg" | "png";
   maintainAspect: boolean;
+  targetSizeKB: number; // 0 = disabled, >0 = target file size
+  preset: string; // "" = custom, "web" | "thumbnail" | "highQuality" | "document"
 };
 
 const DEFAULT_SETTINGS: ImageSettings = {
-  width: 1200,
-  height: 900,
+  width: 1920,
+  height: 1440,
   quality: 85,
   format: "jpeg",
   maintainAspect: true,
+  targetSizeKB: 250, // Default to 250KB target
+  preset: "web",
 };
 
+// Smart compression presets - optimized for small size + great quality
+const SMART_PRESETS = [
+  {
+    id: "web",
+    label: "🌐 Web Optimized",
+    description: "200-300KB, excellent quality",
+    targetSizeKB: 250,
+    width: 1920,
+    height: 1440,
+  },
+  {
+    id: "thumbnail",
+    label: "📷 Thumbnail",
+    description: "30-50KB, fast loading",
+    targetSizeKB: 40,
+    width: 400,
+    height: 300,
+  },
+  {
+    id: "highQuality",
+    label: "✨ High Quality",
+    description: "400-600KB, print-ready",
+    targetSizeKB: 500,
+    width: 2560,
+    height: 1920,
+  },
+  {
+    id: "document",
+    label: "📄 Document",
+    description: "150-200KB, for reports",
+    targetSizeKB: 175,
+    width: 1200,
+    height: 900,
+  },
+  {
+    id: "custom",
+    label: "⚙️ Custom",
+    description: "Manual settings",
+    targetSizeKB: 0,
+    width: 0,
+    height: 0,
+  },
+];
+
+// Legacy size presets for custom mode
 const PRESET_SIZES = [
   { label: "Original", width: 0, height: 0 },
   { label: "Small (800×600)", width: 800, height: 600 },
@@ -59,10 +108,22 @@ export default function ReportImages({
   const buildTransformUrl = useCallback((url: string, s: ImageSettings) => {
     const params = new URLSearchParams();
     params.set("url", url);
-    if (s.width > 0) params.set("width", String(s.width));
-    if (s.height > 0) params.set("height", String(s.height));
-    params.set("quality", String(s.quality));
-    params.set("format", s.format);
+    
+    // Use preset for smart compression
+    if (s.preset && s.preset !== "custom") {
+      params.set("preset", s.preset);
+    } else if (s.targetSizeKB > 0) {
+      // Use target size for smart compression
+      params.set("targetSizeKB", String(s.targetSizeKB));
+      if (s.width > 0) params.set("width", String(s.width));
+      if (s.height > 0) params.set("height", String(s.height));
+    } else {
+      // Manual settings
+      if (s.width > 0) params.set("width", String(s.width));
+      if (s.height > 0) params.set("height", String(s.height));
+      params.set("quality", String(s.quality));
+      params.set("format", s.format);
+    }
     params.set("maintainAspect", String(s.maintainAspect));
     return `/api/admin/gallery/transform?${params.toString()}`;
   }, []);
@@ -219,135 +280,208 @@ export default function ReportImages({
           {/* Controls Panel */}
           <div className="lg:col-span-1 space-y-4">
             <section className="rounded-2xl border border-rose-200 bg-white/80 backdrop-blur shadow-lg p-4 space-y-4">
-              <h2 className="font-semibold text-gray-900">Image Settings</h2>
+              <h2 className="font-semibold text-gray-900">🎯 Smart Compression</h2>
+              <p className="text-xs text-gray-500 -mt-2">
+                Small file size + excellent quality
+              </p>
 
-              {/* Preset Sizes */}
-              <div>
-                <label className="text-sm font-medium text-gray-700 mb-2 block">
-                  Preset Sizes
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {PRESET_SIZES.map((preset) => (
-                    <button
-                      key={preset.label}
-                      onClick={() => applyPreset(preset)}
-                      className={`px-2 py-1.5 text-xs rounded-lg border transition-all ${
-                        settings.width === preset.width &&
-                        settings.height === preset.height
-                          ? "bg-rose-500 text-white border-rose-500"
-                          : "bg-white border-rose-200 hover:border-rose-300 text-gray-700"
-                      }`}
-                    >
-                      {preset.label}
-                    </button>
-                  ))}
-                </div>
+              {/* Smart Presets */}
+              <div className="space-y-2">
+                {SMART_PRESETS.map((preset) => (
+                  <button
+                    key={preset.id}
+                    onClick={() =>
+                      setSettings((s) => ({
+                        ...s,
+                        preset: preset.id,
+                        targetSizeKB: preset.targetSizeKB,
+                        width: preset.width || s.width,
+                        height: preset.height || s.height,
+                      }))
+                    }
+                    className={`w-full px-3 py-2.5 text-left rounded-xl border-2 transition-all ${
+                      settings.preset === preset.id
+                        ? "bg-rose-50 border-rose-500 shadow-sm"
+                        : "bg-white border-rose-100 hover:border-rose-300"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-gray-800 text-sm">
+                        {preset.label}
+                      </span>
+                      {settings.preset === preset.id && (
+                        <span className="text-rose-500 text-xs">✓</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {preset.description}
+                    </p>
+                  </button>
+                ))}
               </div>
 
-              {/* Custom Size */}
-              <div className="grid grid-cols-2 gap-3">
+              {/* Target Size (for custom mode) */}
+              {settings.preset === "custom" && (
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1 block">
-                    Width
+                  <label className="text-sm font-medium text-gray-700 mb-2 block">
+                    Target File Size (KB)
                   </label>
                   <input
                     type="number"
-                    value={settings.width || ""}
+                    value={settings.targetSizeKB || ""}
                     onChange={(e) =>
                       setSettings((s) => ({
                         ...s,
-                        width: parseInt(e.target.value) || 0,
+                        targetSizeKB: parseInt(e.target.value) || 0,
                       }))
                     }
-                    placeholder="Auto"
+                    placeholder="e.g. 250"
                     className="w-full px-3 py-2 rounded-lg border border-rose-200 focus:ring-2 focus:ring-rose-300 outline-none text-sm"
                   />
+                  <p className="text-xs text-gray-400 mt-1">
+                    Set 0 for manual quality control
+                  </p>
                 </div>
+              )}
+
+              {/* Legacy Preset Sizes (only in custom mode) */}
+              {settings.preset === "custom" && (
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1 block">
-                    Height
+                  <label className="text-sm font-medium text-gray-700 mb-2 block">
+                    Preset Sizes
                   </label>
-                  <input
-                    type="number"
-                    value={settings.height || ""}
-                    onChange={(e) =>
-                      setSettings((s) => ({
-                        ...s,
-                        height: parseInt(e.target.value) || 0,
-                      }))
-                    }
-                    placeholder="Auto"
-                    className="w-full px-3 py-2 rounded-lg border border-rose-200 focus:ring-2 focus:ring-rose-300 outline-none text-sm"
-                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    {PRESET_SIZES.map((preset) => (
+                      <button
+                        key={preset.label}
+                        onClick={() => applyPreset(preset)}
+                        className={`px-2 py-1.5 text-xs rounded-lg border transition-all ${
+                          settings.width === preset.width &&
+                          settings.height === preset.height
+                            ? "bg-rose-500 text-white border-rose-500"
+                            : "bg-white border-rose-200 hover:border-rose-300 text-gray-700"
+                        }`}
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
-              {/* Maintain Aspect Ratio */}
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={settings.maintainAspect}
-                  onChange={(e) =>
-                    setSettings((s) => ({
-                      ...s,
-                      maintainAspect: e.target.checked,
-                    }))
-                  }
-                  className="w-4 h-4 rounded border-rose-300 text-rose-500 focus:ring-rose-300"
-                />
-                <span className="text-sm text-gray-700">
-                  Maintain aspect ratio
-                </span>
-              </label>
+              {/* Custom Size - only show in custom mode */}
+              {settings.preset === "custom" && (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-sm font-medium text-gray-700 mb-1 block">
+                        Width
+                      </label>
+                      <input
+                        type="number"
+                        value={settings.width || ""}
+                        onChange={(e) =>
+                          setSettings((s) => ({
+                            ...s,
+                            width: parseInt(e.target.value) || 0,
+                          }))
+                        }
+                        placeholder="Auto"
+                        className="w-full px-3 py-2 rounded-lg border border-rose-200 focus:ring-2 focus:ring-rose-300 outline-none text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700 mb-1 block">
+                        Height
+                      </label>
+                      <input
+                        type="number"
+                        value={settings.height || ""}
+                        onChange={(e) =>
+                          setSettings((s) => ({
+                            ...s,
+                            height: parseInt(e.target.value) || 0,
+                          }))
+                        }
+                        placeholder="Auto"
+                        className="w-full px-3 py-2 rounded-lg border border-rose-200 focus:ring-2 focus:ring-rose-300 outline-none text-sm"
+                      />
+                    </div>
+                  </div>
 
-              {/* Quality */}
-              <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">
-                  Quality: {settings.quality}%
-                </label>
-                <input
-                  type="range"
-                  min="10"
-                  max="100"
-                  step="5"
-                  value={settings.quality}
-                  onChange={(e) =>
-                    setSettings((s) => ({
-                      ...s,
-                      quality: parseInt(e.target.value),
-                    }))
-                  }
-                  className="w-full h-2 bg-rose-100 rounded-lg appearance-none cursor-pointer accent-rose-500"
-                />
-                <div className="flex justify-between text-xs text-gray-500 mt-1">
-                  <span>Smaller file</span>
-                  <span>Better quality</span>
-                </div>
-              </div>
-
-              {/* Format */}
-              <div>
-                <label className="text-sm font-medium text-gray-700 mb-2 block">
-                  Format
-                </label>
-                <div className="flex gap-2">
-                  {(["jpeg", "png", "webp"] as const).map((fmt) => (
-                    <button
-                      key={fmt}
-                      onClick={() =>
-                        setSettings((s) => ({ ...s, format: fmt }))
+                  {/* Maintain Aspect Ratio */}
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={settings.maintainAspect}
+                      onChange={(e) =>
+                        setSettings((s) => ({
+                          ...s,
+                          maintainAspect: e.target.checked,
+                        }))
                       }
-                      className={`flex-1 px-3 py-2 text-sm rounded-lg border transition-all uppercase ${
-                        settings.format === fmt
-                          ? "bg-rose-500 text-white border-rose-500"
-                          : "bg-white border-rose-200 hover:border-rose-300 text-gray-700"
-                      }`}
-                    >
-                      {fmt}
-                    </button>
-                  ))}
-                </div>
-              </div>
+                      className="w-4 h-4 rounded border-rose-300 text-rose-500 focus:ring-rose-300"
+                    />
+                    <span className="text-sm text-gray-700">
+                      Maintain aspect ratio
+                    </span>
+                  </label>
+
+                  {/* Quality - only if targetSizeKB is 0 */}
+                  {settings.targetSizeKB === 0 && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-700 mb-1 block">
+                        Quality: {settings.quality}%
+                      </label>
+                      <input
+                        type="range"
+                        min="10"
+                        max="100"
+                        step="5"
+                        value={settings.quality}
+                        onChange={(e) =>
+                          setSettings((s) => ({
+                            ...s,
+                            quality: parseInt(e.target.value),
+                          }))
+                        }
+                        className="w-full h-2 bg-rose-100 rounded-lg appearance-none cursor-pointer accent-rose-500"
+                      />
+                      <div className="flex justify-between text-xs text-gray-500 mt-1">
+                        <span>Smaller file</span>
+                        <span>Better quality</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Format */}
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-2 block">
+                      Format
+                    </label>
+                    <div className="flex gap-2">
+                      {(["jpeg", "png"] as const).map((fmt) => (
+                        <button
+                          key={fmt}
+                          onClick={() =>
+                            setSettings((s) => ({
+                              ...s,
+                              format: fmt,
+                            }))
+                          }
+                          className={`flex-1 px-3 py-2 text-sm rounded-lg border transition-all uppercase ${
+                            settings.format === fmt
+                              ? "bg-rose-500 text-white border-rose-500"
+                              : "bg-white border-rose-200 hover:border-rose-300 text-gray-700"
+                          }`}
+                        >
+                          {fmt}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
             </section>
 
             {/* Selection & Download */}
