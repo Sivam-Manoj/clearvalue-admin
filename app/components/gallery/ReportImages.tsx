@@ -215,21 +215,42 @@ export default function ReportImages({
   };
 
   const downloadSingle = async (url: string) => {
+    const transformedUrl = buildCloudinaryUrl(url, settings, aiEnhance, sharpenSettings);
+    console.log("Downloading from:", transformedUrl);
+    
     try {
-      const transformedUrl = buildCloudinaryUrl(url, settings, aiEnhance, sharpenSettings);
-      // Fetch the image and trigger download
-      const response = await fetch(transformedUrl);
+      // Use the backend proxy to avoid CORS issues
+      const token = document.cookie
+        .split("; ")
+        .find((row) => row.startsWith("cv_admin="))
+        ?.split("=")[1];
+
+      const response = await fetch("/api/admin/gallery/download-single", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ url: transformedUrl }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Download failed: ${response.status}`);
+      }
+
       const blob = await response.blob();
       const blobUrl = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = blobUrl;
       link.download = `image.${settings.format === "auto" ? "webp" : settings.format}`;
+      document.body.appendChild(link);
       link.click();
+      document.body.removeChild(link);
       URL.revokeObjectURL(blobUrl);
     } catch (error) {
       console.error("Download error:", error);
-      // Fallback: open in new tab
-      window.open(buildCloudinaryUrl(url, settings, aiEnhance, sharpenSettings), "_blank");
+      // Fallback: open in new tab for manual save
+      window.open(transformedUrl, "_blank");
     }
   };
 
