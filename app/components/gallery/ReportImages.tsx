@@ -7,7 +7,8 @@ import { scale } from "@cloudinary/url-gen/actions/resize";
 import { quality, format } from "@cloudinary/url-gen/actions/delivery";
 import { auto as autoQuality, autoGood, autoBest, autoEco, autoLow } from "@cloudinary/url-gen/qualifiers/quality";
 import { auto as autoFormat } from "@cloudinary/url-gen/qualifiers/format";
-import { improve } from "@cloudinary/url-gen/actions/adjust";
+import { improve, sharpen, unsharpMask } from "@cloudinary/url-gen/actions/adjust";
+import { enhance as enhanceEffect } from "@cloudinary/url-gen/actions/effect";
 
 // Cloudinary cloud name for URL generation
 const CLOUDINARY_CLOUD = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD || "dxgupmiv5";
@@ -33,6 +34,28 @@ type ImageSettings = {
   height: number;
   quality: "auto:best" | "auto:good" | "auto:eco" | "auto:low" | number;
   format: "auto" | "jpg" | "webp";
+};
+
+type SharpenSettings = {
+  enabled: boolean;
+  type: "sharpen" | "unsharpMask";
+  strength: number; // 0-500 for sharpen, 0-2000 for unsharpMask
+};
+
+const DEFAULT_SHARPEN: SharpenSettings = {
+  enabled: false,
+  type: "sharpen",
+  strength: 100,
+};
+
+type AIEnhanceSettings = {
+  improve: boolean;  // e_improve - color/contrast enhancement
+  enhance: boolean;  // e_enhance - AI image enhancement (better for underexposed)
+};
+
+const DEFAULT_AI_ENHANCE: AIEnhanceSettings = {
+  improve: true,
+  enhance: false,
 };
 
 // AI-powered Cloudinary presets with best enhancement settings
@@ -84,25 +107,46 @@ export default function ReportImages({
   onBack: () => void;
 }) {
   const [settings, setSettings] = useState<ImageSettings>(DEFAULT_SETTINGS);
-  const [enhance, setEnhance] = useState(true); // AI enhancement enabled by default
+  const [aiEnhance, setAiEnhance] = useState<AIEnhanceSettings>(DEFAULT_AI_ENHANCE);
+  const [sharpenSettings, setSharpenSettings] = useState<SharpenSettings>(DEFAULT_SHARPEN);
   const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
   const [downloading, setDownloading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
 
   // Build Cloudinary fetch URL using SDK for image transformation with AI enhancement
-  const buildCloudinaryUrl = useCallback((url: string, s: ImageSettings, aiEnhance: boolean = true) => {
+  const buildCloudinaryUrl = useCallback((
+    url: string, 
+    s: ImageSettings, 
+    ai: AIEnhanceSettings = DEFAULT_AI_ENHANCE,
+    sharpening: SharpenSettings = DEFAULT_SHARPEN
+  ) => {
     // For original quality, return the original URL
-    if (s.width === 0 && s.height === 0 && s.quality === 100 && !aiEnhance) {
+    const hasAI = ai.improve || ai.enhance;
+    if (s.width === 0 && s.height === 0 && s.quality === 100 && !hasAI && !sharpening.enabled) {
       return url;
     }
 
     // Create Cloudinary image from external URL (fetch)
     const image = cld.image(url).setDeliveryType("fetch");
 
-    // AI Enhancement - improves colors, contrast, lighting
-    if (aiEnhance) {
+    // AI Enhancement - improve (colors/contrast)
+    if (ai.improve) {
       image.adjust(improve());
+    }
+
+    // AI Enhancement - enhance (better for underexposed/dark images)
+    if (ai.enhance) {
+      image.effect(enhanceEffect());
+    }
+
+    // Sharpening
+    if (sharpening.enabled) {
+      if (sharpening.type === "sharpen") {
+        image.adjust(sharpen().strength(sharpening.strength));
+      } else {
+        image.adjust(unsharpMask().strength(sharpening.strength));
+      }
     }
 
     // Size transformations - scale with limit
@@ -167,12 +211,12 @@ export default function ReportImages({
 
   const previewImage = async (url: string) => {
     setPreviewLoading(true);
-    setPreviewUrl(buildCloudinaryUrl(url, settings, enhance));
+    setPreviewUrl(buildCloudinaryUrl(url, settings, aiEnhance, sharpenSettings));
   };
 
   const downloadSingle = async (url: string) => {
     try {
-      const transformedUrl = buildCloudinaryUrl(url, settings, enhance);
+      const transformedUrl = buildCloudinaryUrl(url, settings, aiEnhance, sharpenSettings);
       // Fetch the image and trigger download
       const response = await fetch(transformedUrl);
       const blob = await response.blob();
@@ -185,7 +229,7 @@ export default function ReportImages({
     } catch (error) {
       console.error("Download error:", error);
       // Fallback: open in new tab
-      window.open(buildCloudinaryUrl(url, settings, enhance), "_blank");
+      window.open(buildCloudinaryUrl(url, settings, aiEnhance, sharpenSettings), "_blank");
     }
   };
 
@@ -199,9 +243,9 @@ export default function ReportImages({
         .find((row) => row.startsWith("cv_admin="))
         ?.split("=")[1];
 
-      // Build Cloudinary URLs for each selected image with AI enhancement
+      // Build Cloudinary URLs for each selected image with AI enhancement + sharpening
       const cloudinaryUrls = Array.from(selectedImages).map((url) =>
-        buildCloudinaryUrl(url, settings, enhance)
+        buildCloudinaryUrl(url, settings, aiEnhance, sharpenSettings)
       );
 
       const response = await fetch("/api/admin/gallery/download-zip", {
@@ -235,7 +279,8 @@ export default function ReportImages({
 
   const applyPreset = (preset: typeof PRESETS[0]) => {
     setSettings({ ...preset.settings });
-    setEnhance(preset.enhance);
+    // Enable improve by default for enhanced presets
+    setAiEnhance({ improve: preset.enhance, enhance: false });
   };
 
   const isPresetActive = (preset: typeof PRESETS[0]) => {
@@ -243,8 +288,7 @@ export default function ReportImages({
       settings.width === preset.settings.width &&
       settings.height === preset.settings.height &&
       settings.quality === preset.settings.quality &&
-      settings.format === preset.settings.format &&
-      enhance === preset.enhance
+      settings.format === preset.settings.format
     );
   };
 
@@ -385,26 +429,120 @@ export default function ReportImages({
                   </div>
                 </div>
 
-                {/* AI Enhancement Toggle */}
-                <div className="pt-2 border-t border-rose-100">
+                {/* AI Enhancement Toggles */}
+                <div className="pt-2 border-t border-rose-100 space-y-3">
+                  <span className="text-sm font-medium text-gray-700">AI Enhancement</span>
+                  
+                  {/* Improve - Color/Contrast */}
                   <label className="flex items-center justify-between cursor-pointer">
                     <div>
-                      <span className="text-sm font-medium text-gray-700">AI Enhancement</span>
-                      <p className="text-xs text-gray-400">Improve colors & contrast</p>
+                      <span className="text-sm text-gray-600">Improve</span>
+                      <p className="text-xs text-gray-400">Colors & contrast</p>
                     </div>
                     <button
-                      onClick={() => setEnhance(!enhance)}
+                      onClick={() => setAiEnhance(s => ({ ...s, improve: !s.improve }))}
                       className={`relative w-12 h-6 rounded-full transition-colors ${
-                        enhance ? "bg-rose-500" : "bg-gray-300"
+                        aiEnhance.improve ? "bg-rose-500" : "bg-gray-300"
                       }`}
                     >
                       <span
                         className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                          enhance ? "translate-x-6" : ""
+                          aiEnhance.improve ? "translate-x-6" : ""
                         }`}
                       />
                     </button>
                   </label>
+
+                  {/* Enhance - AI Enhancement */}
+                  <label className="flex items-center justify-between cursor-pointer">
+                    <div>
+                      <span className="text-sm text-gray-600">Enhance</span>
+                      <p className="text-xs text-gray-400">Underexposed/dark images</p>
+                    </div>
+                    <button
+                      onClick={() => setAiEnhance(s => ({ ...s, enhance: !s.enhance }))}
+                      className={`relative w-12 h-6 rounded-full transition-colors ${
+                        aiEnhance.enhance ? "bg-rose-500" : "bg-gray-300"
+                      }`}
+                    >
+                      <span
+                        className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                          aiEnhance.enhance ? "translate-x-6" : ""
+                        }`}
+                      />
+                    </button>
+                  </label>
+                </div>
+
+                {/* Sharpening Controls */}
+                <div className="pt-2 border-t border-rose-100 space-y-2">
+                  <label className="flex items-center justify-between cursor-pointer">
+                    <div>
+                      <span className="text-sm font-medium text-gray-700">Sharpening</span>
+                      <p className="text-xs text-gray-400">Enhance image detail</p>
+                    </div>
+                    <button
+                      onClick={() => setSharpenSettings(s => ({ ...s, enabled: !s.enabled }))}
+                      className={`relative w-12 h-6 rounded-full transition-colors ${
+                        sharpenSettings.enabled ? "bg-rose-500" : "bg-gray-300"
+                      }`}
+                    >
+                      <span
+                        className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                          sharpenSettings.enabled ? "translate-x-6" : ""
+                        }`}
+                      />
+                    </button>
+                  </label>
+
+                  {sharpenSettings.enabled && (
+                    <>
+                      {/* Sharpen Type */}
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => setSharpenSettings(s => ({ ...s, type: "sharpen", strength: Math.min(s.strength, 500) }))}
+                          className={`flex-1 px-2 py-1 text-xs rounded border transition-all ${
+                            sharpenSettings.type === "sharpen"
+                              ? "bg-rose-500 text-white border-rose-500"
+                              : "bg-white border-rose-200 hover:border-rose-400"
+                          }`}
+                        >
+                          Sharpen
+                        </button>
+                        <button
+                          onClick={() => setSharpenSettings(s => ({ ...s, type: "unsharpMask" }))}
+                          className={`flex-1 px-2 py-1 text-xs rounded border transition-all ${
+                            sharpenSettings.type === "unsharpMask"
+                              ? "bg-rose-500 text-white border-rose-500"
+                              : "bg-white border-rose-200 hover:border-rose-400"
+                          }`}
+                        >
+                          Unsharp Mask
+                        </button>
+                      </div>
+
+                      {/* Strength Slider */}
+                      <div>
+                        <label className="text-xs text-gray-500 flex justify-between">
+                          <span>Strength</span>
+                          <span>{sharpenSettings.strength}</span>
+                        </label>
+                        <input
+                          type="range"
+                          min="0"
+                          max={sharpenSettings.type === "sharpen" ? 500 : 2000}
+                          step={sharpenSettings.type === "sharpen" ? 10 : 50}
+                          value={sharpenSettings.strength}
+                          onChange={(e) => setSharpenSettings(s => ({ ...s, strength: parseInt(e.target.value) }))}
+                          className="w-full h-2 bg-rose-100 rounded-lg appearance-none cursor-pointer accent-rose-500"
+                        />
+                        <div className="flex justify-between text-xs text-gray-400">
+                          <span>Subtle</span>
+                          <span>Strong</span>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             </section>
