@@ -141,9 +141,9 @@ export default function ReportImages({
       transforms.push(`c_scale,h_${s.height}`);
     }
 
-    // Quality
+    // Quality (keep colon as-is for auto:good, auto:best, etc.)
     if (typeof s.quality === "string") {
-      transforms.push(`q_${s.quality.replace(":", "_")}`);
+      transforms.push(`q_${s.quality}`);
     } else {
       transforms.push(`q_${s.quality}`);
     }
@@ -151,11 +151,14 @@ export default function ReportImages({
     // Format
     transforms.push(`f_${s.format}`);
 
-    // Build final URL - encode the source URL properly
+    // Build final URL
     const transformStr = transforms.join("/");
-    const encodedSourceUrl = encodeURIComponent(url);
     
-    return `https://res.cloudinary.com/${CLOUDINARY_CLOUD}/image/fetch/${transformStr}/${encodedSourceUrl}`;
+    // Only encode if URL has query params (contains ?)
+    // Cloudinary fetch works better with unencoded URLs when there's no query string
+    const finalSourceUrl = url.includes("?") ? encodeURIComponent(url) : url;
+    
+    return `https://res.cloudinary.com/${CLOUDINARY_CLOUD}/image/fetch/${transformStr}/${finalSourceUrl}`;
   }, []);
 
   const toggleImage = (url: string) => {
