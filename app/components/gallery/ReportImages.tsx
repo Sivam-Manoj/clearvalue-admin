@@ -1,6 +1,22 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { CldImage } from "next-cloudinary";
+import { Cloudinary } from "@cloudinary/url-gen";
+import { scale } from "@cloudinary/url-gen/actions/resize";
+import { quality, format } from "@cloudinary/url-gen/actions/delivery";
+import { auto as autoQuality, autoGood, autoBest, autoEco, autoLow } from "@cloudinary/url-gen/qualifiers/quality";
+import { auto as autoFormat } from "@cloudinary/url-gen/qualifiers/format";
+import { improve } from "@cloudinary/url-gen/actions/adjust";
+
+// Cloudinary cloud name for URL generation
+const CLOUDINARY_CLOUD = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD || "dxgupmiv5";
+
+// Initialize Cloudinary instance
+const cld = new Cloudinary({
+  cloud: { cloudName: CLOUDINARY_CLOUD },
+  url: { secure: true },
+});
 
 type Report = {
   _id: string;
@@ -15,22 +31,50 @@ type Report = {
 type ImageSettings = {
   width: number;
   height: number;
-  quality: number;
+  quality: "auto:best" | "auto:good" | "auto:eco" | "auto:low" | number;
+  format: "auto" | "jpg" | "webp";
 };
 
-// Simple presets for common use cases
-const PRESETS = [
-  { label: "Web (Small ~100KB)", width: 1200, height: 900, quality: 70 },
-  { label: "Medium (~200KB)", width: 1400, height: 1050, quality: 75 },
-  { label: "Large (~400KB)", width: 1920, height: 1440, quality: 80 },
-  { label: "Original Quality", width: 0, height: 0, quality: 95 },
+// AI-powered Cloudinary presets with best enhancement settings
+const PRESETS: { 
+  label: string; 
+  description: string; 
+  settings: ImageSettings;
+  enhance: boolean;
+}[] = [
+  {
+    label: "🌐 Web Optimized",
+    description: "~150-250KB, AI enhanced",
+    settings: { width: 1400, height: 1050, quality: "auto:good", format: "auto" },
+    enhance: true,
+  },
+  {
+    label: "📱 Mobile/Thumbnail",
+    description: "~50-100KB, fast loading",
+    settings: { width: 800, height: 600, quality: "auto:eco", format: "auto" },
+    enhance: false,
+  },
+  {
+    label: "✨ AI Enhanced",
+    description: "~300-500KB, maximum AI enhancement",
+    settings: { width: 1920, height: 1440, quality: "auto:best", format: "auto" },
+    enhance: true,
+  },
+  {
+    label: "📄 Document",
+    description: "~100-200KB, for reports",
+    settings: { width: 1200, height: 900, quality: "auto:good", format: "jpg" },
+    enhance: true,
+  },
+  {
+    label: "🔒 Original",
+    description: "Full quality, no changes",
+    settings: { width: 0, height: 0, quality: 100, format: "jpg" },
+    enhance: false,
+  },
 ];
 
-const DEFAULT_SETTINGS: ImageSettings = {
-  width: 1200,
-  height: 900,
-  quality: 70,
-};
+const DEFAULT_SETTINGS: ImageSettings = PRESETS[0].settings;
 
 export default function ReportImages({
   report,
@@ -40,19 +84,65 @@ export default function ReportImages({
   onBack: () => void;
 }) {
   const [settings, setSettings] = useState<ImageSettings>(DEFAULT_SETTINGS);
+  const [enhance, setEnhance] = useState(true); // AI enhancement enabled by default
   const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
   const [downloading, setDownloading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
 
-  // Build transform URL
-  const buildTransformUrl = useCallback((url: string, s: ImageSettings) => {
-    const params = new URLSearchParams();
-    params.set("url", url);
-    if (s.width > 0) params.set("width", String(s.width));
-    if (s.height > 0) params.set("height", String(s.height));
-    params.set("quality", String(s.quality));
-    return `/api/admin/gallery/transform?${params.toString()}`;
+  // Build Cloudinary fetch URL using SDK for image transformation with AI enhancement
+  const buildCloudinaryUrl = useCallback((url: string, s: ImageSettings, aiEnhance: boolean = true) => {
+    // For original quality, return the original URL
+    if (s.width === 0 && s.height === 0 && s.quality === 100 && !aiEnhance) {
+      return url;
+    }
+
+    // Create Cloudinary image from external URL (fetch)
+    const image = cld.image(url).setDeliveryType("fetch");
+
+    // AI Enhancement - improves colors, contrast, lighting
+    if (aiEnhance) {
+      image.adjust(improve());
+    }
+
+    // Size transformations - scale with limit
+    if (s.width > 0) {
+      image.resize(scale().width(s.width));
+    }
+    if (s.height > 0) {
+      image.resize(scale().height(s.height));
+    }
+
+    // Quality - use Cloudinary's smart auto quality
+    if (typeof s.quality === "string") {
+      switch (s.quality) {
+        case "auto:best":
+          image.delivery(quality(autoBest()));
+          break;
+        case "auto:good":
+          image.delivery(quality(autoGood()));
+          break;
+        case "auto:eco":
+          image.delivery(quality(autoEco()));
+          break;
+        case "auto:low":
+          image.delivery(quality(autoLow()));
+          break;
+        default:
+          image.delivery(quality(autoQuality()));
+      }
+    } else {
+      image.delivery(quality(s.quality));
+    }
+
+    // Format - auto serves WebP/AVIF where supported
+    if (s.format === "auto") {
+      image.delivery(format(autoFormat()));
+    } else {
+      image.delivery(format(s.format));
+    }
+
+    return image.toURL();
   }, []);
 
   const toggleImage = (url: string) => {
@@ -77,15 +167,26 @@ export default function ReportImages({
 
   const previewImage = async (url: string) => {
     setPreviewLoading(true);
-    setPreviewUrl(buildTransformUrl(url, settings));
+    setPreviewUrl(buildCloudinaryUrl(url, settings, enhance));
   };
 
   const downloadSingle = async (url: string) => {
-    const transformedUrl = buildTransformUrl(url, settings);
-    const link = document.createElement("a");
-    link.href = transformedUrl;
-    link.download = `image.jpg`;
-    link.click();
+    try {
+      const transformedUrl = buildCloudinaryUrl(url, settings, enhance);
+      // Fetch the image and trigger download
+      const response = await fetch(transformedUrl);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = `image.${settings.format === "auto" ? "webp" : settings.format}`;
+      link.click();
+      URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+      console.error("Download error:", error);
+      // Fallback: open in new tab
+      window.open(buildCloudinaryUrl(url, settings, enhance), "_blank");
+    }
   };
 
   const downloadSelected = async () => {
@@ -98,6 +199,11 @@ export default function ReportImages({
         .find((row) => row.startsWith("cv_admin="))
         ?.split("=")[1];
 
+      // Build Cloudinary URLs for each selected image with AI enhancement
+      const cloudinaryUrls = Array.from(selectedImages).map((url) =>
+        buildCloudinaryUrl(url, settings, enhance)
+      );
+
       const response = await fetch("/api/admin/gallery/download-zip", {
         method: "POST",
         headers: {
@@ -105,12 +211,8 @@ export default function ReportImages({
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          urls: Array.from(selectedImages),
-          settings: {
-            width: settings.width,
-            height: settings.height,
-            quality: settings.quality,
-          },
+          urls: cloudinaryUrls,
+          useCloudinary: true, // Signal backend to fetch directly without processing
         }),
       });
 
@@ -132,11 +234,18 @@ export default function ReportImages({
   };
 
   const applyPreset = (preset: typeof PRESETS[0]) => {
-    setSettings({
-      width: preset.width,
-      height: preset.height,
-      quality: preset.quality,
-    });
+    setSettings({ ...preset.settings });
+    setEnhance(preset.enhance);
+  };
+
+  const isPresetActive = (preset: typeof PRESETS[0]) => {
+    return (
+      settings.width === preset.settings.width &&
+      settings.height === preset.settings.height &&
+      settings.quality === preset.settings.quality &&
+      settings.format === preset.settings.format &&
+      enhance === preset.enhance
+    );
   };
 
   return (
@@ -164,35 +273,38 @@ export default function ReportImages({
           {/* Controls Panel */}
           <div className="lg:col-span-1 space-y-4">
             <section className="rounded-2xl border border-rose-200 bg-white/80 backdrop-blur shadow-lg p-4 space-y-4">
-              <h2 className="font-semibold text-gray-900">Compression Settings</h2>
+              <div className="flex items-center gap-2">
+                <h2 className="font-semibold text-gray-900">Compression</h2>
+                <span className="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded-full">Cloudinary</span>
+              </div>
               <p className="text-xs text-gray-500">
-                Lower quality = smaller file size
+                AI-powered compression for best quality/size ratio
               </p>
 
               {/* Quick Presets */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Quick Presets</label>
                 {PRESETS.map((preset) => (
                   <button
                     key={preset.label}
                     onClick={() => applyPreset(preset)}
-                    className={`w-full px-3 py-2 text-left text-sm rounded-lg border transition-all ${
-                      settings.width === preset.width &&
-                      settings.height === preset.height &&
-                      settings.quality === preset.quality
+                    className={`w-full px-3 py-2 text-left rounded-lg border transition-all ${
+                      isPresetActive(preset)
                         ? "bg-rose-500 text-white border-rose-500"
                         : "bg-white border-rose-200 hover:border-rose-400"
                     }`}
                   >
-                    {preset.label}
+                    <div className="text-sm font-medium">{preset.label}</div>
+                    <div className={`text-xs ${isPresetActive(preset) ? "text-rose-100" : "text-gray-400"}`}>
+                      {preset.description}
+                    </div>
                   </button>
                 ))}
               </div>
 
-              {/* Custom Settings */}
+              {/* Custom Size Settings */}
               <div className="pt-2 border-t border-rose-100">
                 <label className="text-sm font-medium text-gray-700 block mb-2">
-                  Custom Settings
+                  Custom Size
                 </label>
                 
                 <div className="grid grid-cols-2 gap-2 mb-3">
@@ -228,28 +340,71 @@ export default function ReportImages({
                   </div>
                 </div>
 
-                <div>
-                  <label className="text-xs text-gray-500">
-                    Quality: {settings.quality}%
-                  </label>
-                  <input
-                    type="range"
-                    min="30"
-                    max="100"
-                    step="5"
-                    value={settings.quality}
-                    onChange={(e) =>
-                      setSettings((s) => ({
-                        ...s,
-                        quality: parseInt(e.target.value),
-                      }))
-                    }
-                    className="w-full h-2 bg-rose-100 rounded-lg appearance-none cursor-pointer accent-rose-500"
-                  />
-                  <div className="flex justify-between text-xs text-gray-400">
-                    <span>Smaller</span>
-                    <span>Better</span>
+                {/* Format selector */}
+                <div className="mb-3">
+                  <label className="text-xs text-gray-500 block mb-1">Format</label>
+                  <div className="flex gap-1">
+                    {(["auto", "jpg", "webp"] as const).map((fmt) => (
+                      <button
+                        key={fmt}
+                        onClick={() => setSettings((s) => ({ ...s, format: fmt }))}
+                        className={`flex-1 px-2 py-1 text-xs rounded border transition-all ${
+                          settings.format === fmt
+                            ? "bg-rose-500 text-white border-rose-500"
+                            : "bg-white border-rose-200 hover:border-rose-400"
+                        }`}
+                      >
+                        {fmt === "auto" ? "Auto (Best)" : fmt.toUpperCase()}
+                      </button>
+                    ))}
                   </div>
+                </div>
+
+                {/* Quality selector */}
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1">Quality Mode</label>
+                  <div className="grid grid-cols-2 gap-1">
+                    {([
+                      { value: "auto:best", label: "Best" },
+                      { value: "auto:good", label: "Good" },
+                      { value: "auto:eco", label: "Eco" },
+                      { value: "auto:low", label: "Low" },
+                    ] as const).map((q) => (
+                      <button
+                        key={q.value}
+                        onClick={() => setSettings((s) => ({ ...s, quality: q.value }))}
+                        className={`px-2 py-1 text-xs rounded border transition-all ${
+                          settings.quality === q.value
+                            ? "bg-rose-500 text-white border-rose-500"
+                            : "bg-white border-rose-200 hover:border-rose-400"
+                        }`}
+                      >
+                        {q.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* AI Enhancement Toggle */}
+                <div className="pt-2 border-t border-rose-100">
+                  <label className="flex items-center justify-between cursor-pointer">
+                    <div>
+                      <span className="text-sm font-medium text-gray-700">AI Enhancement</span>
+                      <p className="text-xs text-gray-400">Improve colors & contrast</p>
+                    </div>
+                    <button
+                      onClick={() => setEnhance(!enhance)}
+                      className={`relative w-12 h-6 rounded-full transition-colors ${
+                        enhance ? "bg-rose-500" : "bg-gray-300"
+                      }`}
+                    >
+                      <span
+                        className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                          enhance ? "translate-x-6" : ""
+                        }`}
+                      />
+                    </button>
+                  </label>
                 </div>
               </div>
             </section>
@@ -407,7 +562,7 @@ export default function ReportImages({
               ) : null}
               <div className="absolute bottom-4 left-4 right-4 flex justify-between items-center">
                 <div className="px-3 py-1.5 rounded-lg bg-black/50 text-white text-sm">
-                  {settings.width || "Auto"}×{settings.height || "Auto"} • Q:{settings.quality}%
+                  {settings.width || "Auto"}×{settings.height || "Auto"} • {typeof settings.quality === "string" ? settings.quality : `Q:${settings.quality}%`} • {settings.format}
                 </div>
                 {previewUrl && (
                   <a
