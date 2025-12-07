@@ -9,11 +9,13 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { urls, settings } = body;
+    const { urls, settings, useCloudinary } = body;
 
     if (!Array.isArray(urls) || urls.length === 0) {
       return NextResponse.json({ message: "URLs required" }, { status: 400 });
     }
+
+    console.log("[Admin API] Creating zip for", urls.length, "images, useCloudinary:", useCloudinary);
 
     // Call server to create zip with transformed images
     const res = await fetch(`${SERVER_URL}/api/gallery/download-zip`, {
@@ -22,7 +24,7 @@ export async function POST(request: NextRequest) {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ urls, settings }),
+      body: JSON.stringify({ urls, settings, useCloudinary }),
       cache: "no-store",
     });
 
