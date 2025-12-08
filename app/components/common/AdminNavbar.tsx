@@ -97,7 +97,7 @@ export default function AdminNavbar() {
       <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Link
-            href={role === "admin" ? "/reports" : "/dashboard"}
+            href={role === "superadmin" ? "/dashboard" : "/gallery"}
             className="flex items-center gap-2"
           >
             <div className="h-9 w-9 rounded-xl bg-rose-500 shadow-md shadow-rose-200 ring-1 ring-rose-300 flex items-center justify-center text-white font-bold">
@@ -149,28 +149,9 @@ export default function AdminNavbar() {
 
         {/* Desktop links */}
         <div className="hidden md:flex items-center gap-2">
-          {/* Regular admin sees Approved Reports and Gallery */}
-          {role === "admin" ? (
+          {/* User and Admin see only Reports and Gallery */}
+          {(role === "user" || role === "admin") ? (
             <>
-              <NavLink
-                href="/reports"
-                label="Approved Reports"
-                icon={
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                    <polyline points="14 2 14 8 20 8" />
-                  </svg>
-                }
-              />
               <NavLink
                 href="/gallery"
                 label="Image Gallery"
@@ -344,29 +325,9 @@ export default function AdminNavbar() {
       {menuOpen && (
         <div className="md:hidden border-t border-rose-200/80 bg-white/90 backdrop-blur shadow-inner">
           <div className="max-w-6xl mx-auto px-4 py-3 flex flex-col gap-2">
-            {/* Regular admin sees Approved Reports and Gallery */}
-            {role === "admin" ? (
+            {/* User and Admin see only Gallery */}
+            {(role === "user" || role === "admin") ? (
               <>
-                <NavLink
-                  href="/reports"
-                  label="Approved Reports"
-                  onClick={() => setMenuOpen(false)}
-                  icon={
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                      <polyline points="14 2 14 8 20 8" />
-                    </svg>
-                  }
-                />
                 <NavLink
                   href="/gallery"
                   label="Image Gallery"

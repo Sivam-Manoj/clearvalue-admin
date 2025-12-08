@@ -19,9 +19,8 @@ export default async function Page() {
     .catch(() => ({} as unknown as { user?: { role?: string } }));
   const role = data?.user?.role;
   
-  // Only superadmin can access admins management - regular admin goes to reports
-  if (role === "admin") redirect("/reports");
-  if (role !== "superadmin") redirect("/login");
+  // Only superadmin can access admins management
+  if (role !== "superadmin") redirect("/gallery");
 
   return <AdminManagement />;
 }

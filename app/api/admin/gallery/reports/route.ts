@@ -8,6 +8,18 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    // Get current user info to check role
+    const meRes = await fetch(`${SERVER_URL}/api/admin/me`, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
+    const meData = await meRes.json().catch(() => ({}));
+    const userRole = meData?.user?.role;
+    const userId = meData?.user?._id;
+    
+    // For regular users, only fetch their own reports
+    const isRegularUser = userRole === "user";
     
     // Fetch approved Asset reports with images
     const assetRes = await fetch(`${SERVER_URL}/api/asset/all-approved`, {
@@ -34,7 +46,7 @@ export async function GET(request: NextRequest) {
     const realEstateReports = Array.isArray(reData?.reports) ? reData.reports : [];
     
     // Transform to gallery format
-    const reports = [
+    const allReports = [
       ...assetReports.map((r: any) => ({
         _id: r._id,
         title: r.client_name || r.preview_data?.client_name || `Asset Report`,
@@ -42,6 +54,7 @@ export async function GET(request: NextRequest) {
         imageCount: Array.isArray(r.imageUrls) ? r.imageUrls.length : 0,
         createdAt: r.createdAt,
         userEmail: r.user?.email,
+        userId: r.user?._id,
         imageUrls: Array.isArray(r.imageUrls) ? r.imageUrls : [],
       })),
       ...realEstateReports.map((r: any) => ({
@@ -53,10 +66,15 @@ export async function GET(request: NextRequest) {
         imageCount: Array.isArray(r.imageUrls) ? r.imageUrls.length : 0,
         createdAt: r.createdAt,
         userEmail: r.user?.email,
+        userId: r.user?._id,
         imageUrls: Array.isArray(r.imageUrls) ? r.imageUrls : [],
       })),
-    ]
+    ];
+    
+    // Filter: regular users only see their own reports
+    const reports = allReports
       .filter((r) => r.imageCount > 0)
+      .filter((r) => !isRegularUser || r.userId === userId)
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
     return NextResponse.json({ reports });
