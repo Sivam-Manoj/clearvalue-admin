@@ -36,12 +36,10 @@ const DEFAULT_SHARPEN: SharpenSettings = {
 
 type AIEnhanceSettings = {
   improve: boolean;  // e_improve - color/contrast enhancement
-  enhance: boolean;  // e_enhance - AI image enhancement (better for underexposed)
 };
 
 const DEFAULT_AI_ENHANCE: AIEnhanceSettings = {
   improve: true,
-  enhance: false,
 };
 
 // AI-powered Cloudinary presets with best enhancement settings
@@ -108,7 +106,7 @@ export default function ReportImages({
     sharpening: SharpenSettings = DEFAULT_SHARPEN
   ) => {
     // For original quality, return the original URL
-    const hasAI = ai.improve || ai.enhance;
+    const hasAI = ai.improve;
     if (s.width === 0 && s.height === 0 && s.quality === 100 && !hasAI && !sharpening.enabled) {
       return url;
     }
@@ -116,10 +114,8 @@ export default function ReportImages({
     // Build transformations array manually
     const transforms: string[] = [];
 
-    // AI Enhancement - use only one at a time
-    if (ai.enhance) {
-      transforms.push("e_enhance");
-    } else if (ai.improve) {
+    // AI Enhancement - e_improve for color/contrast
+    if (ai.improve) {
       transforms.push("e_improve");
     }
 
@@ -273,7 +269,7 @@ export default function ReportImages({
   const applyPreset = (preset: typeof PRESETS[0]) => {
     setSettings({ ...preset.settings });
     // Enable improve by default for enhanced presets
-    setAiEnhance({ improve: preset.enhance, enhance: false });
+    setAiEnhance({ improve: preset.enhance });
   };
 
   const isPresetActive = (preset: typeof PRESETS[0]) => {
@@ -286,10 +282,10 @@ export default function ReportImages({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-rose-50 via-white to-rose-100">
-      <main className="max-w-7xl mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="flex items-center gap-4 mb-6">
+    <div className="h-screen flex flex-col bg-gradient-to-br from-rose-50 via-white to-rose-100 overflow-hidden">
+      {/* Fixed Header */}
+      <header className="flex-shrink-0 px-4 py-4 border-b border-rose-100 bg-white/80 backdrop-blur-sm">
+        <div className="max-w-7xl mx-auto flex items-center gap-4">
           <button
             onClick={onBack}
             className="p-2 rounded-lg hover:bg-rose-100 text-gray-600"
@@ -298,17 +294,19 @@ export default function ReportImages({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">{report.title}</h1>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl md:text-2xl font-bold text-gray-900 truncate">{report.title}</h1>
             <p className="text-gray-500 text-sm">
               {report.imageCount} images • {report.reportType}
             </p>
           </div>
         </div>
+      </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Controls Panel */}
-          <div className="lg:col-span-1 space-y-4">
+      {/* Main Content - Flex Row */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Fixed Left Sidebar */}
+        <aside className="hidden lg:flex lg:flex-col w-80 xl:w-96 flex-shrink-0 border-r border-rose-100 bg-white/60 backdrop-blur-sm overflow-y-auto p-4 space-y-4">
             <section className="rounded-2xl border border-rose-200 bg-white/80 backdrop-blur shadow-lg p-4 space-y-4">
               <div className="flex items-center gap-2">
                 <h2 className="font-semibold text-gray-900">Compression</h2>
@@ -422,46 +420,26 @@ export default function ReportImages({
                   </div>
                 </div>
 
-                {/* AI Enhancement - Radio Buttons (only one can be active) */}
-                <div className="pt-2 border-t border-rose-100 space-y-2">
-                  <span className="text-sm font-medium text-gray-700">AI Enhancement</span>
-                  <p className="text-xs text-gray-400">Choose one (or none)</p>
-                  
-                  <div className="flex flex-wrap gap-1">
+                {/* AI Enhancement Toggle */}
+                <div className="pt-2 border-t border-rose-100">
+                  <label className="flex items-center justify-between cursor-pointer">
+                    <div>
+                      <span className="text-sm font-medium text-gray-700">AI Improve</span>
+                      <p className="text-xs text-gray-400">Enhance colors & contrast</p>
+                    </div>
                     <button
-                      onClick={() => setAiEnhance({ improve: false, enhance: false })}
-                      className={`px-3 py-1.5 text-xs rounded border transition-all ${
-                        !aiEnhance.improve && !aiEnhance.enhance
-                          ? "bg-rose-500 text-white border-rose-500"
-                          : "bg-white border-rose-200 hover:border-rose-400"
+                      onClick={() => setAiEnhance({ improve: !aiEnhance.improve })}
+                      className={`relative w-11 h-6 rounded-full transition-colors ${
+                        aiEnhance.improve ? "bg-rose-500" : "bg-gray-200"
                       }`}
                     >
-                      None
+                      <span
+                        className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
+                          aiEnhance.improve ? "translate-x-5" : ""
+                        }`}
+                      />
                     </button>
-                    <button
-                      onClick={() => setAiEnhance({ improve: true, enhance: false })}
-                      className={`px-3 py-1.5 text-xs rounded border transition-all ${
-                        aiEnhance.improve && !aiEnhance.enhance
-                          ? "bg-rose-500 text-white border-rose-500"
-                          : "bg-white border-rose-200 hover:border-rose-400"
-                      }`}
-                    >
-                      Improve
-                    </button>
-                    <button
-                      onClick={() => setAiEnhance({ improve: false, enhance: true })}
-                      className={`px-3 py-1.5 text-xs rounded border transition-all ${
-                        aiEnhance.enhance
-                          ? "bg-rose-500 text-white border-rose-500"
-                          : "bg-white border-rose-200 hover:border-rose-400"
-                      }`}
-                    >
-                      Enhance
-                    </button>
-                  </div>
-                  <p className="text-xs text-gray-400">
-                    {aiEnhance.improve ? "Colors & contrast" : aiEnhance.enhance ? "For dark/underexposed" : "No AI enhancement"}
-                  </p>
+                  </label>
                 </div>
 
                 {/* Sharpening Controls */}
@@ -575,11 +553,55 @@ export default function ReportImages({
                 )}
               </button>
             </section>
+        </aside>
+
+        {/* Scrollable Image Grid */}
+        <main className="flex-1 overflow-y-auto p-4">
+          {/* Mobile Controls Toggle */}
+          <div className="lg:hidden mb-4">
+            <details className="rounded-2xl border border-rose-200 bg-white/80 backdrop-blur shadow-lg">
+              <summary className="p-4 cursor-pointer font-semibold text-gray-900 flex items-center justify-between">
+                <span>⚙️ Compression Settings</span>
+                <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </summary>
+              <div className="p-4 pt-0 space-y-3 border-t border-rose-100">
+                <div className="grid grid-cols-2 gap-2">
+                  {PRESETS.slice(0, 4).map((preset) => (
+                    <button
+                      key={preset.label}
+                      onClick={() => applyPreset(preset)}
+                      className={`px-3 py-2 text-left rounded-lg border transition-all text-sm ${
+                        isPresetActive(preset)
+                          ? "bg-rose-500 text-white border-rose-500"
+                          : "bg-white border-rose-200"
+                      }`}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={selectAll} className="flex-1 px-3 py-2 text-sm rounded-lg border border-rose-200 hover:bg-rose-50">
+                    Select All
+                  </button>
+                  <button onClick={selectNone} className="flex-1 px-3 py-2 text-sm rounded-lg border border-rose-200 hover:bg-rose-50">
+                    Clear
+                  </button>
+                </div>
+                <button
+                  onClick={downloadSelected}
+                  disabled={selectedImages.size === 0 || downloading}
+                  className="w-full py-3 rounded-xl bg-gradient-to-r from-rose-500 to-rose-600 text-white font-medium disabled:opacity-50 transition-all"
+                >
+                  {downloading ? "Compressing..." : `Download ${selectedImages.size} Images`}
+                </button>
+              </div>
+            </details>
           </div>
 
-          {/* Image Grid */}
-          <div className="lg:col-span-3">
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 md:gap-4">
               {report.imageUrls.map((url, index) => (
                 <div
                   key={url}
@@ -648,11 +670,11 @@ export default function ReportImages({
                   </div>
                 </div>
               ))}
-            </div>
           </div>
-        </div>
+        </main>
+      </div>
 
-        {/* Preview Modal */}
+      {/* Preview Modal */}
         {(previewUrl || previewLoading) && (
           <div
             className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
@@ -705,7 +727,6 @@ export default function ReportImages({
             </div>
           </div>
         )}
-      </main>
     </div>
   );
 }
