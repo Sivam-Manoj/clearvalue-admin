@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 export default function LoginForm({ embedded = false }: { embedded?: boolean }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const next = searchParams.get("next") || "/gallery";
+  const next = searchParams.get("next") || "/reports";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

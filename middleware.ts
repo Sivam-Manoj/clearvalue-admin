@@ -50,7 +50,7 @@ export async function middleware(request: NextRequest) {
 
   // Redirect authenticated users away from auth pages
   if (isAuthPath(pathname) && hasSession) {
-    return NextResponse.redirect(new URL("/gallery", request.url));
+    return NextResponse.redirect(new URL("/reports", request.url));
   }
 
   return NextResponse.next();

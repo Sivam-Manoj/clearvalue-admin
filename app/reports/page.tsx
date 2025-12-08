@@ -20,8 +20,7 @@ export default async function Page() {
     .catch(() => ({} as unknown as { user?: { role?: string } }));
   const role = data?.user?.role;
   
-  // Only superadmin can access reports
-  if (role !== "superadmin") redirect("/gallery");
+  // User, admin and superadmin can access reports (user sees only their own)
 
   return (
     <>

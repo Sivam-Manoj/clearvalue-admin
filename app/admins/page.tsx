@@ -20,7 +20,7 @@ export default async function Page() {
   const role = data?.user?.role;
   
   // Only superadmin can access admins management
-  if (role !== "superadmin") redirect("/gallery");
+  if (role !== "superadmin") redirect("/reports");
 
   return <AdminManagement />;
 }
