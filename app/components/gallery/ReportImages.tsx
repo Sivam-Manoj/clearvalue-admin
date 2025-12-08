@@ -3,7 +3,8 @@
 import { useState, useCallback } from "react";
 
 // Cloudinary cloud name for URL generation
-const CLOUDINARY_CLOUD = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD || "dxgupmiv5";
+const CLOUDINARY_CLOUD =
+  process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD || "dxgupmiv5";
 
 type Report = {
   _id: string;
@@ -34,25 +35,30 @@ const DEFAULT_SHARPEN: SharpenSettings = {
   strength: 100,
 };
 
-type AIEnhanceSettings = {
-  improve: boolean;  // e_improve - color/contrast enhancement
+type EnhanceSettings = {
+  improve: boolean; // e_improve - color/contrast enhancement
 };
 
-const DEFAULT_AI_ENHANCE: AIEnhanceSettings = {
+const DEFAULT_ENHANCE: EnhanceSettings = {
   improve: true,
 };
 
-// AI-powered Cloudinary presets with best enhancement settings
-const PRESETS: { 
-  label: string; 
-  description: string; 
+// Cloudinary presets with best enhancement settings
+const PRESETS: {
+  label: string;
+  description: string;
   settings: ImageSettings;
   enhance: boolean;
 }[] = [
   {
     label: "🌐 Web Optimized",
-    description: "~150-250KB, AI enhanced",
-    settings: { width: 1400, height: 1050, quality: "auto:good", format: "auto" },
+    description: "~150-250KB, enhanced",
+    settings: {
+      width: 1400,
+      height: 1050,
+      quality: "auto:good",
+      format: "auto",
+    },
     enhance: true,
   },
   {
@@ -62,9 +68,14 @@ const PRESETS: {
     enhance: false,
   },
   {
-    label: "✨ AI Enhanced",
-    description: "~300-500KB, maximum AI enhancement",
-    settings: { width: 1920, height: 1440, quality: "auto:best", format: "auto" },
+    label: "✨ Enhanced",
+    description: "~300-500KB, maximum enhancement",
+    settings: {
+      width: 1920,
+      height: 1440,
+      quality: "auto:best",
+      format: "auto",
+    },
     enhance: true,
   },
   {
@@ -91,71 +102,82 @@ export default function ReportImages({
   onBack: () => void;
 }) {
   const [settings, setSettings] = useState<ImageSettings>(DEFAULT_SETTINGS);
-  const [aiEnhance, setAiEnhance] = useState<AIEnhanceSettings>(DEFAULT_AI_ENHANCE);
-  const [sharpenSettings, setSharpenSettings] = useState<SharpenSettings>(DEFAULT_SHARPEN);
+  const [enhance, setEnhance] =
+    useState<EnhanceSettings>(DEFAULT_ENHANCE);
+  const [sharpenSettings, setSharpenSettings] =
+    useState<SharpenSettings>(DEFAULT_SHARPEN);
   const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
   const [downloading, setDownloading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
 
   // Build Cloudinary fetch URL manually (SDK has encoding issues with query params)
-  const buildCloudinaryUrl = useCallback((
-    url: string, 
-    s: ImageSettings, 
-    ai: AIEnhanceSettings = DEFAULT_AI_ENHANCE,
-    sharpening: SharpenSettings = DEFAULT_SHARPEN
-  ) => {
-    // For original quality, return the original URL
-    const hasAI = ai.improve;
-    if (s.width === 0 && s.height === 0 && s.quality === 100 && !hasAI && !sharpening.enabled) {
-      return url;
-    }
-
-    // Build transformations array manually
-    const transforms: string[] = [];
-
-    // AI Enhancement - e_improve for color/contrast
-    if (ai.improve) {
-      transforms.push("e_improve");
-    }
-
-    // Sharpening
-    if (sharpening.enabled) {
-      if (sharpening.type === "sharpen") {
-        transforms.push(`e_sharpen:${sharpening.strength}`);
-      } else {
-        transforms.push(`e_unsharp_mask:${sharpening.strength}`);
+  const buildCloudinaryUrl = useCallback(
+    (
+      url: string,
+      s: ImageSettings,
+      enh: EnhanceSettings = DEFAULT_ENHANCE,
+      sharpening: SharpenSettings = DEFAULT_SHARPEN
+    ) => {
+      // For original quality, return the original URL
+      const hasEnhance = enh.improve;
+      if (
+        s.width === 0 &&
+        s.height === 0 &&
+        s.quality === 100 &&
+        !hasEnhance &&
+        !sharpening.enabled
+      ) {
+        return url;
       }
-    }
 
-    // Size - use limit crop to maintain aspect ratio
-    if (s.width > 0 && s.height > 0) {
-      transforms.push(`c_limit,w_${s.width},h_${s.height}`);
-    } else if (s.width > 0) {
-      transforms.push(`c_scale,w_${s.width}`);
-    } else if (s.height > 0) {
-      transforms.push(`c_scale,h_${s.height}`);
-    }
+      // Build transformations array manually
+      const transforms: string[] = [];
 
-    // Quality (keep colon as-is for auto:good, auto:best, etc.)
-    if (typeof s.quality === "string") {
-      transforms.push(`q_${s.quality}`);
-    } else {
-      transforms.push(`q_${s.quality}`);
-    }
+      // Enhancement - e_improve for color/contrast
+      if (enh.improve) {
+        transforms.push("e_improve");
+      }
 
-    // Format
-    transforms.push(`f_${s.format}`);
+      // Sharpening
+      if (sharpening.enabled) {
+        if (sharpening.type === "sharpen") {
+          transforms.push(`e_sharpen:${sharpening.strength}`);
+        } else {
+          transforms.push(`e_unsharp_mask:${sharpening.strength}`);
+        }
+      }
 
-    // Build final URL
-    const transformStr = transforms.join("/");
-    
-    // Only encode if URL has query params (contains ?)
-    // Cloudinary fetch works better with unencoded URLs when there's no query string
-    const finalSourceUrl = url.includes("?") ? encodeURIComponent(url) : url;
-    
-    return `https://res.cloudinary.com/${CLOUDINARY_CLOUD}/image/fetch/${transformStr}/${finalSourceUrl}`;
-  }, []);
+      // Size - use limit crop to maintain aspect ratio
+      if (s.width > 0 && s.height > 0) {
+        transforms.push(`c_limit,w_${s.width},h_${s.height}`);
+      } else if (s.width > 0) {
+        transforms.push(`c_scale,w_${s.width}`);
+      } else if (s.height > 0) {
+        transforms.push(`c_scale,h_${s.height}`);
+      }
+
+      // Quality (keep colon as-is for auto:good, auto:best, etc.)
+      if (typeof s.quality === "string") {
+        transforms.push(`q_${s.quality}`);
+      } else {
+        transforms.push(`q_${s.quality}`);
+      }
+
+      // Format
+      transforms.push(`f_${s.format}`);
+
+      // Build final URL
+      const transformStr = transforms.join("/");
+
+      // Only encode if URL has query params (contains ?)
+      // Cloudinary fetch works better with unencoded URLs when there's no query string
+      const finalSourceUrl = url.includes("?") ? encodeURIComponent(url) : url;
+
+      return `https://res.cloudinary.com/${CLOUDINARY_CLOUD}/image/fetch/${transformStr}/${finalSourceUrl}`;
+    },
+    []
+  );
 
   const toggleImage = (url: string) => {
     setSelectedImages((prev) => {
@@ -179,13 +201,20 @@ export default function ReportImages({
 
   const previewImage = async (url: string) => {
     setPreviewLoading(true);
-    setPreviewUrl(buildCloudinaryUrl(url, settings, aiEnhance, sharpenSettings));
+    setPreviewUrl(
+      buildCloudinaryUrl(url, settings, enhance, sharpenSettings)
+    );
   };
 
   const downloadSingle = async (url: string) => {
-    const transformedUrl = buildCloudinaryUrl(url, settings, aiEnhance, sharpenSettings);
+    const transformedUrl = buildCloudinaryUrl(
+      url,
+      settings,
+      enhance,
+      sharpenSettings
+    );
     console.log("Downloading from:", transformedUrl);
-    
+
     try {
       // Use the backend proxy to avoid CORS issues
       const token = document.cookie
@@ -210,7 +239,9 @@ export default function ReportImages({
       const blobUrl = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = blobUrl;
-      link.download = `image.${settings.format === "auto" ? "webp" : settings.format}`;
+      link.download = `image.${
+        settings.format === "auto" ? "webp" : settings.format
+      }`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -232,9 +263,9 @@ export default function ReportImages({
         .find((row) => row.startsWith("cv_admin="))
         ?.split("=")[1];
 
-      // Build Cloudinary URLs for each selected image with AI enhancement + sharpening
+      // Build Cloudinary URLs for each selected image with enhancement + sharpening
       const cloudinaryUrls = Array.from(selectedImages).map((url) =>
-        buildCloudinaryUrl(url, settings, aiEnhance, sharpenSettings)
+        buildCloudinaryUrl(url, settings, enhance, sharpenSettings)
       );
 
       const response = await fetch("/api/admin/gallery/download-zip", {
@@ -266,13 +297,13 @@ export default function ReportImages({
     }
   };
 
-  const applyPreset = (preset: typeof PRESETS[0]) => {
+  const applyPreset = (preset: (typeof PRESETS)[0]) => {
     setSettings({ ...preset.settings });
     // Enable improve by default for enhanced presets
-    setAiEnhance({ improve: preset.enhance });
+    setEnhance({ improve: preset.enhance });
   };
 
-  const isPresetActive = (preset: typeof PRESETS[0]) => {
+  const isPresetActive = (preset: (typeof PRESETS)[0]) => {
     return (
       settings.width === preset.settings.width &&
       settings.height === preset.settings.height &&
@@ -290,12 +321,24 @@ export default function ReportImages({
             onClick={onBack}
             className="p-2 rounded-lg hover:bg-rose-100 text-gray-600"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            <svg
+              className="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 19l-7-7 7-7"
+              />
             </svg>
           </button>
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl md:text-2xl font-bold text-gray-900 truncate">{report.title}</h1>
+            <h1 className="text-xl md:text-2xl font-bold text-gray-900 truncate">
+              {report.title}
+            </h1>
             <p className="text-gray-500 text-sm">
               {report.imageCount} images • {report.reportType}
             </p>
@@ -307,252 +350,308 @@ export default function ReportImages({
       <div className="flex-1 flex overflow-hidden">
         {/* Fixed Left Sidebar */}
         <aside className="hidden lg:flex lg:flex-col w-80 xl:w-96 flex-shrink-0 border-r border-rose-100 bg-white/60 backdrop-blur-sm overflow-y-auto p-4 space-y-4">
-            <section className="rounded-2xl border border-rose-200 bg-white/80 backdrop-blur shadow-lg p-4 space-y-4">
-              <div className="flex items-center gap-2">
-                <h2 className="font-semibold text-gray-900">Compression</h2>
-                <span className="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded-full">Cloudinary</span>
-              </div>
-              <p className="text-xs text-gray-500">
-                AI-powered compression for best quality/size ratio
-              </p>
+          <section className="rounded-2xl border border-rose-200 bg-white/80 backdrop-blur shadow-lg p-4 space-y-4">
+            <div className="flex items-center gap-2">
+              <h2 className="font-semibold text-gray-900">Compression</h2>
+              <span className="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded-full">
+                Cloudinary
+              </span>
+            </div>
+            <p className="text-xs text-gray-500">
+              Smart compression for best quality/size ratio
+            </p>
 
-              {/* Quick Presets */}
-              <div className="space-y-2">
-                {PRESETS.map((preset) => (
-                  <button
-                    key={preset.label}
-                    onClick={() => applyPreset(preset)}
-                    className={`w-full px-3 py-2 text-left rounded-lg border transition-all ${
-                      isPresetActive(preset)
-                        ? "bg-rose-500 text-white border-rose-500"
-                        : "bg-white border-rose-200 hover:border-rose-400"
+            {/* Quick Presets */}
+            <div className="space-y-2">
+              {PRESETS.map((preset) => (
+                <button
+                  key={preset.label}
+                  onClick={() => applyPreset(preset)}
+                  className={`w-full px-3 py-2 text-left rounded-lg border transition-all ${
+                    isPresetActive(preset)
+                      ? "bg-rose-500 text-white border-rose-500"
+                      : "bg-white border-rose-200 hover:border-rose-400"
+                  }`}
+                >
+                  <div className="text-sm font-medium">{preset.label}</div>
+                  <div
+                    className={`text-xs ${
+                      isPresetActive(preset) ? "text-rose-100" : "text-gray-400"
                     }`}
                   >
-                    <div className="text-sm font-medium">{preset.label}</div>
-                    <div className={`text-xs ${isPresetActive(preset) ? "text-rose-100" : "text-gray-400"}`}>
-                      {preset.description}
-                    </div>
-                  </button>
-                ))}
+                    {preset.description}
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            {/* Custom Size Settings */}
+            <div className="pt-2 border-t border-rose-100">
+              <label className="text-sm font-medium text-gray-700 block mb-2">
+                Custom Size
+              </label>
+
+              <div className="grid grid-cols-2 gap-2 mb-3">
+                <div>
+                  <label className="text-xs text-gray-500">Max Width</label>
+                  <input
+                    type="number"
+                    value={settings.width || ""}
+                    onChange={(e) =>
+                      setSettings((s) => ({
+                        ...s,
+                        width: parseInt(e.target.value) || 0,
+                      }))
+                    }
+                    placeholder="Auto"
+                    className="w-full px-2 py-1.5 text-sm rounded border border-rose-200 focus:ring-1 focus:ring-rose-300 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500">Max Height</label>
+                  <input
+                    type="number"
+                    value={settings.height || ""}
+                    onChange={(e) =>
+                      setSettings((s) => ({
+                        ...s,
+                        height: parseInt(e.target.value) || 0,
+                      }))
+                    }
+                    placeholder="Auto"
+                    className="w-full px-2 py-1.5 text-sm rounded border border-rose-200 focus:ring-1 focus:ring-rose-300 outline-none"
+                  />
+                </div>
               </div>
 
-              {/* Custom Size Settings */}
-              <div className="pt-2 border-t border-rose-100">
-                <label className="text-sm font-medium text-gray-700 block mb-2">
-                  Custom Size
+              {/* Format selector */}
+              <div className="mb-3">
+                <label className="text-xs text-gray-500 block mb-1">
+                  Format
                 </label>
-                
-                <div className="grid grid-cols-2 gap-2 mb-3">
-                  <div>
-                    <label className="text-xs text-gray-500">Max Width</label>
-                    <input
-                      type="number"
-                      value={settings.width || ""}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          width: parseInt(e.target.value) || 0,
-                        }))
+                <div className="flex gap-1">
+                  {(["auto", "jpg", "webp"] as const).map((fmt) => (
+                    <button
+                      key={fmt}
+                      onClick={() =>
+                        setSettings((s) => ({ ...s, format: fmt }))
                       }
-                      placeholder="Auto"
-                      className="w-full px-2 py-1.5 text-sm rounded border border-rose-200 focus:ring-1 focus:ring-rose-300 outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-500">Max Height</label>
-                    <input
-                      type="number"
-                      value={settings.height || ""}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          height: parseInt(e.target.value) || 0,
-                        }))
-                      }
-                      placeholder="Auto"
-                      className="w-full px-2 py-1.5 text-sm rounded border border-rose-200 focus:ring-1 focus:ring-rose-300 outline-none"
-                    />
-                  </div>
+                      className={`flex-1 px-2 py-1 text-xs rounded border transition-all ${
+                        settings.format === fmt
+                          ? "bg-rose-500 text-white border-rose-500"
+                          : "bg-white border-rose-200 hover:border-rose-400"
+                      }`}
+                    >
+                      {fmt === "auto" ? "Auto (Best)" : fmt.toUpperCase()}
+                    </button>
+                  ))}
                 </div>
+              </div>
 
-                {/* Format selector */}
-                <div className="mb-3">
-                  <label className="text-xs text-gray-500 block mb-1">Format</label>
-                  <div className="flex gap-1">
-                    {(["auto", "jpg", "webp"] as const).map((fmt) => (
-                      <button
-                        key={fmt}
-                        onClick={() => setSettings((s) => ({ ...s, format: fmt }))}
-                        className={`flex-1 px-2 py-1 text-xs rounded border transition-all ${
-                          settings.format === fmt
-                            ? "bg-rose-500 text-white border-rose-500"
-                            : "bg-white border-rose-200 hover:border-rose-400"
-                        }`}
-                      >
-                        {fmt === "auto" ? "Auto (Best)" : fmt.toUpperCase()}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Quality selector */}
-                <div>
-                  <label className="text-xs text-gray-500 block mb-1">Quality Mode</label>
-                  <div className="grid grid-cols-2 gap-1">
-                    {([
+              {/* Quality selector */}
+              <div>
+                <label className="text-xs text-gray-500 block mb-1">
+                  Quality Mode
+                </label>
+                <div className="grid grid-cols-2 gap-1">
+                  {(
+                    [
                       { value: "auto:best", label: "Best" },
                       { value: "auto:good", label: "Good" },
                       { value: "auto:eco", label: "Eco" },
                       { value: "auto:low", label: "Low" },
-                    ] as const).map((q) => (
+                    ] as const
+                  ).map((q) => (
+                    <button
+                      key={q.value}
+                      onClick={() =>
+                        setSettings((s) => ({ ...s, quality: q.value }))
+                      }
+                      className={`px-2 py-1 text-xs rounded border transition-all ${
+                        settings.quality === q.value
+                          ? "bg-rose-500 text-white border-rose-500"
+                          : "bg-white border-rose-200 hover:border-rose-400"
+                      }`}
+                    >
+                      {q.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Enhancement Toggle */}
+              <div className="pt-2 border-t border-rose-100">
+                <label className="flex items-center justify-between cursor-pointer">
+                  <div>
+                    <span className="text-sm font-medium text-gray-700">
+                      Improve
+                    </span>
+                    <p className="text-xs text-gray-400">
+                      Enhance colors & contrast
+                    </p>
+                  </div>
+                  <button
+                    onClick={() =>
+                      setEnhance({ improve: !enhance.improve })
+                    }
+                    className={`relative w-11 h-6 rounded-full transition-colors ${
+                      enhance.improve ? "bg-rose-500" : "bg-gray-200"
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
+                        enhance.improve ? "translate-x-5" : ""
+                      }`}
+                    />
+                  </button>
+                </label>
+              </div>
+
+              {/* Sharpening Controls */}
+              <div className="pt-2 border-t border-rose-100 space-y-2">
+                <label className="flex items-center justify-between cursor-pointer">
+                  <div>
+                    <span className="text-sm font-medium text-gray-700">
+                      Sharpening
+                    </span>
+                    <p className="text-xs text-gray-400">
+                      Enhance image detail
+                    </p>
+                  </div>
+                  <button
+                    onClick={() =>
+                      setSharpenSettings((s) => ({ ...s, enabled: !s.enabled }))
+                    }
+                    className={`relative w-12 h-6 rounded-full transition-colors ${
+                      sharpenSettings.enabled ? "bg-rose-500" : "bg-gray-300"
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                        sharpenSettings.enabled ? "translate-x-6" : ""
+                      }`}
+                    />
+                  </button>
+                </label>
+
+                {sharpenSettings.enabled && (
+                  <>
+                    {/* Sharpen Type */}
+                    <div className="flex gap-1">
                       <button
-                        key={q.value}
-                        onClick={() => setSettings((s) => ({ ...s, quality: q.value }))}
-                        className={`px-2 py-1 text-xs rounded border transition-all ${
-                          settings.quality === q.value
+                        onClick={() =>
+                          setSharpenSettings((s) => ({
+                            ...s,
+                            type: "sharpen",
+                            strength: Math.min(s.strength, 500),
+                          }))
+                        }
+                        className={`flex-1 px-2 py-1 text-xs rounded border transition-all ${
+                          sharpenSettings.type === "sharpen"
                             ? "bg-rose-500 text-white border-rose-500"
                             : "bg-white border-rose-200 hover:border-rose-400"
                         }`}
                       >
-                        {q.label}
+                        Sharpen
                       </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* AI Enhancement Toggle */}
-                <div className="pt-2 border-t border-rose-100">
-                  <label className="flex items-center justify-between cursor-pointer">
-                    <div>
-                      <span className="text-sm font-medium text-gray-700">AI Improve</span>
-                      <p className="text-xs text-gray-400">Enhance colors & contrast</p>
-                    </div>
-                    <button
-                      onClick={() => setAiEnhance({ improve: !aiEnhance.improve })}
-                      className={`relative w-11 h-6 rounded-full transition-colors ${
-                        aiEnhance.improve ? "bg-rose-500" : "bg-gray-200"
-                      }`}
-                    >
-                      <span
-                        className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
-                          aiEnhance.improve ? "translate-x-5" : ""
+                      <button
+                        onClick={() =>
+                          setSharpenSettings((s) => ({
+                            ...s,
+                            type: "unsharpMask",
+                          }))
+                        }
+                        className={`flex-1 px-2 py-1 text-xs rounded border transition-all ${
+                          sharpenSettings.type === "unsharpMask"
+                            ? "bg-rose-500 text-white border-rose-500"
+                            : "bg-white border-rose-200 hover:border-rose-400"
                         }`}
-                      />
-                    </button>
-                  </label>
-                </div>
-
-                {/* Sharpening Controls */}
-                <div className="pt-2 border-t border-rose-100 space-y-2">
-                  <label className="flex items-center justify-between cursor-pointer">
-                    <div>
-                      <span className="text-sm font-medium text-gray-700">Sharpening</span>
-                      <p className="text-xs text-gray-400">Enhance image detail</p>
+                      >
+                        Unsharp Mask
+                      </button>
                     </div>
-                    <button
-                      onClick={() => setSharpenSettings(s => ({ ...s, enabled: !s.enabled }))}
-                      className={`relative w-12 h-6 rounded-full transition-colors ${
-                        sharpenSettings.enabled ? "bg-rose-500" : "bg-gray-300"
-                      }`}
-                    >
-                      <span
-                        className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                          sharpenSettings.enabled ? "translate-x-6" : ""
-                        }`}
+
+                    {/* Strength Slider */}
+                    <div>
+                      <label className="text-xs text-gray-500 flex justify-between">
+                        <span>Strength</span>
+                        <span>{sharpenSettings.strength}</span>
+                      </label>
+                      <input
+                        type="range"
+                        min="0"
+                        max={sharpenSettings.type === "sharpen" ? 500 : 2000}
+                        step={sharpenSettings.type === "sharpen" ? 10 : 50}
+                        value={sharpenSettings.strength}
+                        onChange={(e) =>
+                          setSharpenSettings((s) => ({
+                            ...s,
+                            strength: parseInt(e.target.value),
+                          }))
+                        }
+                        className="w-full h-2 bg-rose-100 rounded-lg appearance-none cursor-pointer accent-rose-500"
                       />
-                    </button>
-                  </label>
-
-                  {sharpenSettings.enabled && (
-                    <>
-                      {/* Sharpen Type */}
-                      <div className="flex gap-1">
-                        <button
-                          onClick={() => setSharpenSettings(s => ({ ...s, type: "sharpen", strength: Math.min(s.strength, 500) }))}
-                          className={`flex-1 px-2 py-1 text-xs rounded border transition-all ${
-                            sharpenSettings.type === "sharpen"
-                              ? "bg-rose-500 text-white border-rose-500"
-                              : "bg-white border-rose-200 hover:border-rose-400"
-                          }`}
-                        >
-                          Sharpen
-                        </button>
-                        <button
-                          onClick={() => setSharpenSettings(s => ({ ...s, type: "unsharpMask" }))}
-                          className={`flex-1 px-2 py-1 text-xs rounded border transition-all ${
-                            sharpenSettings.type === "unsharpMask"
-                              ? "bg-rose-500 text-white border-rose-500"
-                              : "bg-white border-rose-200 hover:border-rose-400"
-                          }`}
-                        >
-                          Unsharp Mask
-                        </button>
+                      <div className="flex justify-between text-xs text-gray-400">
+                        <span>Subtle</span>
+                        <span>Strong</span>
                       </div>
-
-                      {/* Strength Slider */}
-                      <div>
-                        <label className="text-xs text-gray-500 flex justify-between">
-                          <span>Strength</span>
-                          <span>{sharpenSettings.strength}</span>
-                        </label>
-                        <input
-                          type="range"
-                          min="0"
-                          max={sharpenSettings.type === "sharpen" ? 500 : 2000}
-                          step={sharpenSettings.type === "sharpen" ? 10 : 50}
-                          value={sharpenSettings.strength}
-                          onChange={(e) => setSharpenSettings(s => ({ ...s, strength: parseInt(e.target.value) }))}
-                          className="w-full h-2 bg-rose-100 rounded-lg appearance-none cursor-pointer accent-rose-500"
-                        />
-                        <div className="flex justify-between text-xs text-gray-400">
-                          <span>Subtle</span>
-                          <span>Strong</span>
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-            </section>
-
-            {/* Selection & Download */}
-            <section className="rounded-2xl border border-rose-200 bg-white/80 backdrop-blur shadow-lg p-4 space-y-3">
-              <h2 className="font-semibold text-gray-900">Download</h2>
-              <div className="flex gap-2">
-                <button
-                  onClick={selectAll}
-                  className="flex-1 px-3 py-2 text-sm rounded-lg border border-rose-200 hover:bg-rose-50"
-                >
-                  Select All
-                </button>
-                <button
-                  onClick={selectNone}
-                  className="flex-1 px-3 py-2 text-sm rounded-lg border border-rose-200 hover:bg-rose-50"
-                >
-                  Clear
-                </button>
-              </div>
-              <p className="text-sm text-gray-600 text-center">
-                {selectedImages.size} of {report.imageCount} selected
-              </p>
-              <button
-                onClick={downloadSelected}
-                disabled={selectedImages.size === 0 || downloading}
-                className="w-full py-3 rounded-xl bg-gradient-to-r from-rose-500 to-rose-600 text-white font-medium hover:from-rose-600 hover:to-rose-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg"
-              >
-                {downloading ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                    Compressing...
-                  </span>
-                ) : (
-                  `Download ${selectedImages.size} Images`
+                    </div>
+                  </>
                 )}
+              </div>
+            </div>
+          </section>
+
+          {/* Selection & Download */}
+          <section className="rounded-2xl border border-rose-200 bg-white/80 backdrop-blur shadow-lg p-4 space-y-3">
+            <h2 className="font-semibold text-gray-900">Download</h2>
+            <div className="flex gap-2">
+              <button
+                onClick={selectAll}
+                className="flex-1 px-3 py-2 text-sm rounded-lg border border-rose-200 hover:bg-rose-50"
+              >
+                Select All
               </button>
-            </section>
+              <button
+                onClick={selectNone}
+                className="flex-1 px-3 py-2 text-sm rounded-lg border border-rose-200 hover:bg-rose-50"
+              >
+                Clear
+              </button>
+            </div>
+            <p className="text-sm text-gray-600 text-center">
+              {selectedImages.size} of {report.imageCount} selected
+            </p>
+            <button
+              onClick={downloadSelected}
+              disabled={selectedImages.size === 0 || downloading}
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-rose-500 to-rose-600 text-white font-medium hover:from-rose-600 hover:to-rose-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg"
+            >
+              {downloading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                      fill="none"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                    />
+                  </svg>
+                  Compressing...
+                </span>
+              ) : (
+                `Download ${selectedImages.size} Images`
+              )}
+            </button>
+          </section>
         </aside>
 
         {/* Scrollable Image Grid */}
@@ -562,8 +661,18 @@ export default function ReportImages({
             <details className="rounded-2xl border border-rose-200 bg-white/80 backdrop-blur shadow-lg">
               <summary className="p-4 cursor-pointer font-semibold text-gray-900 flex items-center justify-between">
                 <span>⚙️ Compression Settings</span>
-                <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                <svg
+                  className="w-5 h-5 text-gray-500"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 9l-7 7-7-7"
+                  />
                 </svg>
               </summary>
               <div className="p-4 pt-0 space-y-3 border-t border-rose-100">
@@ -583,10 +692,16 @@ export default function ReportImages({
                   ))}
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={selectAll} className="flex-1 px-3 py-2 text-sm rounded-lg border border-rose-200 hover:bg-rose-50">
+                  <button
+                    onClick={selectAll}
+                    className="flex-1 px-3 py-2 text-sm rounded-lg border border-rose-200 hover:bg-rose-50"
+                  >
                     Select All
                   </button>
-                  <button onClick={selectNone} className="flex-1 px-3 py-2 text-sm rounded-lg border border-rose-200 hover:bg-rose-50">
+                  <button
+                    onClick={selectNone}
+                    className="flex-1 px-3 py-2 text-sm rounded-lg border border-rose-200 hover:bg-rose-50"
+                  >
                     Clear
                   </button>
                 </div>
@@ -595,138 +710,158 @@ export default function ReportImages({
                   disabled={selectedImages.size === 0 || downloading}
                   className="w-full py-3 rounded-xl bg-gradient-to-r from-rose-500 to-rose-600 text-white font-medium disabled:opacity-50 transition-all"
                 >
-                  {downloading ? "Compressing..." : `Download ${selectedImages.size} Images`}
+                  {downloading
+                    ? "Compressing..."
+                    : `Download ${selectedImages.size} Images`}
                 </button>
               </div>
             </details>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 md:gap-4">
-              {report.imageUrls.map((url, index) => (
+            {report.imageUrls.map((url, index) => (
+              <div
+                key={url}
+                className={`group relative rounded-xl overflow-hidden border-2 transition-all cursor-pointer ${
+                  selectedImages.has(url)
+                    ? "border-rose-500 ring-2 ring-rose-300 shadow-lg"
+                    : "border-rose-100 hover:border-rose-300"
+                }`}
+                onClick={() => toggleImage(url)}
+              >
+                <div className="aspect-[4/3] relative bg-gray-100">
+                  <img
+                    src={url}
+                    alt={`Image ${index + 1}`}
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                  />
+                </div>
+
+                {/* Selection indicator */}
                 <div
-                  key={url}
-                  className={`group relative rounded-xl overflow-hidden border-2 transition-all cursor-pointer ${
+                  className={`absolute top-2 left-2 w-6 h-6 rounded-full flex items-center justify-center transition-all ${
                     selectedImages.has(url)
-                      ? "border-rose-500 ring-2 ring-rose-300 shadow-lg"
-                      : "border-rose-100 hover:border-rose-300"
+                      ? "bg-rose-500 text-white"
+                      : "bg-white/80 border border-gray-300"
                   }`}
-                  onClick={() => toggleImage(url)}
                 >
-                  <div className="aspect-[4/3] relative bg-gray-100">
-                    <img
-                      src={url}
-                      alt={`Image ${index + 1}`}
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                    />
-                  </div>
+                  {selectedImages.has(url) && (
+                    <svg
+                      className="w-4 h-4"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  )}
+                </div>
 
-                  {/* Selection indicator */}
-                  <div
-                    className={`absolute top-2 left-2 w-6 h-6 rounded-full flex items-center justify-center transition-all ${
-                      selectedImages.has(url)
-                        ? "bg-rose-500 text-white"
-                        : "bg-white/80 border border-gray-300"
-                    }`}
-                  >
-                    {selectedImages.has(url) && (
-                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                        <path
-                          fillRule="evenodd"
-                          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                    )}
-                  </div>
-
-                  {/* Actions */}
-                  <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-                    <div className="flex gap-2">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          previewImage(url);
-                        }}
-                        className="flex-1 px-2 py-1 text-xs bg-white/90 rounded text-gray-800 hover:bg-white"
-                      >
-                        Preview
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          downloadSingle(url);
-                        }}
-                        className="flex-1 px-2 py-1 text-xs bg-rose-500 rounded text-white hover:bg-rose-600"
-                      >
-                        Download
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Index badge */}
-                  <div className="absolute top-2 right-2 px-2 py-0.5 bg-black/50 rounded text-white text-xs">
-                    {index + 1}
+                {/* Actions */}
+                <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex gap-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        previewImage(url);
+                      }}
+                      className="flex-1 px-2 py-1 text-xs bg-white/90 rounded text-gray-800 hover:bg-white"
+                    >
+                      Preview
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        downloadSingle(url);
+                      }}
+                      className="flex-1 px-2 py-1 text-xs bg-rose-500 rounded text-white hover:bg-rose-600"
+                    >
+                      Download
+                    </button>
                   </div>
                 </div>
-              ))}
+
+                {/* Index badge */}
+                <div className="absolute top-2 right-2 px-2 py-0.5 bg-black/50 rounded text-white text-xs">
+                  {index + 1}
+                </div>
+              </div>
+            ))}
           </div>
         </main>
       </div>
 
       {/* Preview Modal */}
-        {(previewUrl || previewLoading) && (
+      {(previewUrl || previewLoading) && (
+        <div
+          className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
+          onClick={() => {
+            setPreviewUrl(null);
+            setPreviewLoading(false);
+          }}
+        >
           <div
-            className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
-            onClick={() => {
-              setPreviewUrl(null);
-              setPreviewLoading(false);
-            }}
+            className="relative bg-white rounded-2xl p-2 max-w-4xl max-h-[90vh] overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
           >
-            <div
-              className="relative bg-white rounded-2xl p-2 max-w-4xl max-h-[90vh] overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
+            <button
+              onClick={() => {
+                setPreviewUrl(null);
+                setPreviewLoading(false);
+              }}
+              className="absolute top-4 right-4 z-10 p-2 bg-black/50 rounded-full text-white hover:bg-black/70"
             >
-              <button
-                onClick={() => {
-                  setPreviewUrl(null);
-                  setPreviewLoading(false);
-                }}
-                className="absolute top-4 right-4 z-10 p-2 bg-black/50 rounded-full text-white hover:bg-black/70"
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-              {previewLoading && !previewUrl ? (
-                <div className="w-96 h-72 flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-rose-500" />
-                </div>
-              ) : previewUrl ? (
-                <img
-                  src={previewUrl}
-                  alt="Preview"
-                  className="max-w-full max-h-[85vh] object-contain"
-                  onLoad={() => setPreviewLoading(false)}
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
                 />
-              ) : null}
-              <div className="absolute bottom-4 left-4 right-4 flex justify-between items-center">
-                <div className="px-3 py-1.5 rounded-lg bg-black/50 text-white text-sm">
-                  {settings.width || "Auto"}×{settings.height || "Auto"} • {typeof settings.quality === "string" ? settings.quality : `Q:${settings.quality}%`} • {settings.format}
-                </div>
-                {previewUrl && (
-                  <a
-                    href={previewUrl}
-                    download="preview.jpg"
-                    className="px-4 py-2 rounded-lg bg-rose-500 hover:bg-rose-600 text-white text-sm font-medium"
-                  >
-                    Download
-                  </a>
-                )}
+              </svg>
+            </button>
+            {previewLoading && !previewUrl ? (
+              <div className="w-96 h-72 flex items-center justify-center">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-rose-500" />
               </div>
+            ) : previewUrl ? (
+              <img
+                src={previewUrl}
+                alt="Preview"
+                className="max-w-full max-h-[85vh] object-contain"
+                onLoad={() => setPreviewLoading(false)}
+              />
+            ) : null}
+            <div className="absolute bottom-4 left-4 right-4 flex justify-between items-center">
+              <div className="px-3 py-1.5 rounded-lg bg-black/50 text-white text-sm">
+                {settings.width || "Auto"}×{settings.height || "Auto"} •{" "}
+                {typeof settings.quality === "string"
+                  ? settings.quality
+                  : `Q:${settings.quality}%`}{" "}
+                • {settings.format}
+              </div>
+              {previewUrl && (
+                <a
+                  href={previewUrl}
+                  download="preview.jpg"
+                  className="px-4 py-2 rounded-lg bg-rose-500 hover:bg-rose-600 text-white text-sm font-medium"
+                >
+                  Download
+                </a>
+              )}
             </div>
           </div>
-        )}
+        </div>
+      )}
     </div>
   );
 }
