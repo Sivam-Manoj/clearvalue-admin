@@ -21,9 +21,8 @@ export default async function Page() {
     .catch(() => ({} as unknown as { user?: { role?: string } }));
   const role = data?.user?.role;
   
-  // Regular admin can only see approved reports
-  if (role === "admin") redirect("/reports");
-  if (role !== "superadmin") redirect("/login");
+  // Regular admin and normal users can only see reports/gallery
+  if (role !== "superadmin") redirect("/gallery");
 
   return (
     <>
