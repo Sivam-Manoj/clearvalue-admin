@@ -8,20 +8,15 @@ export default async function Page() {
   const token = (await cookies()).get("cv_admin")?.value;
   if (!token) redirect("/login");
 
+  // Verify token is valid
   const res = await fetch(`${SERVER_URL}/api/admin/me`, {
     method: "GET",
     headers: { Authorization: `Bearer ${token}` },
     cache: "no-store",
   });
   if (!res.ok) redirect("/login");
-  
-  const data: { user?: { role?: string } } = await res
-    .json()
-    .catch(() => ({} as unknown as { user?: { role?: string } }));
-  const role = data?.user?.role;
-  
-  // User, admin and superadmin can access reports (user sees only their own)
 
+  // All authenticated users can access reports (filtering done at API level)
   return (
     <>
       <AdminNavbar />
