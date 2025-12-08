@@ -8,19 +8,6 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Get current user info to check role
-    const meRes = await fetch(`${SERVER_URL}/api/admin/me`, {
-      method: "GET",
-      headers: { Authorization: `Bearer ${token}` },
-      cache: "no-store",
-    });
-    const meData = await meRes.json().catch(() => ({}));
-    const userRole = meData?.user?.role;
-    const userId = meData?.user?._id;
-    
-    // For regular users, only fetch their own reports
-    const isRegularUser = userRole === "user";
-    
     // Fetch approved Asset reports with images
     const assetRes = await fetch(`${SERVER_URL}/api/asset/all-approved`, {
       cache: "no-store",
@@ -71,10 +58,9 @@ export async function GET(request: NextRequest) {
       })),
     ];
     
-    // Filter: regular users only see their own reports
+    // Filter and sort reports
     const reports = allReports
       .filter((r) => r.imageCount > 0)
-      .filter((r) => !isRegularUser || r.userId === userId)
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
     return NextResponse.json({ reports });
