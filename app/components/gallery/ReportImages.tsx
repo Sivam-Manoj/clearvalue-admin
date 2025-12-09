@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback } from "react";
 
 // Cloudinary cloud name for URL generation
 const CLOUDINARY_CLOUD =
@@ -94,15 +94,6 @@ const PRESETS: {
 
 const DEFAULT_SETTINGS: ImageSettings = PRESETS[0].settings;
 
-// HitPaw Enhancement types
-type EnhancementJob = {
-  jobId: string;
-  status: "pending" | "processing" | "completed" | "failed";
-  originalUrl: string;
-  enhancedUrl?: string;
-  error?: string;
-};
-
 export default function ReportImages({
   report,
   onBack,
@@ -120,18 +111,10 @@ export default function ReportImages({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   
-  // HitPaw Enhancement state
-  const [enhancementJobs, setEnhancementJobs] = useState<Map<string, EnhancementJob>>(new Map());
+  // HitPaw Enhancement state - simpler approach
+  const [enhancingImages, setEnhancingImages] = useState<Set<string>>(new Set());
   const [enhancedImages, setEnhancedImages] = useState<Map<string, string>>(new Map()); // originalUrl -> enhancedUrl
-  const pollingIntervalsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
-
-  // Cleanup polling intervals on unmount
-  useEffect(() => {
-    return () => {
-      pollingIntervalsRef.current.forEach((interval) => clearInterval(interval));
-      pollingIntervalsRef.current.clear();
-    };
-  }, []);
+  const [enhanceErrors, setEnhanceErrors] = useState<Map<string, string>>(new Map());
 
   // Build Cloudinary fetch URL manually (SDK has encoding issues with query params)
   const buildCloudinaryUrl = useCallback(
@@ -334,170 +317,64 @@ export default function ReportImages({
     );
   };
 
-  // HitPaw Enhancement functions
-  const pollEnhancementStatus = useCallback(async (jobId: string, originalUrl: string) => {
-    try {
-      const res = await fetch("/api/admin/gallery/hitpaw-enhance", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "status", jobId }),
-      });
-      
-      const data = await res.json();
-      console.log("[HitPaw] Poll result:", data);
-      
-      // Check if completed (code 200 or 0 means success)
-      // status: 1 = processing, 2 = completed, -1 = failed
-      if ((data.code === 200 || data.code === 0) && data.data) {
-        const status = data.data.status;
-        
-        if (status === 2) {
-          // Completed - stop polling
-          const interval = pollingIntervalsRef.current.get(originalUrl);
-          if (interval) {
-            clearInterval(interval);
-            pollingIntervalsRef.current.delete(originalUrl);
-          }
-          
-          const enhancedUrl = data.data.output_image_url;
-          setEnhancementJobs(prev => {
-            const next = new Map(prev);
-            next.set(originalUrl, {
-              jobId,
-              status: "completed",
-              originalUrl,
-              enhancedUrl,
-            });
-            return next;
-          });
-          
-          setEnhancedImages(prev => {
-            const next = new Map(prev);
-            next.set(originalUrl, enhancedUrl);
-            return next;
-          });
-        } else if (status === -1) {
-          // Failed
-          const interval = pollingIntervalsRef.current.get(originalUrl);
-          if (interval) {
-            clearInterval(interval);
-            pollingIntervalsRef.current.delete(originalUrl);
-          }
-          
-          setEnhancementJobs(prev => {
-            const next = new Map(prev);
-            next.set(originalUrl, {
-              jobId,
-              status: "failed",
-              originalUrl,
-              error: data.data.message || "Enhancement failed",
-            });
-            return next;
-          });
-        }
-        // status 1 = still processing, continue polling
-      } else if (data.code && data.code !== 200 && data.code !== 0) {
-        // API error
-        const interval = pollingIntervalsRef.current.get(originalUrl);
-        if (interval) {
-          clearInterval(interval);
-          pollingIntervalsRef.current.delete(originalUrl);
-        }
-        
-        setEnhancementJobs(prev => {
-          const next = new Map(prev);
-          next.set(originalUrl, {
-            jobId,
-            status: "failed",
-            originalUrl,
-            error: data.message || "API error",
-          });
-          return next;
-        });
-      }
-    } catch (e) {
-      console.error("[HitPaw] Poll error:", e);
-    }
-  }, []);
-
+  // HitPaw Enhancement - synchronous approach (API waits for completion)
   const startHitPawEnhancement = async (imageUrl: string) => {
     // Check if already enhancing or enhanced
-    const existingJob = enhancementJobs.get(imageUrl);
-    if (existingJob && (existingJob.status === "pending" || existingJob.status === "processing")) {
-      return; // Already in progress
+    if (enhancingImages.has(imageUrl) || enhancedImages.has(imageUrl)) {
+      return;
     }
     
-    if (enhancedImages.has(imageUrl)) {
-      return; // Already enhanced
-    }
+    // Clear any previous error
+    setEnhanceErrors(prev => {
+      const next = new Map(prev);
+      next.delete(imageUrl);
+      return next;
+    });
+    
+    // Mark as enhancing
+    setEnhancingImages(prev => new Set(prev).add(imageUrl));
     
     try {
-      // Set pending state
-      setEnhancementJobs(prev => {
-        const next = new Map(prev);
-        next.set(imageUrl, {
-          jobId: "",
-          status: "pending",
-          originalUrl: imageUrl,
-        });
-        return next;
-      });
+      console.log("[HitPaw] Starting enhancement for:", imageUrl.substring(0, 60) + "...");
       
       const res = await fetch("/api/admin/gallery/hitpaw-enhance", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageUrl }),
+        body: JSON.stringify({
+          imageUrl,
+          reportId: report._id,
+          reportType: report.reportType === "Real Estate" ? "realEstate" : "asset",
+        }),
       });
       
       const data = await res.json();
+      console.log("[HitPaw] Response:", data);
       
       if (!res.ok || !data.success) {
-        setEnhancementJobs(prev => {
-          const next = new Map(prev);
-          next.set(imageUrl, {
-            jobId: "",
-            status: "failed",
-            originalUrl: imageUrl,
-            error: data.message || "Failed to start enhancement",
-          });
-          return next;
-        });
-        return;
+        throw new Error(data.message || "Enhancement failed");
       }
       
-      const jobId = data.jobId;
-      
-      // Update to processing state
-      setEnhancementJobs(prev => {
+      // Success - store enhanced URL
+      setEnhancedImages(prev => {
         const next = new Map(prev);
-        next.set(imageUrl, {
-          jobId,
-          status: "processing",
-          originalUrl: imageUrl,
-        });
+        next.set(imageUrl, data.enhancedUrl);
         return next;
       });
       
-      // Start polling for status
-      const interval = setInterval(() => {
-        pollEnhancementStatus(jobId, imageUrl);
-      }, 3000); // Poll every 3 seconds
+      console.log("[HitPaw] Enhancement complete:", data.enhancedUrl?.substring(0, 60) + "...");
       
-      pollingIntervalsRef.current.set(imageUrl, interval);
-      
-      // Initial poll
-      setTimeout(() => pollEnhancementStatus(jobId, imageUrl), 1000);
-      
-    } catch (e) {
-      console.error("[HitPaw] Start error:", e);
-      setEnhancementJobs(prev => {
+    } catch (e: any) {
+      console.error("[HitPaw] Error:", e);
+      setEnhanceErrors(prev => {
         const next = new Map(prev);
-        next.set(imageUrl, {
-          jobId: "",
-          status: "failed",
-          originalUrl: imageUrl,
-          error: "Network error",
-        });
+        next.set(imageUrl, e.message || "Enhancement failed");
+        return next;
+      });
+    } finally {
+      // Remove from enhancing set
+      setEnhancingImages(prev => {
+        const next = new Set(prev);
+        next.delete(imageUrl);
         return next;
       });
     }
@@ -505,22 +382,25 @@ export default function ReportImages({
 
   const enhanceSelectedImages = async () => {
     const imagesToEnhance = Array.from(selectedImages).filter(
-      url => !enhancedImages.has(url) && !enhancementJobs.get(url)?.status?.match(/pending|processing/)
+      url => !enhancedImages.has(url) && !enhancingImages.has(url)
     );
     
+    // Process one at a time to avoid overwhelming the API
     for (const url of imagesToEnhance) {
       await startHitPawEnhancement(url);
-      // Small delay between requests to avoid rate limiting
-      await new Promise(r => setTimeout(r, 500));
     }
   };
 
-  const getEnhancementStatus = (url: string): EnhancementJob | undefined => {
-    return enhancementJobs.get(url);
+  const isEnhancing = (url: string): boolean => {
+    return enhancingImages.has(url);
   };
 
   const isEnhanced = (url: string): boolean => {
     return enhancedImages.has(url);
+  };
+
+  const getEnhanceError = (url: string): string | undefined => {
+    return enhanceErrors.get(url);
   };
 
   const getDisplayUrl = (url: string): string => {
@@ -837,7 +717,7 @@ export default function ReportImages({
               </div>
               <div className="flex-1 px-2 py-1.5 rounded-lg bg-yellow-50 border border-yellow-200 text-center">
                 <div className="font-semibold text-yellow-700">
-                  {Array.from(enhancementJobs.values()).filter(j => j.status === "processing").length}
+                  {enhancingImages.size}
                 </div>
                 <div className="text-yellow-600">Processing</div>
               </div>
@@ -987,7 +867,7 @@ export default function ReportImages({
                   </div>
                   <div className="flex-1 px-2 py-1.5 rounded-lg bg-yellow-50 border border-yellow-200 text-center">
                     <span className="font-semibold text-yellow-700">
-                      {Array.from(enhancementJobs.values()).filter(j => j.status === "processing").length}
+                      {enhancingImages.size}
                     </span>
                     <span className="text-yellow-600 ml-1">Processing</span>
                   </div>
@@ -998,8 +878,9 @@ export default function ReportImages({
 
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 md:gap-4">
             {report.imageUrls.map((url, index) => {
-              const enhanceStatus = getEnhancementStatus(url);
+              const enhancing = isEnhancing(url);
               const enhanced = isEnhanced(url);
+              const enhanceError = getEnhanceError(url);
               const displayUrl = getDisplayUrl(url);
               
               return (
@@ -1023,7 +904,7 @@ export default function ReportImages({
                     />
                     
                     {/* Enhancement processing overlay */}
-                    {enhanceStatus?.status === "processing" && (
+                    {enhancing && (
                       <div className="absolute inset-0 bg-purple-900/60 flex items-center justify-center">
                         <div className="text-center text-white">
                           <svg className="animate-spin h-8 w-8 mx-auto mb-2" viewBox="0 0 24 24">
@@ -1031,15 +912,7 @@ export default function ReportImages({
                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                           </svg>
                           <span className="text-xs font-medium">Enhancing...</span>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* Enhancement pending overlay */}
-                    {enhanceStatus?.status === "pending" && (
-                      <div className="absolute inset-0 bg-yellow-900/50 flex items-center justify-center">
-                        <div className="text-center text-white">
-                          <span className="text-xs font-medium">Queued...</span>
+                          <span className="text-xs opacity-75 block mt-1">This may take 1-2 min</span>
                         </div>
                       </div>
                     )}
@@ -1093,7 +966,7 @@ export default function ReportImages({
                       >
                         Download
                       </button>
-                      {!enhanced && !enhanceStatus?.status?.match(/pending|processing/) && (
+                      {!enhanced && !enhancing && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -1113,9 +986,9 @@ export default function ReportImages({
                   </div>
                   
                   {/* Error indicator */}
-                  {enhanceStatus?.status === "failed" && (
+                  {enhanceError && (
                     <div className="absolute bottom-2 left-2 right-2 px-2 py-1 bg-red-500/90 rounded text-white text-xs text-center">
-                      ⚠️ {enhanceStatus.error || "Enhancement failed"}
+                      ⚠️ {enhanceError}
                     </div>
                   )}
                 </div>
