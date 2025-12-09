@@ -175,8 +175,19 @@ export default function ReportImages({
       // Build final URL
       const transformStr = transforms.join("/");
 
+      // Check if URL is already a Cloudinary upload URL
+      const cloudinaryUploadMatch = url.match(
+        /^https:\/\/res\.cloudinary\.com\/([^/]+)\/image\/upload\/(.+)$/
+      );
+
+      if (cloudinaryUploadMatch) {
+        // For Cloudinary upload URLs, insert transforms after /upload/
+        const [, cloudName, rest] = cloudinaryUploadMatch;
+        return `https://res.cloudinary.com/${cloudName}/image/upload/${transformStr}/${rest}`;
+      }
+
+      // For external URLs, use fetch mode
       // Only encode if URL has query params (contains ?)
-      // Cloudinary fetch works better with unencoded URLs when there's no query string
       const finalSourceUrl = url.includes("?") ? encodeURIComponent(url) : url;
 
       return `https://res.cloudinary.com/${CLOUDINARY_CLOUD}/image/fetch/${transformStr}/${finalSourceUrl}`;
