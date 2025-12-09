@@ -335,7 +335,13 @@ export default function ReportImages({
     setEnhancingImages(prev => new Set(prev).add(imageUrl));
     
     try {
-      console.log("[HitPaw] Starting enhancement for:", imageUrl.substring(0, 60) + "...");
+      console.log("[HitPaw-UI] ========== STARTING ENHANCEMENT ==========");
+      console.log("[HitPaw-UI] Image URL:", imageUrl.substring(0, 80));
+      console.log("[HitPaw-UI] Report ID:", report._id);
+      console.log("[HitPaw-UI] Report Type:", report.reportType);
+      console.log("[HitPaw-UI] Sending request...");
+      
+      const startTime = Date.now();
       
       const res = await fetch("/api/admin/gallery/hitpaw-enhance", {
         method: "POST",
@@ -347,8 +353,12 @@ export default function ReportImages({
         }),
       });
       
+      const elapsed = Math.round((Date.now() - startTime) / 1000);
+      console.log(`[HitPaw-UI] Response received after ${elapsed}s`);
+      console.log("[HitPaw-UI] Response status:", res.status, res.ok ? "OK" : "FAILED");
+      
       const data = await res.json();
-      console.log("[HitPaw] Response:", data);
+      console.log("[HitPaw-UI] Response data:", JSON.stringify(data));
       
       if (!res.ok || !data.success) {
         throw new Error(data.message || "Enhancement failed");
@@ -361,10 +371,12 @@ export default function ReportImages({
         return next;
       });
       
-      console.log("[HitPaw] Enhancement complete:", data.enhancedUrl?.substring(0, 60) + "...");
+      console.log("[HitPaw-UI] ✅ Enhancement complete!");
+      console.log("[HitPaw-UI] Enhanced URL:", data.enhancedUrl?.substring(0, 80));
       
     } catch (e: any) {
-      console.error("[HitPaw] Error:", e);
+      console.error("[HitPaw-UI] ❌ ERROR:", e.message || e);
+      console.error("[HitPaw-UI] Full error:", e);
       setEnhanceErrors(prev => {
         const next = new Map(prev);
         next.set(imageUrl, e.message || "Enhancement failed");

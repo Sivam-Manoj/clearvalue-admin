@@ -1,56 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { SERVER_URL } from "@/lib/api";
 
-const HITPAW_API_KEY = process.env.HITPAW_API_KEY;
-const HITPAW_ENHANCE_URL = "https://api.hitpaw.com/api/v3/photoEnhanceByUrl";
-const HITPAW_STATUS_URL = "https://api.hitpaw.com/api/v3/photo-enhance/status";
-
-// Max time to wait for enhancement (2 minutes)
-const MAX_WAIT_TIME = 120000;
-const POLL_INTERVAL = 3000;
-
-// Helper: Wait for enhancement to complete
-async function waitForEnhancement(jobId: string): Promise<{ success: boolean; url?: string; error?: string }> {
-  const startTime = Date.now();
-  
-  while (Date.now() - startTime < MAX_WAIT_TIME) {
-    try {
-      const statusRes = await fetch(`${HITPAW_STATUS_URL}?job_id=${jobId}`, {
-        method: "POST",
-        headers: {
-          "User-Agent": "Apifox/1.0.0 (https://apifox.com)",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ job_id: jobId }),
-      });
-
-      const statusData = await statusRes.json();
-      console.log("[HitPaw] Status:", statusData);
-
-      if ((statusData.code === 200 || statusData.code === 0) && statusData.data) {
-        const status = statusData.data.status;
-        
-        if (status === 2) {
-          // Completed
-          return { success: true, url: statusData.data.output_image_url };
-        } else if (status === -1) {
-          // Failed
-          return { success: false, error: statusData.data.message || "Enhancement failed" };
-        }
-        // status 1 = still processing, continue waiting
-      } else if (statusData.code && statusData.code !== 200 && statusData.code !== 0) {
-        return { success: false, error: statusData.message || "API error" };
-      }
-    } catch (e) {
-      console.error("[HitPaw] Poll error:", e);
-    }
-    
-    // Wait before next poll
-    await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL));
-  }
-  
-  return { success: false, error: "Enhancement timed out after 2 minutes" };
-}
+// Picsart Upscale Enhance API
+const PICSART_API_KEY = process.env.PICSART_API_KEY;
+const PICSART_ENHANCE_URL = "https://api.picsart.io/tools/1.0/upscale/enhance";
 
 // POST handler for enhancement
 export async function POST(request: NextRequest) {
@@ -59,9 +12,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ message: "Not authenticated" }, { status: 401 });
   }
 
-  if (!HITPAW_API_KEY) {
+  if (!PICSART_API_KEY) {
     return NextResponse.json(
-      { message: "HitPaw API key not configured" },
+      { message: "Picsart API key not configured" },
       { status: 500 }
     );
   }
@@ -71,64 +24,69 @@ export async function POST(request: NextRequest) {
     const { imageUrl, reportId, reportType } = body;
 
     if (!imageUrl || typeof imageUrl !== "string") {
-      return NextResponse.json({ message: "Image URL required" }, { status: 400 });
+      return NextResponse.json(
+        { message: "Image URL required" },
+        { status: 400 }
+      );
     }
 
     // Determine format from URL
     const urlLower = imageUrl.toLowerCase();
-    let imageFormat = ".jpg";
-    if (urlLower.includes(".png")) imageFormat = ".png";
-    else if (urlLower.includes(".webp")) imageFormat = ".webp";
+    let imageFormat = "JPG";
+    if (urlLower.includes(".png")) imageFormat = "PNG";
+    else if (urlLower.includes(".webp")) imageFormat = "WEBP";
 
-    console.log("[HitPaw] Starting enhancement for:", imageUrl.substring(0, 80) + "...");
+    console.log("[Picsart] ========== NEW ENHANCEMENT REQUEST ==========");
+    console.log("[Picsart] Image URL:", imageUrl.substring(0, 100));
+    console.log("[Picsart] Report ID:", reportId);
+    console.log("[Picsart] Report Type:", reportType);
+    console.log("[Picsart] Output Format:", imageFormat);
+    console.log("[Picsart] API Key present:", !!PICSART_API_KEY);
 
-    // Step 1: Start enhancement job
-    const enhanceRes = await fetch(HITPAW_ENHANCE_URL, {
+    // Step 1: Call Picsart Upscale Enhance API
+    const formData = new FormData();
+    formData.append("image_url", imageUrl);
+    formData.append("upscale_factor", "2"); // 2x upscale
+    formData.append("format", imageFormat);
+
+    console.log("[Picsart] Calling Picsart Enhance API...");
+
+    const enhanceRes = await fetch(PICSART_ENHANCE_URL, {
       method: "POST",
       headers: {
-        "APIKEY": HITPAW_API_KEY,
-        "User-Agent": "Apifox/1.0.0 (https://apifox.com)",
-        "Content-Type": "application/json",
+        "X-Picsart-API-Key": PICSART_API_KEY,
+        Accept: "application/json",
       },
-      body: JSON.stringify({
-        image_url: imageUrl,
-        image_format: imageFormat,
-      }),
+      body: formData,
     });
 
     const enhanceData = await enhanceRes.json();
-    console.log("[HitPaw] Enhancement response:", enhanceData);
+    console.log("[Picsart] Response status:", enhanceRes.status);
+    console.log("[Picsart] Response:", JSON.stringify(enhanceData).substring(0, 200));
 
-    if (!enhanceRes.ok || (enhanceData.code !== 200 && enhanceData.code !== 0)) {
+    if (!enhanceRes.ok) {
+      console.error("[Picsart] ❌ API Error:", enhanceData);
       return NextResponse.json(
-        { message: enhanceData.message || "Failed to start enhancement" },
+        { message: enhanceData.message || enhanceData.detail || "Enhancement failed" },
+        { status: enhanceRes.status }
+      );
+    }
+
+    // Picsart returns the enhanced image URL in data.url
+    const enhancedUrl = enhanceData.data?.url;
+    if (!enhancedUrl) {
+      console.error("[Picsart] ❌ No URL in response:", enhanceData);
+      return NextResponse.json(
+        { message: "No enhanced image URL returned" },
         { status: 400 }
       );
     }
 
-    const jobId = enhanceData.data?.job_id;
-    if (!jobId) {
-      return NextResponse.json(
-        { message: "No job ID returned" },
-        { status: 400 }
-      );
-    }
+    console.log("[Picsart] ✅ Enhancement complete!");
+    console.log("[Picsart] Enhanced URL:", enhancedUrl.substring(0, 100));
+    console.log("[Picsart] Now uploading to Cloudinary...");
 
-    console.log("[HitPaw] Job started:", jobId);
-
-    // Step 2: Wait for enhancement to complete
-    const result = await waitForEnhancement(jobId);
-    
-    if (!result.success || !result.url) {
-      return NextResponse.json(
-        { message: result.error || "Enhancement failed" },
-        { status: 400 }
-      );
-    }
-
-    console.log("[HitPaw] Enhancement complete, URL:", result.url.substring(0, 80) + "...");
-
-    // Step 3: Upload enhanced image to Cloudinary via server
+    // Step 2: Upload enhanced image to Cloudinary via server
     const uploadRes = await fetch(`${SERVER_URL}/api/gallery/upload-from-url`, {
       method: "POST",
       headers: {
@@ -136,27 +94,28 @@ export async function POST(request: NextRequest) {
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
-        imageUrl: result.url,
+        imageUrl: enhancedUrl,
         folder: "enhanced",
       }),
     });
 
     const uploadData = await uploadRes.json();
-    
+
     if (!uploadRes.ok || !uploadData.success) {
-      console.error("[HitPaw] Upload failed:", uploadData);
-      // Return the HitPaw URL as fallback
+      console.error("[Picsart] Upload failed:", uploadData);
+      // Return the Picsart URL as fallback
       return NextResponse.json({
         success: true,
-        enhancedUrl: result.url,
+        enhancedUrl: enhancedUrl,
         uploaded: false,
-        message: "Enhanced but upload failed - using HitPaw URL",
+        message: "Enhanced but upload failed - using Picsart URL",
       });
     }
 
-    console.log("[HitPaw] Uploaded to Cloudinary:", uploadData.url);
+    console.log("[Picsart] ✅ Uploaded to Cloudinary:", uploadData.url);
+    console.log("[Picsart] File size:", uploadData.bytes, "bytes");
 
-    // Step 4: Update the report if reportId and reportType provided
+    // Step 3: Update the report if reportId and reportType provided
     if (reportId && reportType) {
       const updateRes = await fetch(`${SERVER_URL}/api/gallery/update-image`, {
         method: "POST",
@@ -173,11 +132,11 @@ export async function POST(request: NextRequest) {
       });
 
       const updateData = await updateRes.json();
-      
+
       if (!updateRes.ok) {
-        console.warn("[HitPaw] Report update failed:", updateData);
+        console.warn("[Picsart] Report update failed:", updateData);
       } else {
-        console.log("[HitPaw] Report updated successfully");
+        console.log("[Picsart] ✅ Report updated successfully");
       }
     }
 
@@ -187,9 +146,8 @@ export async function POST(request: NextRequest) {
       uploaded: true,
       message: "Enhancement complete and uploaded",
     });
-
   } catch (e) {
-    console.error("[HitPaw] Error:", e);
+    console.error("[Picsart] Error:", e);
     return NextResponse.json(
       { message: "Failed to process enhancement request" },
       { status: 500 }
