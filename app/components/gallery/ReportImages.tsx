@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 
 // Cloudinary cloud name for URL generation
 const CLOUDINARY_CLOUD =
@@ -94,6 +94,15 @@ const PRESETS: {
 
 const DEFAULT_SETTINGS: ImageSettings = PRESETS[0].settings;
 
+// HitPaw Enhancement types
+type EnhancementJob = {
+  jobId: string;
+  status: "pending" | "processing" | "completed" | "failed";
+  originalUrl: string;
+  enhancedUrl?: string;
+  error?: string;
+};
+
 export default function ReportImages({
   report,
   onBack,
@@ -110,6 +119,19 @@ export default function ReportImages({
   const [downloading, setDownloading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  
+  // HitPaw Enhancement state
+  const [enhancementJobs, setEnhancementJobs] = useState<Map<string, EnhancementJob>>(new Map());
+  const [enhancedImages, setEnhancedImages] = useState<Map<string, string>>(new Map()); // originalUrl -> enhancedUrl
+  const pollingIntervalsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+
+  // Cleanup polling intervals on unmount
+  useEffect(() => {
+    return () => {
+      pollingIntervalsRef.current.forEach((interval) => clearInterval(interval));
+      pollingIntervalsRef.current.clear();
+    };
+  }, []);
 
   // Build Cloudinary fetch URL manually (SDK has encoding issues with query params)
   const buildCloudinaryUrl = useCallback(
@@ -310,6 +332,199 @@ export default function ReportImages({
       settings.quality === preset.settings.quality &&
       settings.format === preset.settings.format
     );
+  };
+
+  // HitPaw Enhancement functions
+  const pollEnhancementStatus = useCallback(async (jobId: string, originalUrl: string) => {
+    try {
+      const res = await fetch("/api/admin/gallery/hitpaw-enhance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "status", jobId }),
+      });
+      
+      const data = await res.json();
+      console.log("[HitPaw] Poll result:", data);
+      
+      // Check if completed (code 200 or 0 means success)
+      // status: 1 = processing, 2 = completed, -1 = failed
+      if ((data.code === 200 || data.code === 0) && data.data) {
+        const status = data.data.status;
+        
+        if (status === 2) {
+          // Completed - stop polling
+          const interval = pollingIntervalsRef.current.get(originalUrl);
+          if (interval) {
+            clearInterval(interval);
+            pollingIntervalsRef.current.delete(originalUrl);
+          }
+          
+          const enhancedUrl = data.data.output_image_url;
+          setEnhancementJobs(prev => {
+            const next = new Map(prev);
+            next.set(originalUrl, {
+              jobId,
+              status: "completed",
+              originalUrl,
+              enhancedUrl,
+            });
+            return next;
+          });
+          
+          setEnhancedImages(prev => {
+            const next = new Map(prev);
+            next.set(originalUrl, enhancedUrl);
+            return next;
+          });
+        } else if (status === -1) {
+          // Failed
+          const interval = pollingIntervalsRef.current.get(originalUrl);
+          if (interval) {
+            clearInterval(interval);
+            pollingIntervalsRef.current.delete(originalUrl);
+          }
+          
+          setEnhancementJobs(prev => {
+            const next = new Map(prev);
+            next.set(originalUrl, {
+              jobId,
+              status: "failed",
+              originalUrl,
+              error: data.data.message || "Enhancement failed",
+            });
+            return next;
+          });
+        }
+        // status 1 = still processing, continue polling
+      } else if (data.code && data.code !== 200 && data.code !== 0) {
+        // API error
+        const interval = pollingIntervalsRef.current.get(originalUrl);
+        if (interval) {
+          clearInterval(interval);
+          pollingIntervalsRef.current.delete(originalUrl);
+        }
+        
+        setEnhancementJobs(prev => {
+          const next = new Map(prev);
+          next.set(originalUrl, {
+            jobId,
+            status: "failed",
+            originalUrl,
+            error: data.message || "API error",
+          });
+          return next;
+        });
+      }
+    } catch (e) {
+      console.error("[HitPaw] Poll error:", e);
+    }
+  }, []);
+
+  const startHitPawEnhancement = async (imageUrl: string) => {
+    // Check if already enhancing or enhanced
+    const existingJob = enhancementJobs.get(imageUrl);
+    if (existingJob && (existingJob.status === "pending" || existingJob.status === "processing")) {
+      return; // Already in progress
+    }
+    
+    if (enhancedImages.has(imageUrl)) {
+      return; // Already enhanced
+    }
+    
+    try {
+      // Set pending state
+      setEnhancementJobs(prev => {
+        const next = new Map(prev);
+        next.set(imageUrl, {
+          jobId: "",
+          status: "pending",
+          originalUrl: imageUrl,
+        });
+        return next;
+      });
+      
+      const res = await fetch("/api/admin/gallery/hitpaw-enhance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageUrl }),
+      });
+      
+      const data = await res.json();
+      
+      if (!res.ok || !data.success) {
+        setEnhancementJobs(prev => {
+          const next = new Map(prev);
+          next.set(imageUrl, {
+            jobId: "",
+            status: "failed",
+            originalUrl: imageUrl,
+            error: data.message || "Failed to start enhancement",
+          });
+          return next;
+        });
+        return;
+      }
+      
+      const jobId = data.jobId;
+      
+      // Update to processing state
+      setEnhancementJobs(prev => {
+        const next = new Map(prev);
+        next.set(imageUrl, {
+          jobId,
+          status: "processing",
+          originalUrl: imageUrl,
+        });
+        return next;
+      });
+      
+      // Start polling for status
+      const interval = setInterval(() => {
+        pollEnhancementStatus(jobId, imageUrl);
+      }, 3000); // Poll every 3 seconds
+      
+      pollingIntervalsRef.current.set(imageUrl, interval);
+      
+      // Initial poll
+      setTimeout(() => pollEnhancementStatus(jobId, imageUrl), 1000);
+      
+    } catch (e) {
+      console.error("[HitPaw] Start error:", e);
+      setEnhancementJobs(prev => {
+        const next = new Map(prev);
+        next.set(imageUrl, {
+          jobId: "",
+          status: "failed",
+          originalUrl: imageUrl,
+          error: "Network error",
+        });
+        return next;
+      });
+    }
+  };
+
+  const enhanceSelectedImages = async () => {
+    const imagesToEnhance = Array.from(selectedImages).filter(
+      url => !enhancedImages.has(url) && !enhancementJobs.get(url)?.status?.match(/pending|processing/)
+    );
+    
+    for (const url of imagesToEnhance) {
+      await startHitPawEnhancement(url);
+      // Small delay between requests to avoid rate limiting
+      await new Promise(r => setTimeout(r, 500));
+    }
+  };
+
+  const getEnhancementStatus = (url: string): EnhancementJob | undefined => {
+    return enhancementJobs.get(url);
+  };
+
+  const isEnhanced = (url: string): boolean => {
+    return enhancedImages.has(url);
+  };
+
+  const getDisplayUrl = (url: string): string => {
+    return enhancedImages.get(url) || url;
   };
 
   return (
@@ -602,6 +817,46 @@ export default function ReportImages({
             </div>
           </section>
 
+          {/* HitPaw Advanced Enhancement */}
+          <section className="rounded-2xl border border-purple-200 bg-gradient-to-br from-purple-50 to-white backdrop-blur shadow-lg p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <h2 className="font-semibold text-gray-900">🚀 Advanced Enhance</h2>
+              <span className="px-2 py-0.5 text-xs bg-purple-100 text-purple-700 rounded-full">
+                HitPaw
+              </span>
+            </div>
+            <p className="text-xs text-gray-500">
+              Professional photo enhancement with upscaling & noise reduction
+            </p>
+            
+            {/* Enhancement Stats */}
+            <div className="flex gap-2 text-xs">
+              <div className="flex-1 px-2 py-1.5 rounded-lg bg-green-50 border border-green-200 text-center">
+                <div className="font-semibold text-green-700">{enhancedImages.size}</div>
+                <div className="text-green-600">Enhanced</div>
+              </div>
+              <div className="flex-1 px-2 py-1.5 rounded-lg bg-yellow-50 border border-yellow-200 text-center">
+                <div className="font-semibold text-yellow-700">
+                  {Array.from(enhancementJobs.values()).filter(j => j.status === "processing").length}
+                </div>
+                <div className="text-yellow-600">Processing</div>
+              </div>
+            </div>
+            
+            {/* Enhance Selected Button */}
+            <button
+              onClick={enhanceSelectedImages}
+              disabled={selectedImages.size === 0 || Array.from(selectedImages).every(url => enhancedImages.has(url))}
+              className="w-full py-2.5 rounded-xl bg-gradient-to-r from-purple-500 to-purple-600 text-white font-medium hover:from-purple-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg text-sm"
+            >
+              ✨ Enhance {selectedImages.size} Selected
+            </button>
+            
+            <p className="text-xs text-gray-400 text-center">
+              Uses HitPaw API for professional-grade enhancement
+            </p>
+          </section>
+
           {/* Selection & Download */}
           <section className="rounded-2xl border border-rose-200 bg-white/80 backdrop-blur shadow-lg p-4 space-y-3">
             <h2 className="font-semibold text-gray-900">Download</h2>
@@ -714,83 +969,158 @@ export default function ReportImages({
                     ? "Compressing..."
                     : `Download ${selectedImages.size} Images`}
                 </button>
+                
+                {/* HitPaw Enhancement for Mobile */}
+                <button
+                  onClick={enhanceSelectedImages}
+                  disabled={selectedImages.size === 0 || Array.from(selectedImages).every(url => enhancedImages.has(url))}
+                  className="w-full py-3 rounded-xl bg-gradient-to-r from-purple-500 to-purple-600 text-white font-medium disabled:opacity-50 transition-all"
+                >
+                  ✨ Enhance {selectedImages.size} Selected (HitPaw)
+                </button>
+                
+                {/* Enhancement Stats */}
+                <div className="flex gap-2 text-xs">
+                  <div className="flex-1 px-2 py-1.5 rounded-lg bg-green-50 border border-green-200 text-center">
+                    <span className="font-semibold text-green-700">{enhancedImages.size}</span>
+                    <span className="text-green-600 ml-1">Enhanced</span>
+                  </div>
+                  <div className="flex-1 px-2 py-1.5 rounded-lg bg-yellow-50 border border-yellow-200 text-center">
+                    <span className="font-semibold text-yellow-700">
+                      {Array.from(enhancementJobs.values()).filter(j => j.status === "processing").length}
+                    </span>
+                    <span className="text-yellow-600 ml-1">Processing</span>
+                  </div>
+                </div>
               </div>
             </details>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 md:gap-4">
-            {report.imageUrls.map((url, index) => (
-              <div
-                key={url}
-                className={`group relative rounded-xl overflow-hidden border-2 transition-all cursor-pointer ${
-                  selectedImages.has(url)
-                    ? "border-rose-500 ring-2 ring-rose-300 shadow-lg"
-                    : "border-rose-100 hover:border-rose-300"
-                }`}
-                onClick={() => toggleImage(url)}
-              >
-                <div className="aspect-[4/3] relative bg-gray-100">
-                  <img
-                    src={url}
-                    alt={`Image ${index + 1}`}
-                    className="w-full h-full object-cover"
-                    loading="lazy"
-                  />
-                </div>
-
-                {/* Selection indicator */}
+            {report.imageUrls.map((url, index) => {
+              const enhanceStatus = getEnhancementStatus(url);
+              const enhanced = isEnhanced(url);
+              const displayUrl = getDisplayUrl(url);
+              
+              return (
                 <div
-                  className={`absolute top-2 left-2 w-6 h-6 rounded-full flex items-center justify-center transition-all ${
-                    selectedImages.has(url)
-                      ? "bg-rose-500 text-white"
-                      : "bg-white/80 border border-gray-300"
+                  key={url}
+                  className={`group relative rounded-xl overflow-hidden border-2 transition-all cursor-pointer ${
+                    enhanced
+                      ? "border-purple-500 ring-2 ring-purple-300 shadow-lg shadow-purple-100"
+                      : selectedImages.has(url)
+                      ? "border-rose-500 ring-2 ring-rose-300 shadow-lg"
+                      : "border-rose-100 hover:border-rose-300"
                   }`}
+                  onClick={() => toggleImage(url)}
                 >
-                  {selectedImages.has(url) && (
-                    <svg
-                      className="w-4 h-4"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
+                  <div className="aspect-[4/3] relative bg-gray-100">
+                    <img
+                      src={displayUrl}
+                      alt={`Image ${index + 1}`}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                    
+                    {/* Enhancement processing overlay */}
+                    {enhanceStatus?.status === "processing" && (
+                      <div className="absolute inset-0 bg-purple-900/60 flex items-center justify-center">
+                        <div className="text-center text-white">
+                          <svg className="animate-spin h-8 w-8 mx-auto mb-2" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                          </svg>
+                          <span className="text-xs font-medium">Enhancing...</span>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Enhancement pending overlay */}
+                    {enhanceStatus?.status === "pending" && (
+                      <div className="absolute inset-0 bg-yellow-900/50 flex items-center justify-center">
+                        <div className="text-center text-white">
+                          <span className="text-xs font-medium">Queued...</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Enhanced badge */}
+                  {enhanced && (
+                    <div className="absolute top-2 left-2 px-2 py-0.5 bg-purple-500 rounded-full text-white text-xs font-medium flex items-center gap-1">
+                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                      Enhanced
+                    </div>
+                  )}
+
+                  {/* Selection indicator (only show if not enhanced) */}
+                  {!enhanced && (
+                    <div
+                      className={`absolute top-2 left-2 w-6 h-6 rounded-full flex items-center justify-center transition-all ${
+                        selectedImages.has(url)
+                          ? "bg-rose-500 text-white"
+                          : "bg-white/80 border border-gray-300"
+                      }`}
                     >
-                      <path
-                        fillRule="evenodd"
-                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
+                      {selectedImages.has(url) && (
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex gap-1 flex-wrap">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          previewImage(enhanced ? displayUrl : url);
+                        }}
+                        className="flex-1 px-2 py-1 text-xs bg-white/90 rounded text-gray-800 hover:bg-white"
+                      >
+                        Preview
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          downloadSingle(enhanced ? displayUrl : url);
+                        }}
+                        className="flex-1 px-2 py-1 text-xs bg-rose-500 rounded text-white hover:bg-rose-600"
+                      >
+                        Download
+                      </button>
+                      {!enhanced && !enhanceStatus?.status?.match(/pending|processing/) && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            startHitPawEnhancement(url);
+                          }}
+                          className="w-full mt-1 px-2 py-1 text-xs bg-purple-500 rounded text-white hover:bg-purple-600"
+                        >
+                          ✨ Enhance
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Index badge */}
+                  <div className="absolute top-2 right-2 px-2 py-0.5 bg-black/50 rounded text-white text-xs">
+                    {index + 1}
+                  </div>
+                  
+                  {/* Error indicator */}
+                  {enhanceStatus?.status === "failed" && (
+                    <div className="absolute bottom-2 left-2 right-2 px-2 py-1 bg-red-500/90 rounded text-white text-xs text-center">
+                      ⚠️ {enhanceStatus.error || "Enhancement failed"}
+                    </div>
                   )}
                 </div>
-
-                {/* Actions */}
-                <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-                  <div className="flex gap-2">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        previewImage(url);
-                      }}
-                      className="flex-1 px-2 py-1 text-xs bg-white/90 rounded text-gray-800 hover:bg-white"
-                    >
-                      Preview
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        downloadSingle(url);
-                      }}
-                      className="flex-1 px-2 py-1 text-xs bg-rose-500 rounded text-white hover:bg-rose-600"
-                    >
-                      Download
-                    </button>
-                  </div>
-                </div>
-
-                {/* Index badge */}
-                <div className="absolute top-2 right-2 px-2 py-0.5 bg-black/50 rounded text-white text-xs">
-                  {index + 1}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </main>
       </div>

@@ -1,5 +1,17 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Environment Variables
+
+Create a `.env.local` file with the following variables:
+
+```env
+# Backend server URL
+NEXT_PUBLIC_SERVER_URL=http://localhost:5000
+
+# HitPaw API Key for advanced photo enhancement
+HITPAW_API_KEY=your_hitpaw_api_key_here
+```
+
 ## Getting Started
 
 First, run the development server:
