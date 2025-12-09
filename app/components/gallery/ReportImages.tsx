@@ -181,9 +181,24 @@ export default function ReportImages({
       );
 
       if (cloudinaryUploadMatch) {
-        // For Cloudinary upload URLs, insert transforms after /upload/
+        // For Cloudinary upload URLs (like enhanced images), use simpler transforms
+        // Skip e_improve since image is already enhanced
         const [, cloudName, rest] = cloudinaryUploadMatch;
-        return `https://res.cloudinary.com/${cloudName}/image/upload/${transformStr}/${rest}`;
+        const simpleTransforms: string[] = [];
+        
+        // Only add size/quality/format transforms, skip enhancement
+        if (s.width > 0 && s.height > 0) {
+          simpleTransforms.push(`c_limit,w_${s.width},h_${s.height}`);
+        } else if (s.width > 0) {
+          simpleTransforms.push(`c_scale,w_${s.width}`);
+        } else if (s.height > 0) {
+          simpleTransforms.push(`c_scale,h_${s.height}`);
+        }
+        simpleTransforms.push(`q_${s.quality}`);
+        simpleTransforms.push(`f_${s.format}`);
+        
+        const simpleTransformStr = simpleTransforms.join("/");
+        return `https://res.cloudinary.com/${cloudName}/image/upload/${simpleTransformStr}/${rest}`;
       }
 
       // For external URLs, use fetch mode
