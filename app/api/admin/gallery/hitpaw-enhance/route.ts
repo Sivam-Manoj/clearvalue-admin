@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     // Step 1: Call Picsart Upscale Enhance API
     const formData = new FormData();
     formData.append("image_url", imageUrl);
-    formData.append("upscale_factor", "12"); // 4x upscale for better quality (2-16 available)
+    formData.append("upscale_factor", "2"); // 2x upscale (max 64Mpx output)
     formData.append("format", imageFormat);
 
     console.log("[Picsart] Calling Picsart Enhance API...");
