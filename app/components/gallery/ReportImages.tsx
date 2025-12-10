@@ -430,7 +430,7 @@ export default function ReportImages({
   };
 
   // Bulk enhance selected images
-  const enhanceSelectedImages = async (type: "picsart" | "cloudinary" = bulkEnhanceType) => {
+  const enhanceSelectedImages = async (type: "picsart" | "cloudinary" | "both" = bulkEnhanceType) => {
     const imagesToEnhance = Array.from(selectedImages).filter(
       url => !enhancedImages.has(url) && !enhancingImages.has(url)
     );
@@ -439,7 +439,69 @@ export default function ReportImages({
     
     // Process one at a time to avoid overwhelming the API
     for (const url of imagesToEnhance) {
-      await startEnhancement(url, type);
+      if (type === "both") {
+        await startCombinedEnhancement(url);
+      } else {
+        await startEnhancement(url, type);
+      }
+    }
+  };
+
+  // Combined enhancement: Quick (color) first, then Ultra (upscale)
+  const startCombinedEnhancement = async (imageUrl: string) => {
+    if (enhancingImages.has(imageUrl) || enhancedImages.has(imageUrl)) return;
+    
+    setEnhanceErrors(prev => { const next = new Map(prev); next.delete(imageUrl); return next; });
+    setEnhancingImages(prev => new Set(prev).add(imageUrl));
+    
+    try {
+      console.log("[Combined-UI] Step 1: Quick enhancement (color/contrast)...");
+      const startTime = Date.now();
+      
+      // Step 1: Cloudinary enhancement first
+      const cloudinaryRes = await fetch("/api/admin/gallery/cloudinary-enhance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          imageUrl,
+          reportId: report._id,
+          reportType: report.reportType === "Real Estate" ? "realEstate" : "asset",
+        }),
+      });
+      
+      const cloudinaryData = await cloudinaryRes.json();
+      if (!cloudinaryRes.ok || !cloudinaryData.success) {
+        throw new Error(cloudinaryData.message || "Quick enhancement failed");
+      }
+      
+      console.log("[Combined-UI] Step 1 complete. Step 2: Ultra enhancement (upscale)...");
+      
+      // Step 2: Picsart enhancement on the Cloudinary-enhanced image
+      const picsartRes = await fetch("/api/admin/gallery/hitpaw-enhance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          imageUrl: cloudinaryData.enhancedUrl, // Use the Cloudinary-enhanced URL
+          reportId: report._id,
+          reportType: report.reportType === "Real Estate" ? "realEstate" : "asset",
+        }),
+      });
+      
+      const picsartData = await picsartRes.json();
+      if (!picsartRes.ok || !picsartData.success) {
+        throw new Error(picsartData.message || "Ultra enhancement failed");
+      }
+      
+      const elapsed = Math.round((Date.now() - startTime) / 1000);
+      console.log(`[Combined-UI] ✅ Both enhancements complete in ${elapsed}s`);
+      
+      setEnhancedImages(prev => { const next = new Map(prev); next.set(imageUrl, picsartData.enhancedUrl); return next; });
+      
+    } catch (e: any) {
+      console.error("[Combined-UI] ❌ ERROR:", e.message);
+      setEnhanceErrors(prev => { const next = new Map(prev); next.set(imageUrl, e.message || "Failed"); return next; });
+    } finally {
+      setEnhancingImages(prev => { const next = new Set(prev); next.delete(imageUrl); return next; });
     }
   };
 
@@ -834,6 +896,18 @@ export default function ReportImages({
                 ⚡ Quick
               </button>
             </div>
+            
+            {/* Combined Enhancement Button */}
+            <button
+              onClick={() => enhanceSelectedImages("both")}
+              disabled={selectedImages.size === 0 || enhancingImages.size > 0}
+              className="w-full py-2 rounded-xl bg-gradient-to-r from-blue-500 via-purple-500 to-purple-600 text-white font-medium hover:from-blue-600 hover:via-purple-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg text-sm"
+            >
+              🔥 Both (Quick + Ultra)
+            </button>
+            <p className="text-xs text-gray-400 text-center">
+              Best quality: Color correction then upscaling
+            </p>
           </section>
 
           {/* Selection & Download */}
@@ -954,16 +1028,23 @@ export default function ReportImages({
                   <button
                     onClick={() => enhanceSelectedImages("picsart")}
                     disabled={selectedImages.size === 0 || enhancingImages.size > 0}
-                    className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-purple-500 to-purple-600 text-white font-medium disabled:opacity-50 transition-all text-sm"
+                    className="flex-1 py-2 rounded-xl bg-gradient-to-r from-purple-500 to-purple-600 text-white font-medium disabled:opacity-50 transition-all text-xs"
                   >
-                    ✨ Ultra Enhance
+                    ✨ Ultra
                   </button>
                   <button
                     onClick={() => enhanceSelectedImages("cloudinary")}
                     disabled={selectedImages.size === 0 || enhancingImages.size > 0}
-                    className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 text-white font-medium disabled:opacity-50 transition-all text-sm"
+                    className="flex-1 py-2 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 text-white font-medium disabled:opacity-50 transition-all text-xs"
                   >
-                    ⚡ Quick Enhance
+                    ⚡ Quick
+                  </button>
+                  <button
+                    onClick={() => enhanceSelectedImages("both")}
+                    disabled={selectedImages.size === 0 || enhancingImages.size > 0}
+                    className="flex-1 py-2 rounded-xl bg-gradient-to-r from-blue-500 via-purple-500 to-purple-600 text-white font-medium disabled:opacity-50 transition-all text-xs"
+                  >
+                    🔥 Both
                   </button>
                 </div>
                 
@@ -1073,7 +1154,17 @@ export default function ReportImages({
                         Download
                       </button>
                       {!enhanced && !enhancing && (
-                        <div className="flex gap-1 mt-1">
+                        <div className="flex gap-1 mt-1 flex-wrap">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              startCombinedEnhancement(url);
+                            }}
+                            className="w-full px-1 py-1 text-xs bg-gradient-to-r from-blue-500 to-purple-500 rounded text-white hover:from-blue-600 hover:to-purple-600"
+                            title="Best quality: Color + Upscaling"
+                          >
+                            🔥 Both
+                          </button>
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
