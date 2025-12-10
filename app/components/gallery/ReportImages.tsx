@@ -111,10 +111,11 @@ export default function ReportImages({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   
-  // HitPaw Enhancement state - simpler approach
+  // Enhancement state
   const [enhancingImages, setEnhancingImages] = useState<Set<string>>(new Set());
   const [enhancedImages, setEnhancedImages] = useState<Map<string, string>>(new Map()); // originalUrl -> enhancedUrl
   const [enhanceErrors, setEnhanceErrors] = useState<Map<string, string>>(new Map());
+  const [bulkEnhanceType, setBulkEnhanceType] = useState<"picsart" | "cloudinary">("picsart");
 
   // Build Cloudinary fetch URL manually (SDK has encoding issues with query params)
   const buildCloudinaryUrl = useCallback(
@@ -343,30 +344,15 @@ export default function ReportImages({
     );
   };
 
-  // HitPaw Enhancement - synchronous approach (API waits for completion)
-  const startHitPawEnhancement = async (imageUrl: string) => {
-    // Check if already enhancing or enhanced
-    if (enhancingImages.has(imageUrl) || enhancedImages.has(imageUrl)) {
-      return;
-    }
+  // Picsart AI Enhancement - upscaling with AI
+  const startPicsartEnhancement = async (imageUrl: string) => {
+    if (enhancingImages.has(imageUrl) || enhancedImages.has(imageUrl)) return;
     
-    // Clear any previous error
-    setEnhanceErrors(prev => {
-      const next = new Map(prev);
-      next.delete(imageUrl);
-      return next;
-    });
-    
-    // Mark as enhancing
+    setEnhanceErrors(prev => { const next = new Map(prev); next.delete(imageUrl); return next; });
     setEnhancingImages(prev => new Set(prev).add(imageUrl));
     
     try {
-      console.log("[HitPaw-UI] ========== STARTING ENHANCEMENT ==========");
-      console.log("[HitPaw-UI] Image URL:", imageUrl.substring(0, 80));
-      console.log("[HitPaw-UI] Report ID:", report._id);
-      console.log("[HitPaw-UI] Report Type:", report.reportType);
-      console.log("[HitPaw-UI] Sending request...");
-      
+      console.log("[Picsart-UI] Starting AI enhancement for:", imageUrl.substring(0, 60));
       const startTime = Date.now();
       
       const res = await fetch("/api/admin/gallery/hitpaw-enhance", {
@@ -380,52 +366,80 @@ export default function ReportImages({
       });
       
       const elapsed = Math.round((Date.now() - startTime) / 1000);
-      console.log(`[HitPaw-UI] Response received after ${elapsed}s`);
-      console.log("[HitPaw-UI] Response status:", res.status, res.ok ? "OK" : "FAILED");
+      console.log(`[Picsart-UI] Response after ${elapsed}s, status: ${res.status}`);
       
       const data = await res.json();
-      console.log("[HitPaw-UI] Response data:", JSON.stringify(data));
+      if (!res.ok || !data.success) throw new Error(data.message || "Enhancement failed");
       
-      if (!res.ok || !data.success) {
-        throw new Error(data.message || "Enhancement failed");
-      }
-      
-      // Success - store enhanced URL
-      setEnhancedImages(prev => {
-        const next = new Map(prev);
-        next.set(imageUrl, data.enhancedUrl);
-        return next;
-      });
-      
-      console.log("[HitPaw-UI] ✅ Enhancement complete!");
-      console.log("[HitPaw-UI] Enhanced URL:", data.enhancedUrl?.substring(0, 80));
+      setEnhancedImages(prev => { const next = new Map(prev); next.set(imageUrl, data.enhancedUrl); return next; });
+      console.log("[Picsart-UI] ✅ Complete:", data.enhancedUrl?.substring(0, 60));
       
     } catch (e: any) {
-      console.error("[HitPaw-UI] ❌ ERROR:", e.message || e);
-      console.error("[HitPaw-UI] Full error:", e);
-      setEnhanceErrors(prev => {
-        const next = new Map(prev);
-        next.set(imageUrl, e.message || "Enhancement failed");
-        return next;
-      });
+      console.error("[Picsart-UI] ❌ ERROR:", e.message);
+      setEnhanceErrors(prev => { const next = new Map(prev); next.set(imageUrl, e.message || "Failed"); return next; });
     } finally {
-      // Remove from enhancing set
-      setEnhancingImages(prev => {
-        const next = new Set(prev);
-        next.delete(imageUrl);
-        return next;
-      });
+      setEnhancingImages(prev => { const next = new Set(prev); next.delete(imageUrl); return next; });
     }
   };
 
-  const enhanceSelectedImages = async () => {
+  // Cloudinary Enhancement - color/contrast improvement
+  const startCloudinaryEnhancement = async (imageUrl: string) => {
+    if (enhancingImages.has(imageUrl) || enhancedImages.has(imageUrl)) return;
+    
+    setEnhanceErrors(prev => { const next = new Map(prev); next.delete(imageUrl); return next; });
+    setEnhancingImages(prev => new Set(prev).add(imageUrl));
+    
+    try {
+      console.log("[Cloudinary-UI] Starting enhancement for:", imageUrl.substring(0, 60));
+      const startTime = Date.now();
+      
+      const res = await fetch("/api/admin/gallery/cloudinary-enhance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          imageUrl,
+          reportId: report._id,
+          reportType: report.reportType === "Real Estate" ? "realEstate" : "asset",
+        }),
+      });
+      
+      const elapsed = Math.round((Date.now() - startTime) / 1000);
+      console.log(`[Cloudinary-UI] Response after ${elapsed}s, status: ${res.status}`);
+      
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.message || "Enhancement failed");
+      
+      setEnhancedImages(prev => { const next = new Map(prev); next.set(imageUrl, data.enhancedUrl); return next; });
+      console.log("[Cloudinary-UI] ✅ Complete:", data.enhancedUrl?.substring(0, 60));
+      
+    } catch (e: any) {
+      console.error("[Cloudinary-UI] ❌ ERROR:", e.message);
+      setEnhanceErrors(prev => { const next = new Map(prev); next.set(imageUrl, e.message || "Failed"); return next; });
+    } finally {
+      setEnhancingImages(prev => { const next = new Set(prev); next.delete(imageUrl); return next; });
+    }
+  };
+
+  // Single image enhancement (uses selected type)
+  const startEnhancement = async (imageUrl: string, type: "picsart" | "cloudinary" = bulkEnhanceType) => {
+    if (type === "picsart") {
+      await startPicsartEnhancement(imageUrl);
+    } else {
+      await startCloudinaryEnhancement(imageUrl);
+    }
+  };
+
+  // Bulk enhance selected images
+  const enhanceSelectedImages = async (type: "picsart" | "cloudinary" = bulkEnhanceType) => {
     const imagesToEnhance = Array.from(selectedImages).filter(
       url => !enhancedImages.has(url) && !enhancingImages.has(url)
     );
     
+    console.log(`[Enhance] Starting bulk ${type} enhancement for ${imagesToEnhance.length} images`);
+    
     // Process one at a time to avoid overwhelming the API
     for (const url of imagesToEnhance) {
-      await startHitPawEnhancement(url);
+      await startEnhancement(url, type);
     }
   };
 
@@ -735,16 +749,13 @@ export default function ReportImages({
             </div>
           </section>
 
-          {/* HitPaw Advanced Enhancement */}
+          {/* Advanced Enhancement Section */}
           <section className="rounded-2xl border border-purple-200 bg-gradient-to-br from-purple-50 to-white backdrop-blur shadow-lg p-4 space-y-3">
             <div className="flex items-center gap-2">
-              <h2 className="font-semibold text-gray-900">🚀 Advanced Enhance</h2>
-              <span className="px-2 py-0.5 text-xs bg-purple-100 text-purple-700 rounded-full">
-                HitPaw
-              </span>
+              <h2 className="font-semibold text-gray-900">🚀 Advanced Enhancement</h2>
             </div>
             <p className="text-xs text-gray-500">
-              Professional photo enhancement with upscaling & noise reduction
+              Enhance selected images with upscaling or color improvement
             </p>
             
             {/* Enhancement Stats */}
@@ -754,25 +765,75 @@ export default function ReportImages({
                 <div className="text-green-600">Enhanced</div>
               </div>
               <div className="flex-1 px-2 py-1.5 rounded-lg bg-yellow-50 border border-yellow-200 text-center">
-                <div className="font-semibold text-yellow-700">
-                  {enhancingImages.size}
-                </div>
+                <div className="font-semibold text-yellow-700">{enhancingImages.size}</div>
                 <div className="text-yellow-600">Processing</div>
               </div>
+            </div>
+
+            {/* Enhancement Type Selector */}
+            <div className="space-y-2">
+              <label className="text-xs text-gray-500 block">Enhancement Type</label>
+              <div className="flex gap-1">
+                <button
+                  onClick={() => setBulkEnhanceType("picsart")}
+                  className={`flex-1 px-2 py-1.5 text-xs rounded-lg border transition-all ${
+                    bulkEnhanceType === "picsart"
+                      ? "bg-purple-500 text-white border-purple-500"
+                      : "bg-white border-purple-200 hover:border-purple-400"
+                  }`}
+                >
+                  ✨ Ultra
+                </button>
+                <button
+                  onClick={() => setBulkEnhanceType("cloudinary")}
+                  className={`flex-1 px-2 py-1.5 text-xs rounded-lg border transition-all ${
+                    bulkEnhanceType === "cloudinary"
+                      ? "bg-blue-500 text-white border-blue-500"
+                      : "bg-white border-blue-200 hover:border-blue-400"
+                  }`}
+                >
+                  ⚡ Quick
+                </button>
+              </div>
+              <p className="text-xs text-gray-400">
+                {bulkEnhanceType === "picsart" 
+                  ? "Upscaling with noise reduction (slower, higher quality)"
+                  : "Color & contrast enhancement (faster)"}
+              </p>
             </div>
             
             {/* Enhance Selected Button */}
             <button
-              onClick={enhanceSelectedImages}
-              disabled={selectedImages.size === 0 || Array.from(selectedImages).every(url => enhancedImages.has(url))}
-              className="w-full py-2.5 rounded-xl bg-gradient-to-r from-purple-500 to-purple-600 text-white font-medium hover:from-purple-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg text-sm"
+              onClick={() => enhanceSelectedImages(bulkEnhanceType)}
+              disabled={selectedImages.size === 0 || Array.from(selectedImages).every(url => enhancedImages.has(url)) || enhancingImages.size > 0}
+              className={`w-full py-2.5 rounded-xl text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg text-sm ${
+                bulkEnhanceType === "picsart"
+                  ? "bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700"
+                  : "bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
+              }`}
             >
-              ✨ Enhance {selectedImages.size} Selected
+              {enhancingImages.size > 0 
+                ? `⏳ Processing ${enhancingImages.size}...`
+                : `✨ Enhance ${selectedImages.size} Selected`}
             </button>
-            
-            <p className="text-xs text-gray-400 text-center">
-              Uses HitPaw API for professional-grade enhancement
-            </p>
+
+            {/* Quick action buttons */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => enhanceSelectedImages("picsart")}
+                disabled={selectedImages.size === 0 || enhancingImages.size > 0}
+                className="flex-1 px-2 py-1.5 text-xs rounded-lg border border-purple-200 hover:bg-purple-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                ✨ Ultra
+              </button>
+              <button
+                onClick={() => enhanceSelectedImages("cloudinary")}
+                disabled={selectedImages.size === 0 || enhancingImages.size > 0}
+                className="flex-1 px-2 py-1.5 text-xs rounded-lg border border-blue-200 hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                ⚡ Quick
+              </button>
+            </div>
           </section>
 
           {/* Selection & Download */}
@@ -888,14 +949,23 @@ export default function ReportImages({
                     : `Download ${selectedImages.size} Images`}
                 </button>
                 
-                {/* HitPaw Enhancement for Mobile */}
-                <button
-                  onClick={enhanceSelectedImages}
-                  disabled={selectedImages.size === 0 || Array.from(selectedImages).every(url => enhancedImages.has(url))}
-                  className="w-full py-3 rounded-xl bg-gradient-to-r from-purple-500 to-purple-600 text-white font-medium disabled:opacity-50 transition-all"
-                >
-                  ✨ Enhance {selectedImages.size} Selected (HitPaw)
-                </button>
+                {/* Enhancement for Mobile */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => enhanceSelectedImages("picsart")}
+                    disabled={selectedImages.size === 0 || enhancingImages.size > 0}
+                    className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-purple-500 to-purple-600 text-white font-medium disabled:opacity-50 transition-all text-sm"
+                  >
+                    ✨ Ultra Enhance
+                  </button>
+                  <button
+                    onClick={() => enhanceSelectedImages("cloudinary")}
+                    disabled={selectedImages.size === 0 || enhancingImages.size > 0}
+                    className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 text-white font-medium disabled:opacity-50 transition-all text-sm"
+                  >
+                    ⚡ Quick Enhance
+                  </button>
+                </div>
                 
                 {/* Enhancement Stats */}
                 <div className="flex gap-2 text-xs">
@@ -904,9 +974,7 @@ export default function ReportImages({
                     <span className="text-green-600 ml-1">Enhanced</span>
                   </div>
                   <div className="flex-1 px-2 py-1.5 rounded-lg bg-yellow-50 border border-yellow-200 text-center">
-                    <span className="font-semibold text-yellow-700">
-                      {enhancingImages.size}
-                    </span>
+                    <span className="font-semibold text-yellow-700">{enhancingImages.size}</span>
                     <span className="text-yellow-600 ml-1">Processing</span>
                   </div>
                 </div>
@@ -1005,15 +1073,28 @@ export default function ReportImages({
                         Download
                       </button>
                       {!enhanced && !enhancing && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            startHitPawEnhancement(url);
-                          }}
-                          className="w-full mt-1 px-2 py-1 text-xs bg-purple-500 rounded text-white hover:bg-purple-600"
-                        >
-                          ✨ Enhance
-                        </button>
+                        <div className="flex gap-1 mt-1">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              startPicsartEnhancement(url);
+                            }}
+                            className="flex-1 px-1 py-1 text-xs bg-purple-500 rounded text-white hover:bg-purple-600"
+                            title="Ultra enhancement with upscaling"
+                          >
+                            ✨ Ultra
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              startCloudinaryEnhancement(url);
+                            }}
+                            className="flex-1 px-1 py-1 text-xs bg-blue-500 rounded text-white hover:bg-blue-600"
+                            title="Quick color enhancement"
+                          >
+                            ⚡ Quick
+                          </button>
+                        </div>
                       )}
                     </div>
                   </div>
