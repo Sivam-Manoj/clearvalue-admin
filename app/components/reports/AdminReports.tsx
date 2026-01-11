@@ -9,7 +9,7 @@ type ReportItem = {
   address: string;
   fairMarketValue: string;
   user?: { email?: string; username?: string } | null;
-  reportType: "RealEstate" | "Salvage" | "Asset" | string;
+  reportType: "RealEstate" | "Salvage" | "Asset" | "LotListing" | string;
   createdAt: string;
   reportModel?: string;
   fileType?: "pdf" | "docx" | "xlsx" | "images";
@@ -18,6 +18,7 @@ type ReportItem = {
   contract_no?: string;
   preview_files?: { docx?: string; excel?: string; images?: string };
   isRealEstateReport?: boolean;
+  isLotListingReport?: boolean;
   property_type?: string;
   language?: string;
 };
@@ -141,6 +142,7 @@ export default function AdminReports() {
     variants: { pdf?: ReportItem; docx?: ReportItem; xlsx?: ReportItem; images?: ReportItem };
     isAssetReport?: boolean;
     isRealEstateReport?: boolean;
+    isLotListingReport?: boolean;
     preview_files?: { docx?: string; excel?: string; images?: string };
   };
 
@@ -151,7 +153,7 @@ export default function AdminReports() {
       const key = String((r.report as string | undefined) || r._id);
       let g = map.get(key);
       if (!g) {
-        const base = r.reportType === "RealEstate" ? "Real Estate" : r.reportType === "Salvage" ? "Salvage" : "Asset";
+        const base = r.reportType === "RealEstate" ? "Real Estate" : r.reportType === "Salvage" ? "Salvage" : r.reportType === "LotListing" ? "Lot Listing" : "Asset";
         const title = r.contract_no ? `${base} - ${r.contract_no}` : (r.address || base);
         g = {
           key,
@@ -164,6 +166,7 @@ export default function AdminReports() {
           variants: {},
           isAssetReport: !!(r as any).preview_files && r.reportType === 'Asset',
           isRealEstateReport: !!(r as any).preview_files && (r.reportType === 'RealEstate' || (r as any).isRealEstateReport),
+          isLotListingReport: !!(r as any).preview_files && (r.reportType === 'LotListing' || (r as any).isLotListingReport),
           preview_files: (r as any).preview_files,
         };
         map.set(key, g);
@@ -245,6 +248,7 @@ export default function AdminReports() {
                 <option value="RealEstate">Real Estate</option>
                 <option value="Salvage">Salvage</option>
                 <option value="Asset">Asset</option>
+                <option value="LotListing">Lot Listing</option>
               </select>
             </div>
             <div>
@@ -337,13 +341,19 @@ export default function AdminReports() {
                         <td className="py-2 pr-4 text-gray-700">{g.contract_no || "-"}</td>
                         <td className="py-2 pr-4">{formatFMV(g.fairMarketValue)}</td>
                         <td className="py-2 pr-4">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${g.reportType === "RealEstate" ? "bg-emerald-50 text-emerald-800 border-emerald-200" : g.reportType === "Salvage" ? "bg-amber-50 text-amber-800 border-amber-200" : "bg-sky-50 text-sky-800 border-sky-200"}`}>{g.reportType}</span>
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${g.reportType === "RealEstate" ? "bg-emerald-50 text-emerald-800 border-emerald-200" : g.reportType === "Salvage" ? "bg-amber-50 text-amber-800 border-amber-200" : g.reportType === "LotListing" ? "bg-purple-50 text-purple-800 border-purple-200" : "bg-sky-50 text-sky-800 border-sky-200"}`}>{g.reportType === "LotListing" ? "Lot Listing" : g.reportType}</span>
                         </td>
                         <td className="py-2 pr-4 text-gray-700">{new Date(g.createdAt).toLocaleString()}</td>
                         <td className="py-2 pr-4 text-gray-700">{g.userEmail || "-"}</td>
                         <td className="py-2 pr-4">
                           <div className="flex items-center gap-2">
-                            {(g.isAssetReport || g.isRealEstateReport) && g.preview_files ? (
+                            {g.isLotListingReport && g.preview_files ? (
+                              // LotListing with preview files (Excel and Images only, no DOCX)
+                              <>
+                                <a href={g.preview_files.excel} target="_blank" rel="noopener noreferrer" className={`cursor-pointer inline-flex items-center justify-center rounded-xl px-2.5 py-1.5 text-xs font-semibold shadow-sm ${g.preview_files.excel ? 'bg-purple-600 text-white hover:bg-purple-500 hover:shadow' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>Excel</a>
+                                <a href={g.preview_files.images} target="_blank" rel="noopener noreferrer" className={`cursor-pointer inline-flex items-center justify-center rounded-xl px-2.5 py-1.5 text-xs font-semibold shadow-sm ${g.preview_files.images ? 'bg-purple-600 text-white hover:bg-purple-500 hover:shadow' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>Images</a>
+                              </>
+                            ) : (g.isAssetReport || g.isRealEstateReport) && g.preview_files ? (
                               // AssetReport or RealEstateReport with preview files (direct R2 links)
                               <>
                                 <a href={g.preview_files.docx} target="_blank" rel="noopener noreferrer" className={`cursor-pointer inline-flex items-center justify-center rounded-xl px-2.5 py-1.5 text-xs font-semibold shadow-sm ${g.preview_files.docx ? (g.isRealEstateReport ? 'bg-emerald-600 text-white hover:bg-emerald-500 hover:shadow' : 'bg-blue-600 text-white hover:bg-blue-500 hover:shadow') : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>DOCX</a>
@@ -379,7 +389,7 @@ export default function AdminReports() {
                         <div className="font-semibold text-gray-900">{g.title}</div>
                         <div className="text-xs text-gray-600 mt-1"><span className="text-gray-500">Contract: </span>{g.contract_no || "-"}</div>
                       </div>
-                      <span className={`shrink-0 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${g.reportType === "RealEstate" ? "bg-emerald-50 text-emerald-800 border-emerald-200" : g.reportType === "Salvage" ? "bg-amber-50 text-amber-800 border-amber-200" : "bg-sky-50 text-sky-800 border-sky-200"}`}>{g.reportType}</span>
+                      <span className={`shrink-0 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${g.reportType === "RealEstate" ? "bg-emerald-50 text-emerald-800 border-emerald-200" : g.reportType === "Salvage" ? "bg-amber-50 text-amber-800 border-amber-200" : g.reportType === "LotListing" ? "bg-purple-50 text-purple-800 border-purple-200" : "bg-sky-50 text-sky-800 border-sky-200"}`}>{g.reportType === "LotListing" ? "Lot Listing" : g.reportType}</span>
                     </div>
                     <div className="mt-2 grid grid-cols-2 gap-3 text-sm">
                       <div>
@@ -396,7 +406,13 @@ export default function AdminReports() {
                       </div>
                     </div>
                     <div className="mt-3 flex items-center gap-2 flex-wrap">
-                      {(g.isAssetReport || g.isRealEstateReport) && g.preview_files ? (
+                      {g.isLotListingReport && g.preview_files ? (
+                        // LotListing with preview files (Excel and Images only, no DOCX)
+                        <>
+                          <a href={g.preview_files.excel} target="_blank" rel="noopener noreferrer" className={`cursor-pointer inline-flex items-center justify-center rounded-xl px-3 py-1.5 text-xs font-semibold shadow-sm ${g.preview_files.excel ? 'bg-purple-600 text-white hover:bg-purple-500 hover:shadow' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>Excel</a>
+                          <a href={g.preview_files.images} target="_blank" rel="noopener noreferrer" className={`cursor-pointer inline-flex items-center justify-center rounded-xl px-3 py-1.5 text-xs font-semibold shadow-sm ${g.preview_files.images ? 'bg-purple-600 text-white hover:bg-purple-500 hover:shadow' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>Images</a>
+                        </>
+                      ) : (g.isAssetReport || g.isRealEstateReport) && g.preview_files ? (
                         // AssetReport or RealEstateReport with preview files (direct R2 links)
                         <>
                           <a href={g.preview_files.docx} target="_blank" rel="noopener noreferrer" className={`cursor-pointer inline-flex items-center justify-center rounded-xl px-3 py-1.5 text-xs font-semibold shadow-sm ${g.preview_files.docx ? (g.isRealEstateReport ? 'bg-emerald-600 text-white hover:bg-emerald-500 hover:shadow' : 'bg-blue-600 text-white hover:bg-blue-500 hover:shadow') : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>DOCX</a>

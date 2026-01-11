@@ -102,20 +102,27 @@ export default function ReportImages({
   onBack: () => void;
 }) {
   const [settings, setSettings] = useState<ImageSettings>(DEFAULT_SETTINGS);
-  const [enhance, setEnhance] =
-    useState<EnhanceSettings>(DEFAULT_ENHANCE);
+  const [enhance, setEnhance] = useState<EnhanceSettings>(DEFAULT_ENHANCE);
   const [sharpenSettings, setSharpenSettings] =
     useState<SharpenSettings>(DEFAULT_SHARPEN);
   const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
   const [downloading, setDownloading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
-  
+
   // Enhancement state
-  const [enhancingImages, setEnhancingImages] = useState<Set<string>>(new Set());
-  const [enhancedImages, setEnhancedImages] = useState<Map<string, string>>(new Map()); // originalUrl -> enhancedUrl
-  const [enhanceErrors, setEnhanceErrors] = useState<Map<string, string>>(new Map());
-  const [bulkEnhanceType, setBulkEnhanceType] = useState<"picsart" | "cloudinary">("picsart");
+  const [enhancingImages, setEnhancingImages] = useState<Set<string>>(
+    new Set()
+  );
+  const [enhancedImages, setEnhancedImages] = useState<Map<string, string>>(
+    new Map()
+  ); // originalUrl -> enhancedUrl
+  const [enhanceErrors, setEnhanceErrors] = useState<Map<string, string>>(
+    new Map()
+  );
+  const [bulkEnhanceType, setBulkEnhanceType] = useState<
+    "picsart" | "cloudinary"
+  >("picsart");
 
   // Build Cloudinary fetch URL manually (SDK has encoding issues with query params)
   const buildCloudinaryUrl = useCallback(
@@ -186,7 +193,7 @@ export default function ReportImages({
         // Skip e_improve since image is already enhanced
         const [, cloudName, rest] = cloudinaryUploadMatch;
         const simpleTransforms: string[] = [];
-        
+
         // Only add size/quality/format transforms, skip enhancement
         if (s.width > 0 && s.height > 0) {
           simpleTransforms.push(`c_limit,w_${s.width},h_${s.height}`);
@@ -197,7 +204,7 @@ export default function ReportImages({
         }
         simpleTransforms.push(`q_${s.quality}`);
         simpleTransforms.push(`f_${s.format}`);
-        
+
         const simpleTransformStr = simpleTransforms.join("/");
         return `https://res.cloudinary.com/${cloudName}/image/upload/${simpleTransformStr}/${rest}`;
       }
@@ -233,9 +240,7 @@ export default function ReportImages({
 
   const previewImage = async (url: string) => {
     setPreviewLoading(true);
-    setPreviewUrl(
-      buildCloudinaryUrl(url, settings, enhance, sharpenSettings)
-    );
+    setPreviewUrl(buildCloudinaryUrl(url, settings, enhance, sharpenSettings));
   };
 
   const downloadSingle = async (url: string) => {
@@ -347,81 +352,134 @@ export default function ReportImages({
   // Picsart AI Enhancement - upscaling with AI
   const startPicsartEnhancement = async (imageUrl: string) => {
     if (enhancingImages.has(imageUrl) || enhancedImages.has(imageUrl)) return;
-    
-    setEnhanceErrors(prev => { const next = new Map(prev); next.delete(imageUrl); return next; });
-    setEnhancingImages(prev => new Set(prev).add(imageUrl));
-    
+
+    setEnhanceErrors((prev) => {
+      const next = new Map(prev);
+      next.delete(imageUrl);
+      return next;
+    });
+    setEnhancingImages((prev) => new Set(prev).add(imageUrl));
+
     try {
-      console.log("[Picsart-UI] Starting AI enhancement for:", imageUrl.substring(0, 60));
+      console.log(
+        "[Picsart-UI] Starting AI enhancement for:",
+        imageUrl.substring(0, 60)
+      );
       const startTime = Date.now();
-      
+
       const res = await fetch("/api/admin/gallery/hitpaw-enhance", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           imageUrl,
           reportId: report._id,
-          reportType: report.reportType === "Real Estate" ? "realEstate" : "asset",
+          reportType:
+            report.reportType === "Real Estate" ? "realEstate" : "asset",
         }),
       });
-      
+
       const elapsed = Math.round((Date.now() - startTime) / 1000);
-      console.log(`[Picsart-UI] Response after ${elapsed}s, status: ${res.status}`);
-      
+      console.log(
+        `[Picsart-UI] Response after ${elapsed}s, status: ${res.status}`
+      );
+
       const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.message || "Enhancement failed");
-      
-      setEnhancedImages(prev => { const next = new Map(prev); next.set(imageUrl, data.enhancedUrl); return next; });
-      console.log("[Picsart-UI] ✅ Complete:", data.enhancedUrl?.substring(0, 60));
-      
+      if (!res.ok || !data.success)
+        throw new Error(data.message || "Enhancement failed");
+
+      setEnhancedImages((prev) => {
+        const next = new Map(prev);
+        next.set(imageUrl, data.enhancedUrl);
+        return next;
+      });
+      console.log(
+        "[Picsart-UI] ✅ Complete:",
+        data.enhancedUrl?.substring(0, 60)
+      );
     } catch (e: any) {
       console.error("[Picsart-UI] ❌ ERROR:", e.message);
-      setEnhanceErrors(prev => { const next = new Map(prev); next.set(imageUrl, e.message || "Failed"); return next; });
+      setEnhanceErrors((prev) => {
+        const next = new Map(prev);
+        next.set(imageUrl, e.message || "Failed");
+        return next;
+      });
     } finally {
-      setEnhancingImages(prev => { const next = new Set(prev); next.delete(imageUrl); return next; });
+      setEnhancingImages((prev) => {
+        const next = new Set(prev);
+        next.delete(imageUrl);
+        return next;
+      });
     }
   };
 
   // Cloudinary Enhancement - color/contrast improvement
   const startCloudinaryEnhancement = async (imageUrl: string) => {
     if (enhancingImages.has(imageUrl) || enhancedImages.has(imageUrl)) return;
-    
-    setEnhanceErrors(prev => { const next = new Map(prev); next.delete(imageUrl); return next; });
-    setEnhancingImages(prev => new Set(prev).add(imageUrl));
-    
+
+    setEnhanceErrors((prev) => {
+      const next = new Map(prev);
+      next.delete(imageUrl);
+      return next;
+    });
+    setEnhancingImages((prev) => new Set(prev).add(imageUrl));
+
     try {
-      console.log("[Cloudinary-UI] Starting enhancement for:", imageUrl.substring(0, 60));
+      console.log(
+        "[Cloudinary-UI] Starting enhancement for:",
+        imageUrl.substring(0, 60)
+      );
       const startTime = Date.now();
-      
+
       const res = await fetch("/api/admin/gallery/cloudinary-enhance", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           imageUrl,
           reportId: report._id,
-          reportType: report.reportType === "Real Estate" ? "realEstate" : "asset",
+          reportType:
+            report.reportType === "Real Estate" ? "realEstate" : "asset",
         }),
       });
-      
+
       const elapsed = Math.round((Date.now() - startTime) / 1000);
-      console.log(`[Cloudinary-UI] Response after ${elapsed}s, status: ${res.status}`);
-      
+      console.log(
+        `[Cloudinary-UI] Response after ${elapsed}s, status: ${res.status}`
+      );
+
       const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.message || "Enhancement failed");
-      
-      setEnhancedImages(prev => { const next = new Map(prev); next.set(imageUrl, data.enhancedUrl); return next; });
-      console.log("[Cloudinary-UI] ✅ Complete:", data.enhancedUrl?.substring(0, 60));
-      
+      if (!res.ok || !data.success)
+        throw new Error(data.message || "Enhancement failed");
+
+      setEnhancedImages((prev) => {
+        const next = new Map(prev);
+        next.set(imageUrl, data.enhancedUrl);
+        return next;
+      });
+      console.log(
+        "[Cloudinary-UI] ✅ Complete:",
+        data.enhancedUrl?.substring(0, 60)
+      );
     } catch (e: any) {
       console.error("[Cloudinary-UI] ❌ ERROR:", e.message);
-      setEnhanceErrors(prev => { const next = new Map(prev); next.set(imageUrl, e.message || "Failed"); return next; });
+      setEnhanceErrors((prev) => {
+        const next = new Map(prev);
+        next.set(imageUrl, e.message || "Failed");
+        return next;
+      });
     } finally {
-      setEnhancingImages(prev => { const next = new Set(prev); next.delete(imageUrl); return next; });
+      setEnhancingImages((prev) => {
+        const next = new Set(prev);
+        next.delete(imageUrl);
+        return next;
+      });
     }
   };
 
   // Single image enhancement (uses selected type)
-  const startEnhancement = async (imageUrl: string, type: "picsart" | "cloudinary" = bulkEnhanceType) => {
+  const startEnhancement = async (
+    imageUrl: string,
+    type: "picsart" | "cloudinary" = bulkEnhanceType
+  ) => {
     if (type === "picsart") {
       await startPicsartEnhancement(imageUrl);
     } else {
@@ -430,13 +488,17 @@ export default function ReportImages({
   };
 
   // Bulk enhance selected images
-  const enhanceSelectedImages = async (type: "picsart" | "cloudinary" | "both" = bulkEnhanceType) => {
+  const enhanceSelectedImages = async (
+    type: "picsart" | "cloudinary" | "both" = bulkEnhanceType
+  ) => {
     const imagesToEnhance = Array.from(selectedImages).filter(
-      url => !enhancedImages.has(url) && !enhancingImages.has(url)
+      (url) => !enhancedImages.has(url) && !enhancingImages.has(url)
     );
-    
-    console.log(`[Enhance] Starting bulk ${type} enhancement for ${imagesToEnhance.length} images`);
-    
+
+    console.log(
+      `[Enhance] Starting bulk ${type} enhancement for ${imagesToEnhance.length} images`
+    );
+
     // Process one at a time to avoid overwhelming the API
     for (const url of imagesToEnhance) {
       if (type === "both") {
@@ -450,32 +512,44 @@ export default function ReportImages({
   // Combined enhancement: Quick (color) first, then Ultra (upscale)
   const startCombinedEnhancement = async (imageUrl: string) => {
     if (enhancingImages.has(imageUrl) || enhancedImages.has(imageUrl)) return;
-    
-    setEnhanceErrors(prev => { const next = new Map(prev); next.delete(imageUrl); return next; });
-    setEnhancingImages(prev => new Set(prev).add(imageUrl));
-    
+
+    setEnhanceErrors((prev) => {
+      const next = new Map(prev);
+      next.delete(imageUrl);
+      return next;
+    });
+    setEnhancingImages((prev) => new Set(prev).add(imageUrl));
+
     try {
-      console.log("[Combined-UI] Step 1: Quick enhancement (color/contrast)...");
+      console.log(
+        "[Combined-UI] Step 1: Quick enhancement (color/contrast)..."
+      );
       const startTime = Date.now();
-      
+
       // Step 1: Cloudinary enhancement first
-      const cloudinaryRes = await fetch("/api/admin/gallery/cloudinary-enhance", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          imageUrl,
-          reportId: report._id,
-          reportType: report.reportType === "Real Estate" ? "realEstate" : "asset",
-        }),
-      });
-      
+      const cloudinaryRes = await fetch(
+        "/api/admin/gallery/cloudinary-enhance",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            imageUrl,
+            reportId: report._id,
+            reportType:
+              report.reportType === "Real Estate" ? "realEstate" : "asset",
+          }),
+        }
+      );
+
       const cloudinaryData = await cloudinaryRes.json();
       if (!cloudinaryRes.ok || !cloudinaryData.success) {
         throw new Error(cloudinaryData.message || "Quick enhancement failed");
       }
-      
-      console.log("[Combined-UI] Step 1 complete. Step 2: Ultra enhancement (upscale)...");
-      
+
+      console.log(
+        "[Combined-UI] Step 1 complete. Step 2: Ultra enhancement (upscale)..."
+      );
+
       // Step 2: Picsart enhancement on the Cloudinary-enhanced image
       const picsartRes = await fetch("/api/admin/gallery/hitpaw-enhance", {
         method: "POST",
@@ -483,25 +557,37 @@ export default function ReportImages({
         body: JSON.stringify({
           imageUrl: cloudinaryData.enhancedUrl, // Use the Cloudinary-enhanced URL
           reportId: report._id,
-          reportType: report.reportType === "Real Estate" ? "realEstate" : "asset",
+          reportType:
+            report.reportType === "Real Estate" ? "realEstate" : "asset",
         }),
       });
-      
+
       const picsartData = await picsartRes.json();
       if (!picsartRes.ok || !picsartData.success) {
         throw new Error(picsartData.message || "Ultra enhancement failed");
       }
-      
+
       const elapsed = Math.round((Date.now() - startTime) / 1000);
       console.log(`[Combined-UI] ✅ Both enhancements complete in ${elapsed}s`);
-      
-      setEnhancedImages(prev => { const next = new Map(prev); next.set(imageUrl, picsartData.enhancedUrl); return next; });
-      
+
+      setEnhancedImages((prev) => {
+        const next = new Map(prev);
+        next.set(imageUrl, picsartData.enhancedUrl);
+        return next;
+      });
     } catch (e: any) {
       console.error("[Combined-UI] ❌ ERROR:", e.message);
-      setEnhanceErrors(prev => { const next = new Map(prev); next.set(imageUrl, e.message || "Failed"); return next; });
+      setEnhanceErrors((prev) => {
+        const next = new Map(prev);
+        next.set(imageUrl, e.message || "Failed");
+        return next;
+      });
     } finally {
-      setEnhancingImages(prev => { const next = new Set(prev); next.delete(imageUrl); return next; });
+      setEnhancingImages((prev) => {
+        const next = new Set(prev);
+        next.delete(imageUrl);
+        return next;
+      });
     }
   };
 
@@ -700,9 +786,7 @@ export default function ReportImages({
                     </p>
                   </div>
                   <button
-                    onClick={() =>
-                      setEnhance({ improve: !enhance.improve })
-                    }
+                    onClick={() => setEnhance({ improve: !enhance.improve })}
                     className={`relative w-11 h-6 rounded-full transition-colors ${
                       enhance.improve ? "bg-rose-500" : "bg-gray-200"
                     }`}
@@ -814,27 +898,35 @@ export default function ReportImages({
           {/* Advanced Enhancement Section */}
           <section className="rounded-2xl border border-purple-200 bg-gradient-to-br from-purple-50 to-white backdrop-blur shadow-lg p-4 space-y-3">
             <div className="flex items-center gap-2">
-              <h2 className="font-semibold text-gray-900">🚀 Advanced Enhancement</h2>
+              <h2 className="font-semibold text-gray-900">
+                🚀 Advanced Enhancement
+              </h2>
             </div>
             <p className="text-xs text-gray-500">
               Enhance selected images with upscaling or color improvement
             </p>
-            
+
             {/* Enhancement Stats */}
             <div className="flex gap-2 text-xs">
               <div className="flex-1 px-2 py-1.5 rounded-lg bg-green-50 border border-green-200 text-center">
-                <div className="font-semibold text-green-700">{enhancedImages.size}</div>
+                <div className="font-semibold text-green-700">
+                  {enhancedImages.size}
+                </div>
                 <div className="text-green-600">Enhanced</div>
               </div>
               <div className="flex-1 px-2 py-1.5 rounded-lg bg-yellow-50 border border-yellow-200 text-center">
-                <div className="font-semibold text-yellow-700">{enhancingImages.size}</div>
+                <div className="font-semibold text-yellow-700">
+                  {enhancingImages.size}
+                </div>
                 <div className="text-yellow-600">Processing</div>
               </div>
             </div>
 
             {/* Enhancement Type Selector */}
             <div className="space-y-2">
-              <label className="text-xs text-gray-500 block">Enhancement Type</label>
+              <label className="text-xs text-gray-500 block">
+                Enhancement Type
+              </label>
               <div className="flex gap-1">
                 <button
                   onClick={() => setBulkEnhanceType("picsart")}
@@ -858,23 +950,29 @@ export default function ReportImages({
                 </button>
               </div>
               <p className="text-xs text-gray-400">
-                {bulkEnhanceType === "picsart" 
+                {bulkEnhanceType === "picsart"
                   ? "Upscaling with noise reduction (slower, higher quality)"
                   : "Color & contrast enhancement (faster)"}
               </p>
             </div>
-            
+
             {/* Enhance Selected Button */}
             <button
               onClick={() => enhanceSelectedImages(bulkEnhanceType)}
-              disabled={selectedImages.size === 0 || Array.from(selectedImages).every(url => enhancedImages.has(url)) || enhancingImages.size > 0}
+              disabled={
+                selectedImages.size === 0 ||
+                Array.from(selectedImages).every((url) =>
+                  enhancedImages.has(url)
+                ) ||
+                enhancingImages.size > 0
+              }
               className={`w-full py-2.5 rounded-xl text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg text-sm ${
                 bulkEnhanceType === "picsart"
                   ? "bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700"
                   : "bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
               }`}
             >
-              {enhancingImages.size > 0 
+              {enhancingImages.size > 0
                 ? `⏳ Processing ${enhancingImages.size}...`
                 : `✨ Enhance ${selectedImages.size} Selected`}
             </button>
@@ -896,7 +994,7 @@ export default function ReportImages({
                 ⚡ Quick
               </button>
             </div>
-            
+
             {/* Combined Enhancement Button */}
             <button
               onClick={() => enhanceSelectedImages("both")}
@@ -1022,40 +1120,50 @@ export default function ReportImages({
                     ? "Compressing..."
                     : `Download ${selectedImages.size} Images`}
                 </button>
-                
+
                 {/* Enhancement for Mobile */}
                 <div className="flex gap-2">
                   <button
                     onClick={() => enhanceSelectedImages("picsart")}
-                    disabled={selectedImages.size === 0 || enhancingImages.size > 0}
+                    disabled={
+                      selectedImages.size === 0 || enhancingImages.size > 0
+                    }
                     className="flex-1 py-2 rounded-xl bg-gradient-to-r from-purple-500 to-purple-600 text-white font-medium disabled:opacity-50 transition-all text-xs"
                   >
                     ✨ Ultra
                   </button>
                   <button
                     onClick={() => enhanceSelectedImages("cloudinary")}
-                    disabled={selectedImages.size === 0 || enhancingImages.size > 0}
+                    disabled={
+                      selectedImages.size === 0 || enhancingImages.size > 0
+                    }
                     className="flex-1 py-2 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 text-white font-medium disabled:opacity-50 transition-all text-xs"
                   >
                     ⚡ Quick
                   </button>
                   <button
                     onClick={() => enhanceSelectedImages("both")}
-                    disabled={selectedImages.size === 0 || enhancingImages.size > 0}
+                    disabled={
+                      selectedImages.size === 0 || enhancingImages.size > 0
+                    }
                     className="flex-1 py-2 rounded-xl bg-gradient-to-r from-blue-500 via-purple-500 to-purple-600 text-white font-medium disabled:opacity-50 transition-all text-xs"
                   >
                     🔥 Both
                   </button>
                 </div>
-                
+
                 {/* Enhancement Stats */}
                 <div className="flex gap-2 text-xs">
                   <div className="flex-1 px-2 py-1.5 rounded-lg bg-green-50 border border-green-200 text-center">
-                    <span className="font-semibold text-green-700">{enhancedImages.size}</span>
+                    <span className="font-semibold text-green-700">
+                      {enhancedImages.size}
+                    </span>
                     <span className="text-green-600 ml-1">Enhanced</span>
                   </div>
                   <div className="flex-1 px-2 py-1.5 rounded-lg bg-yellow-50 border border-yellow-200 text-center">
-                    <span className="font-semibold text-yellow-700">{enhancingImages.size}</span>
+                    <span className="font-semibold text-yellow-700">
+                      {enhancingImages.size}
+                    </span>
                     <span className="text-yellow-600 ml-1">Processing</span>
                   </div>
                 </div>
@@ -1069,7 +1177,7 @@ export default function ReportImages({
               const enhanced = isEnhanced(url);
               const enhanceError = getEnhanceError(url);
               const displayUrl = getDisplayUrl(url);
-              
+
               return (
                 <div
                   key={url}
@@ -1089,17 +1197,36 @@ export default function ReportImages({
                       className="w-full h-full object-cover"
                       loading="lazy"
                     />
-                    
+
                     {/* Enhancement processing overlay */}
                     {enhancing && (
                       <div className="absolute inset-0 bg-purple-900/60 flex items-center justify-center">
                         <div className="text-center text-white">
-                          <svg className="animate-spin h-8 w-8 mx-auto mb-2" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                          <svg
+                            className="animate-spin h-8 w-8 mx-auto mb-2"
+                            viewBox="0 0 24 24"
+                          >
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                              fill="none"
+                            />
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                            />
                           </svg>
-                          <span className="text-xs font-medium">Enhancing...</span>
-                          <span className="text-xs opacity-75 block mt-1">This may take 1-2 min</span>
+                          <span className="text-xs font-medium">
+                            Enhancing...
+                          </span>
+                          <span className="text-xs opacity-75 block mt-1">
+                            This may take 1-2 min
+                          </span>
                         </div>
                       </div>
                     )}
@@ -1108,8 +1235,16 @@ export default function ReportImages({
                   {/* Enhanced badge */}
                   {enhanced && (
                     <div className="absolute top-2 left-2 px-2 py-0.5 bg-purple-500 rounded-full text-white text-xs font-medium flex items-center gap-1">
-                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      <svg
+                        className="w-3 h-3"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                          clipRule="evenodd"
+                        />
                       </svg>
                       Enhanced
                     </div>
@@ -1125,8 +1260,16 @@ export default function ReportImages({
                       }`}
                     >
                       {selectedImages.has(url) && (
-                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        <svg
+                          className="w-4 h-4"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                            clipRule="evenodd"
+                          />
                         </svg>
                       )}
                     </div>
@@ -1194,7 +1337,7 @@ export default function ReportImages({
                   <div className="absolute top-2 right-2 px-2 py-0.5 bg-black/50 rounded text-white text-xs">
                     {index + 1}
                   </div>
-                  
+
                   {/* Error indicator */}
                   {enhanceError && (
                     <div className="absolute bottom-2 left-2 right-2 px-2 py-1 bg-red-500/90 rounded text-white text-xs text-center">
