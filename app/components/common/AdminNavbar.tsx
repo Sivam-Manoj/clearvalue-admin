@@ -50,6 +50,15 @@ export default function AdminNavbar() {
     setMenuOpen(false);
   }, [pathname]);
 
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMenuOpen(false);
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
   async function onLogout() {
     try {
       setLoggingOut(true);
@@ -61,11 +70,22 @@ export default function AdminNavbar() {
     }
   }
 
+  const roleLabel =
+    role === "superadmin"
+      ? "Super Admin"
+      : role === "admin"
+      ? "Admin"
+      : role === "user"
+      ? "User"
+      : "Loading";
+  const homeHref = role === "superadmin" ? "/dashboard" : "/reports";
+
   const linkBase =
-    "inline-flex items-center gap-2 px-3 py-2 rounded-xl transition-all cursor-pointer";
+    "inline-flex items-center gap-2 rounded-2xl px-3 py-2 text-sm font-medium transition-all duration-200 cursor-pointer shrink-0";
   const inactive =
-    "text-gray-700 bg-white/70 border border-rose-200 hover:bg-rose-50 shadow-sm";
-  const active = "text-rose-700 bg-rose-50 border border-rose-300 shadow";
+    "text-slate-700 bg-white/80 border border-rose-200/80 hover:bg-rose-50 hover:border-rose-300 shadow-sm hover:shadow";
+  const active =
+    "text-white bg-gradient-to-r from-rose-600 to-pink-600 border border-rose-500 shadow-md shadow-rose-200";
 
   function NavLink({
     href,
@@ -78,11 +98,12 @@ export default function AdminNavbar() {
     icon?: React.ReactNode;
     onClick?: () => void;
   }) {
-    const isActive = pathname === href;
+    const isActive = pathname === href || pathname.startsWith(`${href}/`);
     return (
       <Link
         href={href}
         onClick={onClick}
+        aria-current={isActive ? "page" : undefined}
         className={`${linkBase} ${isActive ? active : inactive}`}
       >
         {icon}
@@ -93,27 +114,30 @@ export default function AdminNavbar() {
   }
 
   return (
-    <nav className="sticky top-0 z-40 backdrop-blur bg-white/75 border-b border-rose-200/80">
-      <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+    <nav className="sticky top-0 z-50 border-b border-rose-100/90 bg-gradient-to-r from-white/95 via-rose-50/85 to-white/95 backdrop-blur-xl">
+      <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6">
+        <div className="flex min-h-[70px] items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <Link
-            href={role === "superadmin" ? "/dashboard" : "/reports"}
-            className="flex items-center gap-2"
+            href={homeHref}
+            className="group flex items-center gap-2 rounded-2xl border border-rose-100/80 bg-white/80 px-2.5 py-1.5 shadow-sm transition-all duration-200 hover:border-rose-200 hover:shadow-md"
           >
-            <div className="h-9 w-9 rounded-xl bg-rose-500 shadow-md shadow-rose-200 ring-1 ring-rose-300 flex items-center justify-center text-white font-bold">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-rose-500 to-pink-600 text-sm font-bold text-white shadow-md shadow-rose-300/60 ring-1 ring-rose-300/70 transition-transform duration-200 group-hover:scale-105">
               CV
             </div>
             <div className="leading-tight">
-              <div className="text-xs text-gray-500">ClearValue</div>
-              <div className="text-sm font-semibold text-gray-900">Admin</div>
+              <div className="text-[11px] font-medium tracking-wide text-slate-500">ClearValue</div>
+              <div className="text-sm font-bold text-slate-900">Admin Console</div>
             </div>
           </Link>
         </div>
         {/* Hamburger (mobile) */}
         <button
           aria-label="Menu"
+          aria-expanded={menuOpen}
+          aria-controls="admin-mobile-nav"
           onClick={() => setMenuOpen((m) => !m)}
-          className="md:hidden inline-flex items-center justify-center h-10 w-10 rounded-xl bg-white/80 border border-rose-300 text-rose-700 shadow-sm hover:bg-rose-50 active:bg-rose-100 transition-all"
+          className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-rose-200 bg-white/90 text-rose-700 shadow-sm transition-all hover:border-rose-300 hover:bg-rose-50 active:bg-rose-100 md:hidden"
         >
           {menuOpen ? (
             <svg
@@ -148,7 +172,7 @@ export default function AdminNavbar() {
         </button>
 
         {/* Desktop links */}
-        <div className="hidden md:flex items-center gap-2">
+        <div className="hidden min-w-0 flex-1 items-center gap-2 overflow-x-auto px-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:flex">
           {/* User and Admin see Reports and Gallery */}
           {(role === "user" || role === "admin") ? (
             <>
@@ -336,10 +360,14 @@ export default function AdminNavbar() {
         </div>
         {/* Desktop logout */}
         <div className="hidden md:flex items-center gap-2">
+          <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50/80 px-3 py-1 text-xs font-semibold text-emerald-700">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+            {roleLabel}
+          </span>
           <button
             onClick={onLogout}
             disabled={loggingOut}
-            className="cursor-pointer inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white text-rose-700 border border-rose-300 hover:bg-rose-50 active:bg-rose-100 shadow-sm hover:shadow transition-all disabled:opacity-60"
+            className="cursor-pointer inline-flex items-center gap-2 rounded-xl border border-rose-300 bg-gradient-to-r from-white to-rose-50 px-3 py-2 font-semibold text-rose-700 shadow-sm transition-all hover:-translate-y-0.5 hover:border-rose-400 hover:shadow-md active:translate-y-0 disabled:opacity-60"
           >
             <svg
               width="16"
@@ -358,12 +386,26 @@ export default function AdminNavbar() {
             {loggingOut ? "Logging out..." : "Logout"}
           </button>
         </div>
+        </div>
       </div>
 
       {/* Mobile panel */}
       {menuOpen && (
-        <div className="md:hidden border-t border-rose-200/80 bg-white/90 backdrop-blur shadow-inner">
-          <div className="max-w-6xl mx-auto px-4 py-3 flex flex-col gap-2">
+        <div id="admin-mobile-nav" className="md:hidden border-t border-rose-100/80 bg-white/95 px-4 pb-4 pt-3 shadow-inner backdrop-blur-xl">
+          <div className="mx-auto flex w-full max-w-7xl flex-col gap-3">
+            <div className="flex items-center justify-between rounded-2xl border border-rose-100 bg-gradient-to-r from-rose-50 to-white px-3 py-2 shadow-sm">
+              <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                {roleLabel}
+              </span>
+              <Link
+                href={homeHref}
+                onClick={() => setMenuOpen(false)}
+                className="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-white px-2.5 py-1 text-xs font-semibold text-rose-700"
+              >
+                Home
+              </Link>
+            </div>
             {/* User and Admin see Reports and Gallery */}
             {(role === "user" || role === "admin") ? (
               <>
@@ -563,7 +605,7 @@ export default function AdminNavbar() {
                 onLogout();
               }}
               disabled={loggingOut}
-              className="mt-1 cursor-pointer inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white text-rose-700 border border-rose-300 hover:bg-rose-50 active:bg-rose-100 shadow-sm hover:shadow transition-all disabled:opacity-60"
+              className="mt-1 cursor-pointer inline-flex items-center justify-center gap-2 rounded-xl border border-rose-300 bg-gradient-to-r from-white to-rose-50 px-3 py-2 font-semibold text-rose-700 shadow-sm transition-all hover:border-rose-400 hover:shadow-md active:bg-rose-100 disabled:opacity-60"
             >
               <svg
                 width="16"
