@@ -14,6 +14,8 @@ type UserItem = {
   role: string;
   isBlocked: boolean;
   isVerified?: boolean;
+  isCrmAgent?: boolean;
+  crmAssignedAt?: string;
   createdAt: string;
 };
 
@@ -28,6 +30,7 @@ export default function AdminUsers() {
   // Filters
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<string>(""); // "" | "active" | "blocked"
+  const [crmStatus, setCrmStatus] = useState<string>(""); // "" | "crm" | "noncrm"
   const [page, setPage] = useState<number>(1);
   const [limit] = useState<number>(20);
 
@@ -40,6 +43,7 @@ export default function AdminUsers() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [updatingCrmId, setUpdatingCrmId] = useState<string | null>(null);
 
   // Toasts
   const [toasts, setToasts] = useState<{ id: number; type: "success" | "error" | "info"; message: string }[]>([]);
@@ -49,15 +53,37 @@ export default function AdminUsers() {
     setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 3500);
   }
 
+  async function toggleCrmRole(u: UserItem) {
+    try {
+      setUpdatingCrmId(u._id);
+      const res = await fetch(`/api/admin/crm/users/${u._id}/agent`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isCrmAgent: !u.isCrmAgent }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j?.message || "Failed to update CRM role");
+      pushToast(!u.isCrmAgent ? "CRM role assigned" : "CRM role removed", "success");
+      await load();
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Failed to update CRM role";
+      pushToast(message, "error");
+    } finally {
+      setUpdatingCrmId(null);
+    }
+  }
+
   const queryString = useMemo(() => {
     const p = new URLSearchParams();
     if (q) p.set("q", q);
     if (status === "active") p.set("isBlocked", "false");
     if (status === "blocked") p.set("isBlocked", "true");
+    if (crmStatus === "crm") p.set("isCrmAgent", "true");
+    if (crmStatus === "noncrm") p.set("isCrmAgent", "false");
     p.set("page", String(page));
     p.set("limit", String(limit));
     return p.toString();
-  }, [q, status, page, limit]);
+  }, [q, status, crmStatus, page, limit]);
 
   async function load() {
     setLoading(true);
@@ -83,6 +109,7 @@ export default function AdminUsers() {
   function onReset() {
     setQ("");
     setStatus("");
+    setCrmStatus("");
     setPage(1);
   }
 
@@ -154,7 +181,7 @@ export default function AdminUsers() {
 
         {/* Filters */}
         <section className="rounded-2xl border border-rose-200 bg-white/80 backdrop-blur shadow-lg shadow-rose-100 p-4 md:p-6">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700">Search</label>
               <input
@@ -180,6 +207,21 @@ export default function AdminUsers() {
                 <option value="">All</option>
                 <option value="active">Active</option>
                 <option value="blocked">Blocked</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">CRM</label>
+              <select
+                value={crmStatus}
+                onChange={(e) => {
+                  setCrmStatus(e.target.value);
+                  setPage(1);
+                }}
+                className="mt-1 w-full rounded-xl border border-gray-300 hover:border-gray-400 focus:border-rose-400 focus:ring-rose-400 shadow-sm px-3 py-2.5"
+              >
+                <option value="">All</option>
+                <option value="crm">CRM Assigned</option>
+                <option value="noncrm">Non-CRM</option>
               </select>
             </div>
           </div>
@@ -211,6 +253,7 @@ export default function AdminUsers() {
                       <th className="py-2 pr-4">Company</th>
                       <th className="py-2 pr-4">Contact</th>
                       <th className="py-2 pr-4">Status</th>
+                      <th className="py-2 pr-4">CRM</th>
                       <th className="py-2 pr-4">Created</th>
                       <th className="py-2 pr-4">Actions</th>
                     </tr>
@@ -236,9 +279,25 @@ export default function AdminUsers() {
                             {u.isBlocked ? "Blocked" : "Active"}
                           </span>
                         </td>
+                        <td className="py-2 pr-4">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+                            u.isCrmAgent
+                              ? "bg-sky-50 text-sky-800 border-sky-200"
+                              : "bg-gray-50 text-gray-600 border-gray-200"
+                          }`}>
+                            {u.isCrmAgent ? "CRM Agent" : "Not Assigned"}
+                          </span>
+                        </td>
                         <td className="py-2 pr-4 text-gray-700">{new Date(u.createdAt).toLocaleString()}</td>
                         <td className="py-2 pr-4">
                           <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => toggleCrmRole(u)}
+                              disabled={updatingCrmId === u._id || u.isBlocked}
+                              className="cursor-pointer inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-sky-300 text-sky-700 bg-white hover:bg-sky-50 active:bg-sky-100 shadow-sm hover:shadow transition-all disabled:opacity-50"
+                            >
+                              {u.isCrmAgent ? "Remove CRM" : "Assign CRM"}
+                            </button>
                             <button
                               onClick={() => toggleBlock(u)}
                               className={`cursor-pointer inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border bg-white shadow-sm hover:shadow transition-all ${
@@ -289,6 +348,10 @@ export default function AdminUsers() {
                         <div className="text-gray-500">Created</div>
                         <div className="font-medium text-gray-900">{new Date(u.createdAt).toLocaleString()}</div>
                       </div>
+                      <div>
+                        <div className="text-gray-500">CRM</div>
+                        <div className="font-medium text-gray-900">{u.isCrmAgent ? "CRM Agent" : "Not Assigned"}</div>
+                      </div>
                       <div className="col-span-2">
                         <div className="text-gray-500">Contact</div>
                         <div className="font-medium text-gray-900">
@@ -298,6 +361,13 @@ export default function AdminUsers() {
                       </div>
                     </div>
                     <div className="mt-3 flex items-center gap-2">
+                      <button
+                        onClick={() => toggleCrmRole(u)}
+                        disabled={updatingCrmId === u._id || u.isBlocked}
+                        className="cursor-pointer inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-sky-300 text-sky-700 bg-white hover:bg-sky-50 active:bg-sky-100 shadow-sm hover:shadow transition-all disabled:opacity-50"
+                      >
+                        {u.isCrmAgent ? "Remove CRM" : "Assign CRM"}
+                      </button>
                       <button
                         onClick={() => toggleBlock(u)}
                         className={`cursor-pointer inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border bg-white shadow-sm hover:shadow transition-all ${

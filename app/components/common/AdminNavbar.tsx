@@ -252,6 +252,26 @@ export default function AdminNavbar() {
                 }
               />
               <NavLink
+                href="/crm"
+                label="CRM"
+                icon={
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Z" />
+                    <path d="M19 21v-2a7 7 0 0 0-14 0v2" />
+                    <circle cx="19" cy="8" r="3" />
+                  </svg>
+                }
+              />
+              <NavLink
                 href="/approvals"
                 label="Pending Approvals"
                 icon={
@@ -448,6 +468,27 @@ export default function AdminNavbar() {
                       <path d="M20 21v-2a4 4 0 0 0-3-3.87" />
                       <path d="M7 21v-2a4 4 0 0 1 3-3.87" />
                       <circle cx="10" cy="7" r="4" />
+                    </svg>
+                  }
+                />
+                <NavLink
+                  href="/crm"
+                  label="CRM"
+                  onClick={() => setMenuOpen(false)}
+                  icon={
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Z" />
+                      <path d="M19 21v-2a7 7 0 0 0-14 0v2" />
+                      <circle cx="19" cy="8" r="3" />
                     </svg>
                   }
                 />
