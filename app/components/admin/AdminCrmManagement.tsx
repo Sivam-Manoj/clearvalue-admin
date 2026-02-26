@@ -52,6 +52,23 @@ type LeadsResponse = {
   limit: number;
 };
 
+type CrmImportFileItem = {
+  sourceBatchId: string;
+  sourceFileName?: string;
+  sourceFileUrl?: string;
+  sourceFileKey?: string;
+  importedAt: string;
+  latestLeadAt: string;
+  leadCount: number;
+};
+
+type ImportFilesResponse = {
+  items: CrmImportFileItem[];
+  total: number;
+  page: number;
+  limit: number;
+};
+
 type ExcelRow = Record<string, unknown>;
 
 type PreviewLeadRow = {
@@ -341,6 +358,10 @@ export default function AdminCrmManagement() {
   const [leadQ, setLeadQ] = useState("");
   const [leadStatus, setLeadStatus] = useState<string>("");
 
+  const [importFiles, setImportFiles] = useState<ImportFilesResponse | null>(null);
+  const [loadingImportFiles, setLoadingImportFiles] = useState(false);
+  const [deletingBatchId, setDeletingBatchId] = useState<string | null>(null);
+
   const [excelFile, setExcelFile] = useState<File | null>(null);
   const [taskStartDate, setTaskStartDate] = useState("");
   const [taskEndDate, setTaskEndDate] = useState("");
@@ -400,6 +421,20 @@ export default function AdminCrmManagement() {
     }
   }
 
+  async function loadImportFiles() {
+    setLoadingImportFiles(true);
+    try {
+      const res = await fetch(`/api/admin/crm/import-files?page=1&limit=100`, { cache: "no-store" });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.message || "Failed to load imported Excel files");
+      setImportFiles(json as ImportFilesResponse);
+    } catch (e: unknown) {
+      pushToast(e instanceof Error ? e.message : "Failed to load imported Excel files", "error");
+    } finally {
+      setLoadingImportFiles(false);
+    }
+  }
+
   useEffect(() => {
     loadUsers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -409,6 +444,11 @@ export default function AdminCrmManagement() {
     loadLeads();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leadQuery]);
+
+  useEffect(() => {
+    loadImportFiles();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function toggleCrmAgent(user: CrmUserItem) {
     try {
@@ -509,11 +549,35 @@ export default function AdminCrmManagement() {
       setTaskEndDate("");
       setDueDate("");
       setShowImportModal(false);
-      await loadLeads();
+      await Promise.all([loadLeads(), loadImportFiles()]);
     } catch (e: unknown) {
       pushToast(e instanceof Error ? e.message : "Failed to import CRM leads", "error");
     } finally {
       setImporting(false);
+    }
+  }
+
+  async function deleteImportedFile(item: CrmImportFileItem) {
+    const label = item.sourceFileName || "this uploaded Excel file";
+    const ok = window.confirm(
+      `Delete ${label}? This will also permanently delete ${item.leadCount} CRM leads imported from it.`
+    );
+    if (!ok) return;
+
+    try {
+      setDeletingBatchId(item.sourceBatchId);
+      const res = await fetch(`/api/admin/crm/import-files/${item.sourceBatchId}`, {
+        method: "DELETE",
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.message || "Failed to delete imported file");
+
+      pushToast(`Deleted file batch and ${json?.deletedLeads || item.leadCount} associated leads`, "success");
+      await Promise.all([loadLeads(), loadImportFiles()]);
+    } catch (e: unknown) {
+      pushToast(e instanceof Error ? e.message : "Failed to delete imported file", "error");
+    } finally {
+      setDeletingBatchId(null);
     }
   }
 
@@ -758,6 +822,81 @@ export default function AdminCrmManagement() {
                         <div>Due: {toIsoDateValue(lead.dueDate) || "-"}</div>
                       </td>
                       <td className="px-3 py-2 text-gray-700 max-w-[340px] truncate">{lead.latestComment || "-"}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section className="rounded-2xl border border-rose-200 bg-white/90 p-4 md:p-5 shadow-lg">
+          <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Uploaded Excel Files</h2>
+              <p className="text-sm text-gray-600">
+                Delete a file to remove every CRM lead imported from that upload batch.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => void loadImportFiles()}
+              disabled={loadingImportFiles || deletingBatchId !== null}
+              className="inline-flex items-center justify-center rounded-xl border border-sky-200 px-3 py-2 text-sm text-sky-700 hover:bg-sky-50 disabled:opacity-60"
+            >
+              Refresh Files
+            </button>
+          </div>
+
+          <div className="mt-4 overflow-auto max-h-[360px] rounded-xl border border-rose-100">
+            <table className="min-w-full text-sm">
+              <thead className="bg-rose-50 text-gray-600">
+                <tr>
+                  <th className="px-3 py-2 text-left">File</th>
+                  <th className="px-3 py-2 text-left">Imported</th>
+                  <th className="px-3 py-2 text-left">Leads</th>
+                  <th className="px-3 py-2 text-left">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loadingImportFiles ? (
+                  <tr><td className="px-3 py-3 text-gray-500" colSpan={4}>Loading imported files...</td></tr>
+                ) : (importFiles?.items || []).length === 0 ? (
+                  <tr><td className="px-3 py-3 text-gray-500" colSpan={4}>No imported Excel files found</td></tr>
+                ) : (
+                  (importFiles?.items || []).map((item) => (
+                    <tr key={item.sourceBatchId} className="border-t border-rose-100">
+                      <td className="px-3 py-2">
+                        <div className="font-medium text-gray-900 truncate max-w-[340px]">
+                          {item.sourceFileName || "Unnamed import file"}
+                        </div>
+                        <div className="text-xs text-gray-500">Batch: {item.sourceBatchId}</div>
+                        {item.sourceFileUrl ? (
+                          <a
+                            href={item.sourceFileUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-xs text-sky-700 hover:underline"
+                          >
+                            View in R2
+                          </a>
+                        ) : null}
+                      </td>
+                      <td className="px-3 py-2 text-xs text-gray-700">
+                        <div>{toIsoDateValue(item.importedAt) || "-"}</div>
+                        <div>Latest lead: {toIsoDateValue(item.latestLeadAt) || "-"}</div>
+                      </td>
+                      <td className="px-3 py-2 text-gray-800 font-medium">{item.leadCount}</td>
+                      <td className="px-3 py-2">
+                        <button
+                          type="button"
+                          onClick={() => void deleteImportedFile(item)}
+                          disabled={deletingBatchId === item.sourceBatchId}
+                          className="inline-flex items-center rounded-xl border border-red-300 px-3 py-1.5 text-xs text-red-700 hover:bg-red-50 disabled:opacity-60"
+                        >
+                          {deletingBatchId === item.sourceBatchId ? "Deleting..." : "Delete File + Leads"}
+                        </button>
+                      </td>
                     </tr>
                   ))
                 )}
