@@ -27,7 +27,13 @@ type CrmLeadItem = {
   clientName: string;
   companyName?: string;
   email?: string;
+  phoneRaw?: string;
   phoneFormatted?: string;
+  contactSocials?: string;
+  companyLocation?: string;
+  industry?: string;
+  website?: string;
+  listItems?: string[];
   status: string;
   priority: string;
   taskStartDate?: string;
@@ -88,6 +94,47 @@ function toIsoDateValue(value?: string): string {
 function toText(value: unknown): string {
   if (value === undefined || value === null) return "";
   return String(value).trim();
+}
+
+function extractPrimaryEmail(value: unknown): string {
+  const text = toText(value).toLowerCase();
+  if (!text) return "";
+
+  const matched = text.match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i);
+  if (matched?.[0]) return matched[0].toLowerCase();
+
+  const firstToken = text
+    .split(/[\s,;|/]+/g)
+    .map((x) => x.trim())
+    .find(Boolean);
+  return (firstToken || "").toLowerCase();
+}
+
+function extractPrimaryPhone(value: unknown): string {
+  const text = toText(value);
+  if (!text) return "";
+  const firstToken = text
+    .split(/[\n,;|/]+/g)
+    .map((x) => x.trim())
+    .find(Boolean);
+  return firstToken || text;
+}
+
+function deriveClientName(input: {
+  providedClientName: string;
+  title: string;
+  companyName: string;
+  email: string;
+}): string {
+  if (input.providedClientName) return input.providedClientName;
+  if (input.title && input.companyName) return `${input.title} - ${input.companyName}`;
+  if (input.companyName) return input.companyName;
+
+  const emailLocal = input.email.split("@")[0]?.replace(/[._-]+/g, " ").trim() || "";
+  if (emailLocal) return emailLocal;
+  if (input.title) return input.title;
+
+  return "Unknown Client";
 }
 
 function toLookup(row: ExcelRow): Record<string, unknown> {
@@ -156,21 +203,40 @@ function buildPreviewRows(rows: ExcelRow[]): {
     const rowNumber = idx + 2;
     const row = toLookup(rawRow);
 
-    const title =
-      toText(pickField(row, ["title", "task", "task title"])) ||
-      "CRM Follow-up";
-    const clientName =
-      toText(
-        pickField(row, ["client name", "client_name", "customer", "customer name", "name"])
-      ) || "Unknown Client";
+    const providedTitle = toText(
+      pickField(row, ["title", "task", "task title", "designation", "role"])
+    );
+    const title = providedTitle || "CRM Follow-up";
     const companyName = toText(
       pickField(row, ["company", "company name", "business", "organization"])
     );
-    const email = toText(pickField(row, ["email", "email address", "mail"]))
-      .toLowerCase();
-    const phone = toText(
-      pickField(row, ["phone", "phone number", "number", "mobile", "contact number", "telephone"])
+    const providedClientName = toText(
+      pickField(row, [
+        "client name",
+        "client_name",
+        "client",
+        "customer",
+        "customer name",
+        "name",
+        "contact",
+        "contact person",
+        "contact name",
+        "full name",
+        "person name",
+      ])
     );
+    const email = extractPrimaryEmail(
+      pickField(row, ["email", "emails", "email address", "mail", "e-mail"])
+    );
+    const phone = extractPrimaryPhone(
+      pickField(row, ["phone", "phones", "phone number", "number", "mobile", "contact number", "telephone"])
+    );
+    const clientName = deriveClientName({
+      providedClientName,
+      title: providedTitle,
+      companyName,
+      email,
+    });
     const socials = toText(
       pickField(row, ["contact socials", "social", "socials", "social links"])
     );
@@ -653,7 +719,17 @@ export default function AdminCrmManagement() {
                     <tr key={lead._id} className="border-t border-rose-100">
                       <td className="px-3 py-2">
                         <div className="font-medium text-gray-900">{lead.clientName}</div>
-                        <div className="text-xs text-gray-500">{lead.email || "-"} {lead.phoneFormatted ? `• ${lead.phoneFormatted}` : ""}</div>
+                        <div className="text-xs text-gray-500">
+                          {lead.email || "-"} {lead.phoneFormatted || lead.phoneRaw ? `• ${lead.phoneFormatted || lead.phoneRaw}` : ""}
+                        </div>
+                        {lead.companyLocation || lead.industry || lead.website ? (
+                          <div className="text-xs text-gray-500">
+                            {[lead.companyLocation, lead.industry].filter(Boolean).join(" • ") || lead.website}
+                          </div>
+                        ) : null}
+                        {lead.listItems?.length ? (
+                          <div className="text-xs text-gray-500 truncate">Lists: {lead.listItems.join(", ")}</div>
+                        ) : null}
                       </td>
                       <td className="px-3 py-2 text-gray-700">
                         {(lead.assignedTo?.username || lead.assignedTo?.email || "-") as string}
