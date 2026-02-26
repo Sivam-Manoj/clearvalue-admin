@@ -84,6 +84,20 @@ const CRM_STATUSES = [
   "not_interested",
 ] as const;
 
+const IMPORT_COLUMN_HELPER = [
+  { field: "Client Name", headers: "Client Name, Contact Name, Name, Customer" },
+  { field: "Title", headers: "Title, Task, Task Title, Designation, Role" },
+  { field: "Company", headers: "Company, Company Name, Business, Organization" },
+  { field: "Email", headers: "Email, Emails, Email Address, Mail, E-mail" },
+  { field: "Phone", headers: "Phone, Phones, Mobile, Contact Number, Telephone" },
+  { field: "Lists", headers: "Lists, List, List Name, Lead List, Segment, Tags" },
+  { field: "Socials", headers: "Contact Socials, Social, Social Links" },
+  { field: "Location", headers: "Company Location, Location, City, Address" },
+  { field: "Industry", headers: "Industry, Sector" },
+  { field: "Website", headers: "Website, Site, URL, Web" },
+  { field: "Notes", headers: "Notes, Note, Comments, Remarks, Description" },
+] as const;
+
 function toIsoDateValue(value?: string): string {
   if (!value) return "";
   const date = new Date(value);
@@ -822,6 +836,23 @@ export default function AdminCrmManagement() {
                     <div className="rounded-xl border border-amber-100 bg-white px-3 py-2">
                       <div className="text-[11px] uppercase tracking-wide text-gray-500">Duplicates</div>
                       <div className="text-sm font-semibold text-amber-700">{rowCountWithDuplicates}</div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 rounded-xl border border-sky-100 bg-gradient-to-br from-sky-50 to-white px-3 py-3">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-sky-700">
+                      Imported from Excel mapping
+                    </div>
+                    <p className="mt-1 text-[11px] leading-4 text-sky-800/80">
+                      Use any matching header name. For <span className="font-medium">Emails</span> and <span className="font-medium">Phones</span>, only the first value is used.
+                    </p>
+                    <div className="mt-2 max-h-40 space-y-1.5 overflow-auto pr-1">
+                      {IMPORT_COLUMN_HELPER.map((item) => (
+                        <div key={item.field} className="rounded-lg border border-sky-100 bg-white/90 px-2 py-1.5">
+                          <div className="text-[11px] font-semibold text-gray-800">{item.field}</div>
+                          <div className="text-[11px] leading-4 text-gray-600">{item.headers}</div>
+                        </div>
+                      ))}
                     </div>
                   </div>
 
