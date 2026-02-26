@@ -40,9 +40,13 @@ type CrmLeadItem = {
   taskEndDate?: string;
   dueDate?: string;
   latestComment?: string;
-  assignedTo?: { _id: string; email?: string; username?: string };
-  assignedBy?: { _id: string; email?: string; username?: string };
+  latestAttachmentUrls?: string[];
+  latestRecordingUrl?: string;
+  updates?: CrmLeadUpdateItem[];
+  assignedTo?: { _id: string; email?: string; username?: string; role?: string };
+  assignedBy?: { _id: string; email?: string; username?: string; role?: string };
   createdAt: string;
+  updatedAt?: string;
 };
 
 type LeadsResponse = {
@@ -50,6 +54,16 @@ type LeadsResponse = {
   total: number;
   page: number;
   limit: number;
+};
+
+type CrmLeadUpdateItem = {
+  _id?: string;
+  comment?: string;
+  status?: string;
+  attachmentUrls?: string[];
+  recordingUrl?: string;
+  createdBy?: { _id?: string; email?: string; username?: string; role?: string };
+  createdAt?: string;
 };
 
 type CrmImportFileItem = {
@@ -183,6 +197,7 @@ function pickField(rowLookup: Record<string, unknown>, candidates: string[]): un
       return value;
     }
   }
+
   return undefined;
 }
 
@@ -220,6 +235,29 @@ function normalizePhoneForKey(value: string): string {
 
 function statusLabel(value: string): string {
   return value.replace(/_/g, " ").replace(/\b\w/g, (x) => x.toUpperCase());
+}
+
+function toDateTimeValue(value?: string): string {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "-";
+  return date.toLocaleString();
+}
+
+function leadUpdateAuthorLabel(update: CrmLeadUpdateItem): string {
+  const name = update.createdBy?.username || update.createdBy?.email || "Unknown";
+  const role = String(update.createdBy?.role || "").toLowerCase();
+  if (role === "admin" || role === "superadmin") return `${name} (Admin)`;
+  return `${name} (CRM)`;
+}
+
+function sortedLeadUpdates(updates?: CrmLeadUpdateItem[]): CrmLeadUpdateItem[] {
+  if (!Array.isArray(updates)) return [];
+  return [...updates].sort((a, b) => {
+    const aTime = new Date(a.createdAt || 0).getTime();
+    const bTime = new Date(b.createdAt || 0).getTime();
+    return bTime - aTime;
+  });
 }
 
 function buildPreviewRows(rows: ExcelRow[]): {
@@ -357,6 +395,13 @@ export default function AdminCrmManagement() {
   const [loadingLeads, setLoadingLeads] = useState(false);
   const [leadQ, setLeadQ] = useState("");
   const [leadStatus, setLeadStatus] = useState<string>("");
+  const [leadDetailsLoadingId, setLeadDetailsLoadingId] = useState<string | null>(null);
+  const [showLeadDetailsModal, setShowLeadDetailsModal] = useState(false);
+  const [activeLeadDetails, setActiveLeadDetails] = useState<CrmLeadItem | null>(null);
+  const [leadDetailsError, setLeadDetailsError] = useState("");
+  const [adminReply, setAdminReply] = useState("");
+  const [adminReplyStatus, setAdminReplyStatus] = useState<string>("");
+  const [submittingAdminReply, setSubmittingAdminReply] = useState(false);
 
   const [importFiles, setImportFiles] = useState<ImportFilesResponse | null>(null);
   const [loadingImportFiles, setLoadingImportFiles] = useState(false);
@@ -581,6 +626,70 @@ export default function AdminCrmManagement() {
     }
   }
 
+  function closeLeadDetailsModal() {
+    if (submittingAdminReply) return;
+    setShowLeadDetailsModal(false);
+    setActiveLeadDetails(null);
+    setLeadDetailsError("");
+    setAdminReply("");
+    setAdminReplyStatus("");
+  }
+
+  async function openLeadDetailsModal(leadId: string) {
+    setShowLeadDetailsModal(true);
+    setLeadDetailsLoadingId(leadId);
+    setLeadDetailsError("");
+    setAdminReply("");
+
+    try {
+      const res = await fetch(`/api/admin/crm/leads/${leadId}`, { cache: "no-store" });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.message || "Failed to load lead details");
+
+      const item = json?.item as CrmLeadItem;
+      setActiveLeadDetails(item);
+      setAdminReplyStatus(item?.status || "pending");
+    } catch (e: unknown) {
+      setLeadDetailsError(e instanceof Error ? e.message : "Failed to load lead details");
+    } finally {
+      setLeadDetailsLoadingId(null);
+    }
+  }
+
+  async function submitAdminLeadReply() {
+    if (!activeLeadDetails) return;
+    const comment = adminReply.trim();
+    if (!comment) {
+      pushToast("Reply comment is required", "error");
+      return;
+    }
+
+    try {
+      setSubmittingAdminReply(true);
+      const res = await fetch(`/api/admin/crm/leads/${activeLeadDetails._id}/reply`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          comment,
+          status: adminReplyStatus || activeLeadDetails.status,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.message || "Failed to submit admin reply");
+
+      const item = json?.item as CrmLeadItem;
+      setActiveLeadDetails(item);
+      setAdminReply("");
+      setAdminReplyStatus(item?.status || adminReplyStatus);
+      pushToast("Reply sent to CRM thread", "success");
+      await loadLeads();
+    } catch (e: unknown) {
+      pushToast(e instanceof Error ? e.message : "Failed to submit admin reply", "error");
+    } finally {
+      setSubmittingAdminReply(false);
+    }
+  }
+
   const crmUsersCount = users?.items?.filter((u) => u.isCrmAgent).length || 0;
   const totalUsersCount = users?.total || 0;
   const duplicateIssuesByRow = useMemo(() => {
@@ -597,6 +706,10 @@ export default function AdminCrmManagement() {
   const selectedAssignees = useMemo(
     () => (users?.items || []).filter((u) => selectedUserIds.includes(u._id)),
     [selectedUserIds, users?.items]
+  );
+  const activeLeadUpdates = useMemo(
+    () => sortedLeadUpdates(activeLeadDetails?.updates),
+    [activeLeadDetails?.updates]
   );
 
   return (
@@ -785,13 +898,14 @@ export default function AdminCrmManagement() {
                   <th className="px-3 py-2 text-left">Status</th>
                   <th className="px-3 py-2 text-left">Window</th>
                   <th className="px-3 py-2 text-left">Latest Comment</th>
+                  <th className="px-3 py-2 text-left">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {loadingLeads ? (
-                  <tr><td className="px-3 py-3 text-gray-500" colSpan={5}>Loading leads...</td></tr>
+                  <tr><td className="px-3 py-3 text-gray-500" colSpan={6}>Loading leads...</td></tr>
                 ) : (leads?.items || []).length === 0 ? (
-                  <tr><td className="px-3 py-3 text-gray-500" colSpan={5}>No CRM leads found</td></tr>
+                  <tr><td className="px-3 py-3 text-gray-500" colSpan={6}>No CRM leads found</td></tr>
                 ) : (
                   (leads?.items || []).map((lead) => (
                     <tr key={lead._id} className="border-t border-rose-100">
@@ -822,6 +936,16 @@ export default function AdminCrmManagement() {
                         <div>Due: {toIsoDateValue(lead.dueDate) || "-"}</div>
                       </td>
                       <td className="px-3 py-2 text-gray-700 max-w-[340px] truncate">{lead.latestComment || "-"}</td>
+                      <td className="px-3 py-2">
+                        <button
+                          type="button"
+                          onClick={() => void openLeadDetailsModal(lead._id)}
+                          disabled={leadDetailsLoadingId === lead._id}
+                          className="inline-flex items-center gap-1 rounded-xl border border-sky-300 px-2.5 py-1.5 text-xs font-medium text-sky-700 hover:bg-sky-50 disabled:opacity-60"
+                        >
+                          {leadDetailsLoadingId === lead._id ? "Opening..." : "View"}
+                        </button>
+                      </td>
                     </tr>
                   ))
                 )}
@@ -1113,6 +1237,167 @@ export default function AdminCrmManagement() {
                     )}
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {showLeadDetailsModal ? (
+          <div className="fixed inset-0 z-[96] p-3 md:p-6">
+            <div
+              className="absolute inset-0 bg-slate-900/55 backdrop-blur-[1px]"
+              onClick={closeLeadDetailsModal}
+            />
+
+            <div className="relative mx-auto flex h-[92vh] max-w-4xl flex-col overflow-hidden rounded-3xl border border-sky-200 bg-gradient-to-br from-white via-sky-50/40 to-rose-50 shadow-2xl">
+              <div className="flex items-start justify-between border-b border-sky-100 px-5 py-4">
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-900">Lead Conversation & Files</h3>
+                  <p className="text-sm text-gray-600">
+                    Review CRM history, play recordings, and reply back to the assigned rep.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeLeadDetailsModal}
+                  disabled={submittingAdminReply}
+                  className="rounded-xl border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+                >
+                  Close
+                </button>
+              </div>
+
+              <div className="min-h-0 flex-1 overflow-auto px-5 py-4">
+                {leadDetailsLoadingId ? (
+                  <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800">
+                    Loading lead details...
+                  </div>
+                ) : leadDetailsError ? (
+                  <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    {leadDetailsError}
+                  </div>
+                ) : !activeLeadDetails ? (
+                  <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600">
+                    Lead details are unavailable.
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="rounded-2xl border border-sky-100 bg-white p-4">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <div className="text-lg font-semibold text-gray-900">{activeLeadDetails.clientName}</div>
+                          <div className="text-xs text-gray-600">
+                            {activeLeadDetails.companyName || "No company"} • {activeLeadDetails.email || "No email"}
+                          </div>
+                        </div>
+                        <span className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-medium text-sky-700">
+                          {statusLabel(activeLeadDetails.status)}
+                        </span>
+                      </div>
+
+                      <div className="mt-3 grid grid-cols-1 gap-2 text-xs text-gray-700 md:grid-cols-2">
+                        <div><span className="font-medium">Phone:</span> {activeLeadDetails.phoneFormatted || activeLeadDetails.phoneRaw || "-"}</div>
+                        <div><span className="font-medium">Due:</span> {toIsoDateValue(activeLeadDetails.dueDate) || "-"}</div>
+                        <div><span className="font-medium">Lists:</span> {activeLeadDetails.listItems?.join(", ") || "-"}</div>
+                        <div><span className="font-medium">Updated:</span> {toDateTimeValue(activeLeadDetails.updatedAt)}</div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-rose-100 bg-white p-4">
+                      <div className="text-sm font-semibold text-gray-900">Reply to CRM agent</div>
+                      <p className="mt-1 text-xs text-gray-600">
+                        Add a clear instruction or feedback. It appears in the mobile CRM task activity timeline.
+                      </p>
+
+                      <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-[200px_minmax(0,1fr)]">
+                        <select
+                          value={adminReplyStatus}
+                          onChange={(e) => setAdminReplyStatus(e.target.value)}
+                          className="rounded-xl border border-gray-300 px-3 py-2 text-sm"
+                        >
+                          {CRM_STATUSES.map((status) => (
+                            <option key={status} value={status}>{statusLabel(status)}</option>
+                          ))}
+                        </select>
+                        <textarea
+                          value={adminReply}
+                          onChange={(e) => setAdminReply(e.target.value)}
+                          rows={3}
+                          placeholder="Add admin reply visible to CRM rep..."
+                          className="rounded-xl border border-gray-300 px-3 py-2 text-sm"
+                        />
+                      </div>
+
+                      <div className="mt-2 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => void submitAdminLeadReply()}
+                          disabled={submittingAdminReply || !adminReply.trim()}
+                          className="inline-flex items-center rounded-xl bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700 disabled:opacity-60"
+                        >
+                          {submittingAdminReply ? "Sending..." : "Send Reply"}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-sky-100 bg-white p-4">
+                      <div className="text-sm font-semibold text-gray-900">Activity Timeline</div>
+                      <p className="mt-1 text-xs text-gray-600">
+                        Every comment, attachment, and voice note shared between admin and CRM rep.
+                      </p>
+
+                      {activeLeadUpdates.length === 0 ? (
+                        <div className="mt-3 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600">
+                          No updates yet on this lead.
+                        </div>
+                      ) : (
+                        <div className="mt-3 space-y-3">
+                          {activeLeadUpdates.map((update, idx) => (
+                            <div key={update._id || `${idx}-${update.createdAt || "na"}`} className="rounded-xl border border-sky-100 bg-sky-50/40 px-3 py-3">
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <div className="text-xs font-medium text-sky-800">{leadUpdateAuthorLabel(update)}</div>
+                                <div className="text-[11px] text-gray-500">{toDateTimeValue(update.createdAt)}</div>
+                              </div>
+                              <div className="mt-1 text-[11px] text-gray-500">Status: {statusLabel(update.status || activeLeadDetails.status)}</div>
+
+                              {update.comment ? (
+                                <div className="mt-2 rounded-lg border border-white/80 bg-white px-2.5 py-2 text-sm text-gray-800">
+                                  {update.comment}
+                                </div>
+                              ) : null}
+
+                              {update.attachmentUrls?.length ? (
+                                <div className="mt-2 space-y-1">
+                                  <div className="text-xs font-medium text-gray-700">Attachments</div>
+                                  <div className="flex flex-wrap gap-2">
+                                    {update.attachmentUrls.map((url, fileIdx) => (
+                                      <a
+                                        key={`${url}-${fileIdx}`}
+                                        href={url}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="inline-flex items-center rounded-full border border-sky-200 bg-white px-2.5 py-1 text-xs text-sky-700 hover:bg-sky-50"
+                                      >
+                                        File {fileIdx + 1}
+                                      </a>
+                                    ))}
+                                  </div>
+                                </div>
+                              ) : null}
+
+                              {update.recordingUrl ? (
+                                <div className="mt-2">
+                                  <div className="mb-1 text-xs font-medium text-gray-700">Voice Recording</div>
+                                  <audio controls src={update.recordingUrl} className="w-full" preload="none" />
+                                </div>
+                              ) : null}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
