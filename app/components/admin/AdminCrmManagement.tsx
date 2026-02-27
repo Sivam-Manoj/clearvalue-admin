@@ -64,6 +64,9 @@ type CrmLeadUpdateItem = {
   recordingUrl?: string;
   createdBy?: { _id?: string; email?: string; username?: string; role?: string };
   createdAt?: string;
+  editedAt?: string;
+  isDeleted?: boolean;
+  deletedAt?: string;
 };
 
 type CrmImportFileItem = {
@@ -260,6 +263,11 @@ function sortedLeadUpdates(updates?: CrmLeadUpdateItem[]): CrmLeadUpdateItem[] {
   });
 }
 
+function isLikelyImageUrl(url?: string): boolean {
+  const clean = String(url || "").trim().split("?")[0].toLowerCase();
+  return /\.(png|jpe?g|gif|webp|bmp|heic|heif|svg)$/i.test(clean);
+}
+
 function buildPreviewRows(rows: ExcelRow[]): {
   parsedRows: PreviewLeadRow[];
   duplicateIssues: DuplicateIssue[];
@@ -402,6 +410,10 @@ export default function AdminCrmManagement() {
   const [adminReply, setAdminReply] = useState("");
   const [adminReplyStatus, setAdminReplyStatus] = useState<string>("");
   const [submittingAdminReply, setSubmittingAdminReply] = useState(false);
+  const [timelineBusyKey, setTimelineBusyKey] = useState<string | null>(null);
+  const [editingUpdateId, setEditingUpdateId] = useState<string | null>(null);
+  const [editingComment, setEditingComment] = useState("");
+  const [editingStatus, setEditingStatus] = useState<string>("pending");
 
   const [importFiles, setImportFiles] = useState<ImportFilesResponse | null>(null);
   const [loadingImportFiles, setLoadingImportFiles] = useState(false);
@@ -633,6 +645,10 @@ export default function AdminCrmManagement() {
     setLeadDetailsError("");
     setAdminReply("");
     setAdminReplyStatus("");
+    setTimelineBusyKey(null);
+    setEditingUpdateId(null);
+    setEditingComment("");
+    setEditingStatus("pending");
   }
 
   async function openLeadDetailsModal(leadId: string) {
@@ -649,10 +665,130 @@ export default function AdminCrmManagement() {
       const item = json?.item as CrmLeadItem;
       setActiveLeadDetails(item);
       setAdminReplyStatus(item?.status || "pending");
+      setEditingStatus(item?.status || "pending");
     } catch (e: unknown) {
       setLeadDetailsError(e instanceof Error ? e.message : "Failed to load lead details");
     } finally {
       setLeadDetailsLoadingId(null);
+    }
+  }
+
+  function applyLeadMutation(item: CrmLeadItem) {
+    setActiveLeadDetails(item);
+    setLeads((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        items: (prev.items || []).map((lead) => (lead._id === item._id ? item : lead)),
+      };
+    });
+  }
+
+  function beginEditLeadUpdate(update: CrmLeadUpdateItem) {
+    if (!update?._id) return;
+    setEditingUpdateId(update._id);
+    setEditingComment(update.comment || "");
+    setEditingStatus(update.status || activeLeadDetails?.status || "pending");
+  }
+
+  function cancelEditLeadUpdate() {
+    setEditingUpdateId(null);
+    setEditingComment("");
+    setEditingStatus(activeLeadDetails?.status || "pending");
+  }
+
+  async function saveEditedLeadUpdate(update: CrmLeadUpdateItem) {
+    if (!activeLeadDetails?._id || !update?._id) return;
+
+    try {
+      setTimelineBusyKey(`edit:${update._id}`);
+      const res = await fetch(`/api/admin/crm/leads/${activeLeadDetails._id}/updates/${update._id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          comment: editingComment,
+          status: editingStatus,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.message || "Failed to edit update");
+
+      const item = json?.item as CrmLeadItem;
+      applyLeadMutation(item);
+      setEditingUpdateId(null);
+      setEditingComment("");
+      pushToast("Update edited", "success");
+    } catch (e: unknown) {
+      pushToast(e instanceof Error ? e.message : "Failed to edit update", "error");
+    } finally {
+      setTimelineBusyKey(null);
+    }
+  }
+
+  async function deleteLeadUpdate(update: CrmLeadUpdateItem) {
+    if (!activeLeadDetails?._id || !update?._id) return;
+    const ok = window.confirm("Delete this update and all media attached to it?");
+    if (!ok) return;
+
+    try {
+      setTimelineBusyKey(`delete:${update._id}`);
+      const res = await fetch(`/api/admin/crm/leads/${activeLeadDetails._id}/updates/${update._id}`, {
+        method: "DELETE",
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.message || "Failed to delete update");
+
+      const item = json?.item as CrmLeadItem;
+      applyLeadMutation(item);
+      pushToast("Update deleted", "success");
+    } catch (e: unknown) {
+      pushToast(e instanceof Error ? e.message : "Failed to delete update", "error");
+    } finally {
+      setTimelineBusyKey(null);
+    }
+  }
+
+  async function deleteLeadUpdateAttachment(update: CrmLeadUpdateItem, url: string) {
+    if (!activeLeadDetails?._id || !update?._id || !url) return;
+
+    try {
+      setTimelineBusyKey(`attachment:${update._id}:${url}`);
+      const res = await fetch(`/api/admin/crm/leads/${activeLeadDetails._id}/updates/${update._id}/attachments`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ urls: [url] }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.message || "Failed to delete attachment");
+
+      const item = json?.item as CrmLeadItem;
+      applyLeadMutation(item);
+      pushToast("Attachment removed", "success");
+    } catch (e: unknown) {
+      pushToast(e instanceof Error ? e.message : "Failed to delete attachment", "error");
+    } finally {
+      setTimelineBusyKey(null);
+    }
+  }
+
+  async function deleteLeadUpdateRecording(update: CrmLeadUpdateItem) {
+    if (!activeLeadDetails?._id || !update?._id) return;
+
+    try {
+      setTimelineBusyKey(`recording:${update._id}`);
+      const res = await fetch(`/api/admin/crm/leads/${activeLeadDetails._id}/updates/${update._id}/recording`, {
+        method: "DELETE",
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.message || "Failed to delete recording");
+
+      const item = json?.item as CrmLeadItem;
+      applyLeadMutation(item);
+      pushToast("Voice recording deleted", "success");
+    } catch (e: unknown) {
+      pushToast(e instanceof Error ? e.message : "Failed to delete recording", "error");
+    } finally {
+      setTimelineBusyKey(null);
     }
   }
 
@@ -1360,35 +1496,148 @@ export default function AdminCrmManagement() {
                               </div>
                               <div className="mt-1 text-[11px] text-gray-500">Status: {statusLabel(update.status || activeLeadDetails.status)}</div>
 
-                              {update.comment ? (
+                              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                                {update.editedAt && !update.isDeleted ? (
+                                  <span className="inline-flex rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
+                                    Edited
+                                  </span>
+                                ) : null}
+                                {update.isDeleted ? (
+                                  <span className="inline-flex rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-700">
+                                    Deleted
+                                  </span>
+                                ) : null}
+                              </div>
+
+                              {update.isDeleted ? (
+                                <div className="mt-2 rounded-lg border border-red-200 bg-red-50 px-2.5 py-2 text-sm italic text-red-700">
+                                  This update was deleted.
+                                </div>
+                              ) : null}
+
+                              {!update.isDeleted && editingUpdateId === update._id ? (
+                                <div className="mt-2 space-y-2 rounded-lg border border-sky-200 bg-white px-2.5 py-2">
+                                  <textarea
+                                    value={editingComment}
+                                    onChange={(e) => setEditingComment(e.target.value)}
+                                    rows={3}
+                                    placeholder="Edit update message"
+                                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                                  />
+
+                                  <select
+                                    value={editingStatus}
+                                    onChange={(e) => setEditingStatus(e.target.value)}
+                                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                                  >
+                                    {CRM_STATUSES.map((status) => (
+                                      <option key={`${update._id}-${status}`} value={status}>
+                                        {statusLabel(status)}
+                                      </option>
+                                    ))}
+                                  </select>
+
+                                  <div className="flex items-center justify-end gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={cancelEditLeadUpdate}
+                                      disabled={timelineBusyKey === `edit:${update._id}`}
+                                      className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-100 disabled:opacity-60"
+                                    >
+                                      Cancel
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => void saveEditedLeadUpdate(update)}
+                                      disabled={timelineBusyKey === `edit:${update._id}`}
+                                      className="rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-700 disabled:opacity-60"
+                                    >
+                                      {timelineBusyKey === `edit:${update._id}` ? "Saving..." : "Save"}
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : null}
+
+                              {!update.isDeleted && update.comment ? (
                                 <div className="mt-2 rounded-lg border border-white/80 bg-white px-2.5 py-2 text-sm text-gray-800">
                                   {update.comment}
                                 </div>
                               ) : null}
 
-                              {update.attachmentUrls?.length ? (
+                              {!update.isDeleted && editingUpdateId !== update._id ? (
+                                <div className="mt-2 flex flex-wrap items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => beginEditLeadUpdate(update)}
+                                    disabled={Boolean(timelineBusyKey) || !update._id}
+                                    className="rounded-lg border border-sky-300 bg-white px-3 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-50 disabled:opacity-60"
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => void deleteLeadUpdate(update)}
+                                    disabled={timelineBusyKey === `delete:${update._id}` || !update._id}
+                                    className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-60"
+                                  >
+                                    {timelineBusyKey === `delete:${update._id}` ? "Deleting..." : "Delete"}
+                                  </button>
+                                </div>
+                              ) : null}
+
+                              {!update.isDeleted && update.attachmentUrls?.length ? (
                                 <div className="mt-2 space-y-1">
                                   <div className="text-xs font-medium text-gray-700">Attachments</div>
                                   <div className="flex flex-wrap gap-2">
                                     {update.attachmentUrls.map((url, fileIdx) => (
-                                      <a
-                                        key={`${url}-${fileIdx}`}
-                                        href={url}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className="inline-flex items-center rounded-full border border-sky-200 bg-white px-2.5 py-1 text-xs text-sky-700 hover:bg-sky-50"
-                                      >
-                                        File {fileIdx + 1}
-                                      </a>
+                                      <div key={`${url}-${fileIdx}`} className="rounded-lg border border-sky-100 bg-white p-2">
+                                        {isLikelyImageUrl(url) ? (
+                                          <a href={url} target="_blank" rel="noreferrer" className="block">
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                            <img
+                                              src={url}
+                                              alt={`Attachment ${fileIdx + 1}`}
+                                              className="h-28 w-44 max-w-full rounded-md border border-sky-100 object-cover"
+                                            />
+                                          </a>
+                                        ) : (
+                                          <a
+                                            href={url}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="inline-flex items-center rounded-full border border-sky-200 bg-white px-2.5 py-1 text-xs text-sky-700 hover:bg-sky-50"
+                                          >
+                                            File {fileIdx + 1}
+                                          </a>
+                                        )}
+                                        <div className="mt-2">
+                                          <button
+                                            type="button"
+                                            onClick={() => void deleteLeadUpdateAttachment(update, url)}
+                                            disabled={timelineBusyKey === `attachment:${update._id}:${url}` || !update._id}
+                                            className="rounded-md bg-red-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-red-700 disabled:opacity-60"
+                                          >
+                                            {timelineBusyKey === `attachment:${update._id}:${url}` ? "Removing..." : "Remove"}
+                                          </button>
+                                        </div>
+                                      </div>
                                     ))}
                                   </div>
                                 </div>
                               ) : null}
 
-                              {update.recordingUrl ? (
+                              {!update.isDeleted && update.recordingUrl ? (
                                 <div className="mt-2">
                                   <div className="mb-1 text-xs font-medium text-gray-700">Voice Recording</div>
                                   <audio controls src={update.recordingUrl} className="w-full" preload="none" />
+                                  <button
+                                    type="button"
+                                    onClick={() => void deleteLeadUpdateRecording(update)}
+                                    disabled={timelineBusyKey === `recording:${update._id}` || !update._id}
+                                    className="mt-2 rounded-md bg-red-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-red-700 disabled:opacity-60"
+                                  >
+                                    {timelineBusyKey === `recording:${update._id}` ? "Deleting..." : "Delete audio"}
+                                  </button>
                                 </div>
                               ) : null}
                             </div>
