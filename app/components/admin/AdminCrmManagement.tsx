@@ -14,7 +14,7 @@ import {
   Legend,
   type ChartOptions,
 } from "chart.js";
-import { Doughnut, Bar, Line } from "react-chartjs-2";
+import { Doughnut, Bar, Line, Pie } from "react-chartjs-2";
 
 ChartJS.register(ArcElement, CategoryScale, LinearScale, BarElement, PointElement, LineElement, Tooltip, Legend);
 
@@ -1001,121 +1001,161 @@ export default function AdminCrmManagement() {
     []
   );
 
+  const leadStatusPieData = useMemo(() => {
+    const items = leads?.items || [];
+    const counts = CRM_STATUSES.map((s) => items.filter((l) => l.status === s).length);
+    return {
+      labels: CRM_STATUSES.map(statusLabel),
+      datasets: [{
+        data: counts,
+        backgroundColor: [
+          "rgba(100,116,139,0.8)",
+          "rgba(14,165,233,0.8)",
+          "rgba(22,163,74,0.8)",
+          "rgba(245,158,11,0.8)",
+          "rgba(239,68,68,0.8)",
+        ],
+        borderColor: ["#64748B", "#0EA5E9", "#16A34A", "#F59E0B", "#EF4444"],
+        borderWidth: 1.5,
+      }],
+    };
+  }, [leads?.items]);
+
+  const leadsPerAgentData = useMemo(() => {
+    const agentMap = new Map<string, number>();
+    (leads?.items || []).forEach((lead) => {
+      const name = lead.assignedTo?.username || lead.assignedTo?.email || "Unassigned";
+      agentMap.set(name, (agentMap.get(name) || 0) + 1);
+    });
+    const entries = [...agentMap.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10);
+    return {
+      labels: entries.map(([name]) => name.length > 14 ? name.slice(0, 14) + "..." : name),
+      datasets: [{
+        label: "Leads",
+        data: entries.map(([, count]) => count),
+        backgroundColor: "rgba(244,63,94,0.75)",
+        borderColor: "#F43F5E",
+        borderWidth: 1,
+        borderRadius: 6,
+      }],
+    };
+  }, [leads?.items]);
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-rose-50">
       <main className="max-w-7xl mx-auto px-4 py-8 space-y-6">
-        <section className="rounded-2xl border border-rose-200 bg-white/85 backdrop-blur shadow-xl shadow-rose-100 p-5 md:p-6">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <section className="rounded-3xl border border-rose-200/80 bg-gradient-to-br from-white via-rose-50/40 to-sky-50/30 p-5 md:p-6 shadow-[0_14px_40px_rgba(15,23,42,0.12)]">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
-              <h1 className="text-xl md:text-2xl font-semibold text-gray-900">CRM Control Center</h1>
-              <p className="text-gray-600">Assign CRM roles, import lead sheets, and monitor task activity.</p>
+              <h1 className="text-xl font-bold text-gray-900 md:text-2xl">CRM Control Center</h1>
+              <p className="text-gray-600 text-sm">Assign CRM roles, import lead sheets, and monitor task activity.</p>
             </div>
             <div className="flex gap-3">
-              <div className="rounded-xl border border-rose-200 bg-white px-4 py-2">
-                <div className="text-xs text-gray-500">CRM Agents</div>
-                <div className="text-lg font-semibold text-rose-700">{crmUsersCount}</div>
+              <div className="rounded-2xl border border-rose-200/80 bg-gradient-to-br from-rose-50 to-white px-4 py-2.5 shadow-[0_4px_14px_rgba(244,63,94,0.12),inset_0_1px_0_rgba(255,255,255,0.8)]">
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">CRM Agents</div>
+                <div className="text-xl font-bold text-rose-700">{crmUsersCount}</div>
               </div>
-              <div className="rounded-xl border border-rose-200 bg-white px-4 py-2">
-                <div className="text-xs text-gray-500">Total Users</div>
-                <div className="text-lg font-semibold text-gray-900">{totalUsersCount}</div>
+              <div className="rounded-2xl border border-sky-200/80 bg-gradient-to-br from-sky-50 to-white px-4 py-2.5 shadow-[0_4px_14px_rgba(14,165,233,0.12),inset_0_1px_0_rgba(255,255,255,0.8)]">
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Total Leads</div>
+                <div className="text-xl font-bold text-sky-700">{leads?.total || 0}</div>
+              </div>
+              <div className="rounded-2xl border border-slate-200/80 bg-gradient-to-br from-slate-50 to-white px-4 py-2.5 shadow-[0_4px_14px_rgba(100,116,139,0.10),inset_0_1px_0_rgba(255,255,255,0.8)]">
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Total Users</div>
+                <div className="text-xl font-bold text-gray-900">{totalUsersCount}</div>
               </div>
             </div>
           </div>
         </section>
 
-        <section className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-          <div className="xl:col-span-2 rounded-2xl border border-rose-200 bg-white/90 p-4 md:p-5 shadow-lg">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">CRM Team Operations</h2>
-                <p className="text-sm text-gray-600">
-                  Manage assign/remove CRM roles in a focused modal with analytics snapshots.
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowCrmOpsModal(true)}
-                  className="inline-flex items-center justify-center rounded-xl bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700"
-                >
-                  Open CRM Team Modal
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void loadUsers()}
-                  disabled={loadingUsers}
-                  className="inline-flex items-center justify-center rounded-xl border border-sky-200 px-4 py-2 text-sm text-sky-700 hover:bg-sky-50 disabled:opacity-60"
-                >
-                  {loadingUsers ? "Refreshing..." : "Refresh Users"}
-                </button>
-              </div>
+        <section className="grid grid-cols-1 gap-5 md:grid-cols-2">
+          <div className="rounded-3xl border border-rose-200/80 bg-gradient-to-br from-white via-rose-50/50 to-sky-50/40 p-4 md:p-5 shadow-[0_10px_36px_rgba(15,23,42,0.10)]">
+            <h2 className="text-base font-semibold text-gray-900">Lead Status Distribution</h2>
+            <p className="text-xs text-gray-500 mt-0.5">Breakdown of all leads by current status.</p>
+            <div className="mt-3 h-52 sm:h-56">
+              <Pie
+                data={leadStatusPieData}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: { legend: { position: "right", labels: { boxWidth: 10, font: { size: 11 }, padding: 8 } } },
+                }}
+              />
             </div>
-
-            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <div className="rounded-xl border border-sky-100 bg-sky-50/60 px-3 py-3">
-                <div className="text-xs uppercase tracking-wide text-sky-700">CRM Agents</div>
-                <div className="mt-1 text-2xl font-semibold text-sky-900">{crmUsersCount}</div>
-              </div>
-              <div className="rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-3">
-                <div className="text-xs uppercase tracking-wide text-slate-600">Total Users</div>
-                <div className="mt-1 text-2xl font-semibold text-slate-900">{totalUsersCount}</div>
-              </div>
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 px-3 py-3">
-                <div className="text-xs uppercase tracking-wide text-emerald-700">Selected Assignees</div>
-                <div className="mt-1 text-2xl font-semibold text-emerald-900">{selectedUserIds.length}</div>
-              </div>
-            </div>
-
-            <p className="mt-3 text-xs text-gray-500">
-              Lead import assignment uses selected CRM agents. If none are selected, leads auto-distribute among active CRM agents.
-            </p>
           </div>
 
-          <div className="rounded-2xl border border-rose-200 bg-white/90 p-4 md:p-5 shadow-lg">
-            <h2 className="text-lg font-semibold text-gray-900">Import Leads (Excel)</h2>
-            <p className="text-sm text-gray-600 mt-1">
-              Open upload modal, preview extracted rows, and block duplicate list entries before import.
-            </p>
+          <div className="rounded-3xl border border-rose-200/80 bg-gradient-to-br from-white via-sky-50/50 to-rose-50/40 p-4 md:p-5 shadow-[0_10px_36px_rgba(15,23,42,0.10)]">
+            <h2 className="text-base font-semibold text-gray-900">Leads per Agent</h2>
+            <p className="text-xs text-gray-500 mt-0.5">Top assigned CRM agents by lead count.</p>
+            <div className="mt-3 h-52 sm:h-56">
+              <Bar data={leadsPerAgentData} options={compactChartOptions} />
+            </div>
+          </div>
+        </section>
 
-            <div className="mt-4 space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Task start date (optional)</label>
-                <input type="date" value={taskStartDate} onChange={(e) => setTaskStartDate(e.target.value)} className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Task end date (optional)</label>
-                <input type="date" value={taskEndDate} onChange={(e) => setTaskEndDate(e.target.value)} className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Due date (optional)</label>
-                <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2" />
-              </div>
+        <section className="rounded-3xl border border-rose-200/80 bg-gradient-to-br from-white via-rose-50/60 to-amber-50/40 p-5 md:p-6 shadow-[0_12px_40px_rgba(15,23,42,0.12)]">
+          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Import Leads (Excel)</h2>
+              <p className="text-sm text-gray-600 mt-0.5">
+                Upload Excel, preview extracted rows, and block duplicate entries before import.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowImportModal(true)}
+              className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-rose-500 to-rose-600 px-5 py-2.5 text-sm font-semibold text-white shadow-[0_6px_20px_rgba(244,63,94,0.35)] transition-all hover:shadow-[0_8px_28px_rgba(244,63,94,0.45)] hover:brightness-105 active:scale-[0.97]"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5-5m0 0l5 5m-5-5v12" /></svg>
+              Open Upload Preview
+            </button>
+          </div>
 
-              <div className="rounded-xl border border-rose-100 bg-rose-50/60 px-3 py-2.5">
-                <div className="text-xs text-gray-600">Selected assignees</div>
-                <div className="mt-1 text-sm font-medium text-gray-900">
+          <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide">Task Start</label>
+              <input
+                type="date"
+                value={taskStartDate}
+                onChange={(e) => setTaskStartDate(e.target.value)}
+                className="mt-1.5 w-full rounded-2xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm shadow-[inset_0_2px_4px_rgba(0,0,0,0.04),0_2px_8px_rgba(15,23,42,0.06)] transition focus:border-rose-300 focus:ring-2 focus:ring-rose-100 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide">Task End</label>
+              <input
+                type="date"
+                value={taskEndDate}
+                onChange={(e) => setTaskEndDate(e.target.value)}
+                className="mt-1.5 w-full rounded-2xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm shadow-[inset_0_2px_4px_rgba(0,0,0,0.04),0_2px_8px_rgba(15,23,42,0.06)] transition focus:border-rose-300 focus:ring-2 focus:ring-rose-100 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide">Due Date</label>
+              <input
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                className="mt-1.5 w-full rounded-2xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm shadow-[inset_0_2px_4px_rgba(0,0,0,0.04),0_2px_8px_rgba(15,23,42,0.06)] transition focus:border-rose-300 focus:ring-2 focus:ring-rose-100 focus:outline-none"
+              />
+            </div>
+            <div className="flex flex-col justify-end">
+              <div className="rounded-2xl border border-rose-100 bg-gradient-to-br from-rose-50 to-white px-3.5 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_2px_8px_rgba(15,23,42,0.05)]">
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Assignees</div>
+                <div className="mt-0.5 text-sm font-medium text-gray-900">
                   {selectedUserIds.length > 0
-                    ? `${selectedUserIds.length} CRM agent${selectedUserIds.length > 1 ? "s" : ""}`
-                    : "Auto-distribute among all active CRM agents"}
+                    ? `${selectedUserIds.length} agent${selectedUserIds.length > 1 ? "s" : ""} selected`
+                    : "Auto-distribute"}
                 </div>
               </div>
-
-              {excelFile ? (
-                <div className="rounded-xl border border-sky-100 bg-sky-50/70 px-3 py-2.5">
-                  <div className="text-xs text-sky-700">Last selected file</div>
-                  <div className="text-sm font-medium text-sky-900 truncate">{excelFile.name}</div>
-                </div>
-              ) : null}
-
-              <button
-                type="button"
-                onClick={() => setShowImportModal(true)}
-                className="w-full inline-flex justify-center items-center px-4 py-2.5 rounded-xl bg-rose-500 hover:bg-rose-600 text-white font-medium"
-              >
-                Open Upload Preview Modal
-              </button>
             </div>
           </div>
+
+          {excelFile ? (
+            <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-medium text-sky-700 shadow-sm">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+              {excelFile.name}
+            </div>
+          ) : null}
         </section>
 
         <section className="rounded-3xl border border-rose-200/90 bg-gradient-to-br from-white via-rose-50/70 to-sky-50/60 p-4 md:p-5 shadow-[0_16px_44px_rgba(15,23,42,0.14)]">
@@ -1227,7 +1267,7 @@ export default function AdminCrmManagement() {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-rose-200 bg-white/90 p-4 md:p-5 shadow-lg">
+        <section className="rounded-3xl border border-rose-200/80 bg-gradient-to-br from-white via-amber-50/30 to-rose-50/50 p-4 md:p-5 shadow-[0_10px_36px_rgba(15,23,42,0.10)]">
           <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
             <div>
               <h2 className="text-lg font-semibold text-gray-900">Uploaded Excel Files</h2>
@@ -1239,20 +1279,21 @@ export default function AdminCrmManagement() {
               type="button"
               onClick={() => void loadImportFiles()}
               disabled={loadingImportFiles || deletingBatchId !== null}
-              className="inline-flex items-center justify-center rounded-xl border border-sky-200 px-3 py-2 text-sm text-sky-700 hover:bg-sky-50 disabled:opacity-60"
+              className="inline-flex items-center justify-center gap-1.5 rounded-2xl border border-sky-200 bg-white px-4 py-2 text-sm font-medium text-sky-700 shadow-[0_2px_8px_rgba(14,165,233,0.10)] transition hover:bg-sky-50 hover:shadow-[0_4px_12px_rgba(14,165,233,0.15)] disabled:opacity-60"
             >
-              Refresh Files
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+              {loadingImportFiles ? "Refreshing..." : "Refresh Files"}
             </button>
           </div>
 
-          <div className="mt-4 overflow-auto max-h-[360px] rounded-xl border border-rose-100">
+          <div className="mt-4 overflow-auto max-h-[360px] rounded-2xl border border-rose-100 bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.75),0_4px_14px_rgba(15,23,42,0.06)]">
             <table className="min-w-full text-sm">
-              <thead className="bg-rose-50 text-gray-600">
+              <thead className="bg-gradient-to-r from-rose-50 to-amber-50/60 text-gray-600">
                 <tr>
-                  <th className="px-3 py-2 text-left">File</th>
-                  <th className="px-3 py-2 text-left">Imported</th>
-                  <th className="px-3 py-2 text-left">Leads</th>
-                  <th className="px-3 py-2 text-left">Actions</th>
+                  <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide">File</th>
+                  <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide">Imported</th>
+                  <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide">Leads</th>
+                  <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -1262,8 +1303,8 @@ export default function AdminCrmManagement() {
                   <tr><td className="px-3 py-3 text-gray-500" colSpan={4}>No imported Excel files found</td></tr>
                 ) : (
                   (importFiles?.items || []).map((item) => (
-                    <tr key={item.sourceBatchId} className="border-t border-rose-100">
-                      <td className="px-3 py-2">
+                    <tr key={item.sourceBatchId} className="border-t border-rose-100/80 transition-colors hover:bg-rose-50/40">
+                      <td className="px-3 py-2.5">
                         <div className="font-medium text-gray-900 truncate max-w-[340px]">
                           {item.sourceFileName || "Unnamed import file"}
                         </div>
@@ -1279,19 +1320,24 @@ export default function AdminCrmManagement() {
                           </a>
                         ) : null}
                       </td>
-                      <td className="px-3 py-2 text-xs text-gray-700">
+                      <td className="px-3 py-2.5 text-xs text-gray-700">
                         <div>{toIsoDateValue(item.importedAt) || "-"}</div>
                         <div>Latest lead: {toIsoDateValue(item.latestLeadAt) || "-"}</div>
                       </td>
-                      <td className="px-3 py-2 text-gray-800 font-medium">{item.leadCount}</td>
-                      <td className="px-3 py-2">
+                      <td className="px-3 py-2.5">
+                        <span className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-700 shadow-sm">
+                          {item.leadCount}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2.5">
                         <button
                           type="button"
                           onClick={() => void deleteImportedFile(item)}
                           disabled={deletingBatchId === item.sourceBatchId}
-                          className="inline-flex items-center rounded-xl border border-red-300 px-3 py-1.5 text-xs text-red-700 hover:bg-red-50 disabled:opacity-60"
+                          className="inline-flex items-center gap-1 rounded-xl border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-700 shadow-sm transition hover:bg-red-50 hover:shadow-[0_2px_8px_rgba(239,68,68,0.15)] disabled:opacity-60"
                         >
-                          {deletingBatchId === item.sourceBatchId ? "Deleting..." : "Delete File + Leads"}
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                          {deletingBatchId === item.sourceBatchId ? "Deleting..." : "Delete"}
                         </button>
                       </td>
                     </tr>
@@ -1309,41 +1355,51 @@ export default function AdminCrmManagement() {
               onClick={() => setShowCrmOpsModal(false)}
             />
 
-            <div className="relative mx-auto flex h-[92vh] max-w-7xl flex-col overflow-hidden rounded-3xl border border-sky-200 bg-gradient-to-br from-white via-sky-50/40 to-rose-50 shadow-2xl">
-              <div className="flex items-start justify-between gap-3 border-b border-sky-100 px-5 py-4">
+            <div className="relative mx-auto flex h-[92vh] max-w-7xl flex-col overflow-hidden rounded-3xl border border-sky-200/80 bg-gradient-to-br from-white via-sky-50/50 to-rose-50/40 shadow-[0_24px_64px_rgba(15,23,42,0.18)]">
+              <div className="flex items-start justify-between gap-3 border-b border-sky-100 bg-gradient-to-r from-sky-50/60 to-transparent px-5 py-4">
                 <div>
-                  <h3 className="text-xl font-semibold text-gray-900">CRM Team Manager</h3>
+                  <h3 className="text-xl font-bold text-gray-900">CRM Team Manager</h3>
                   <p className="text-sm text-gray-600">
-                    Assign/remove CRM roles and monitor team distribution in one workspace.
+                    Assign/remove CRM roles and monitor team distribution.
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setShowCrmOpsModal(false)}
-                  className="rounded-xl border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
-                >
-                  Close
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void loadUsers()}
+                    disabled={loadingUsers}
+                    className="rounded-xl border border-sky-200 bg-white px-3 py-1.5 text-xs font-medium text-sky-700 shadow-sm transition hover:bg-sky-50 disabled:opacity-60"
+                  >
+                    {loadingUsers ? "Refreshing..." : "Refresh"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowCrmOpsModal(false)}
+                    className="rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-700 shadow-sm transition hover:bg-gray-50"
+                  >
+                    Close
+                  </button>
+                </div>
               </div>
 
               <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-hidden p-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] lg:p-5">
-                <div className="min-h-0 rounded-2xl border border-rose-100 bg-white p-4">
+                <div className="flex min-h-0 flex-col rounded-2xl border border-rose-100/80 bg-white p-4 shadow-[0_4px_16px_rgba(15,23,42,0.06)]">
                   <div className="flex flex-col gap-3 md:flex-row md:items-end">
                     <div className="flex-1">
-                      <label className="block text-sm font-medium text-gray-700">Search users</label>
+                      <label className="block text-xs font-semibold uppercase tracking-wide text-gray-600">Search users</label>
                       <input
                         value={userQ}
                         onChange={(e) => setUserQ(e.target.value)}
                         placeholder="Email, username, company"
-                        className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5"
+                        className="mt-1.5 w-full rounded-2xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm shadow-[inset_0_2px_4px_rgba(0,0,0,0.04),0_2px_8px_rgba(15,23,42,0.05)] transition focus:border-sky-300 focus:ring-2 focus:ring-sky-100 focus:outline-none"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">CRM filter</label>
+                      <label className="block text-xs font-semibold uppercase tracking-wide text-gray-600">CRM filter</label>
                       <select
                         value={crmFilter}
                         onChange={(e) => setCrmFilter(e.target.value as "all" | "crm" | "noncrm")}
-                        className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5"
+                        className="mt-1.5 w-full rounded-2xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm shadow-[inset_0_2px_4px_rgba(0,0,0,0.04),0_2px_8px_rgba(15,23,42,0.05)] transition focus:border-sky-300 focus:ring-2 focus:ring-sky-100 focus:outline-none"
                       >
                         <option value="all">All users</option>
                         <option value="crm">CRM only</option>
@@ -1352,14 +1408,29 @@ export default function AdminCrmManagement() {
                     </div>
                   </div>
 
-                  <div className="mt-4 max-h-[52vh] overflow-auto rounded-xl border border-rose-100">
+                  <div className="mt-3 grid grid-cols-3 gap-2">
+                    <div className="rounded-xl border border-sky-100 bg-gradient-to-br from-sky-50 to-white px-2.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
+                      <div className="text-[10px] font-semibold uppercase tracking-wider text-sky-600">Agents</div>
+                      <div className="text-lg font-bold text-sky-800">{crmUsersCount}</div>
+                    </div>
+                    <div className="rounded-xl border border-slate-100 bg-gradient-to-br from-slate-50 to-white px-2.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
+                      <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Total</div>
+                      <div className="text-lg font-bold text-slate-800">{totalUsersCount}</div>
+                    </div>
+                    <div className="rounded-xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-white px-2.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
+                      <div className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600">Selected</div>
+                      <div className="text-lg font-bold text-emerald-800">{selectedUserIds.length}</div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 min-h-0 flex-1 overflow-auto rounded-2xl border border-rose-100/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]">
                     <table className="min-w-full text-sm">
-                      <thead className="bg-rose-50 text-gray-600">
+                      <thead className="sticky top-0 z-10 bg-gradient-to-r from-rose-50 to-sky-50/40 text-gray-600">
                         <tr>
-                          <th className="px-3 py-2 text-left">Assign</th>
-                          <th className="px-3 py-2 text-left">User</th>
-                          <th className="px-3 py-2 text-left">CRM Role</th>
-                          <th className="px-3 py-2 text-left">Actions</th>
+                          <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide">Assign</th>
+                          <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide">User</th>
+                          <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide">CRM Role</th>
+                          <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1371,29 +1442,34 @@ export default function AdminCrmManagement() {
                           (users?.items || []).map((u) => {
                             const selected = selectedUserIds.includes(u._id);
                             return (
-                              <tr key={u._id} className="border-t border-rose-100">
-                                <td className="px-3 py-2">
+                              <tr key={u._id} className="border-t border-rose-100/70 transition-colors hover:bg-rose-50/40">
+                                <td className="px-3 py-2.5">
                                   <input
                                     type="checkbox"
                                     checked={selected}
                                     disabled={!u.isCrmAgent}
                                     onChange={(e) => toggleSelectedUser(u._id, e.target.checked)}
+                                    className="h-4 w-4 rounded border-gray-300 text-sky-600 focus:ring-sky-200"
                                   />
                                 </td>
-                                <td className="px-3 py-2">
+                                <td className="px-3 py-2.5">
                                   <div className="font-medium text-gray-900">{u.email}</div>
                                   <div className="text-xs text-gray-500">{u.username || "-"} {u.companyName ? `• ${u.companyName}` : ""}</div>
                                 </td>
-                                <td className="px-3 py-2">
-                                  <span className={`inline-flex rounded-full px-2.5 py-0.5 border text-xs font-medium ${u.isCrmAgent ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-gray-50 text-gray-600 border-gray-200"}`}>
+                                <td className="px-3 py-2.5">
+                                  <span className={`inline-flex rounded-full px-2.5 py-0.5 border text-xs font-medium shadow-sm ${u.isCrmAgent ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-gray-50 text-gray-500 border-gray-200"}`}>
                                     {u.isCrmAgent ? "CRM Agent" : "Not Assigned"}
                                   </span>
                                 </td>
-                                <td className="px-3 py-2">
+                                <td className="px-3 py-2.5">
                                   <button
                                     onClick={() => toggleCrmAgent(u)}
                                     disabled={updatingUserId === u._id || Boolean(u.isBlocked)}
-                                    className="inline-flex items-center px-3 py-1.5 rounded-xl border border-rose-300 text-rose-700 hover:bg-rose-50 disabled:opacity-50"
+                                    className={`inline-flex items-center gap-1 rounded-xl border px-3 py-1.5 text-xs font-medium shadow-sm transition disabled:opacity-50 ${
+                                      u.isCrmAgent
+                                        ? "border-red-200 bg-white text-red-700 hover:bg-red-50"
+                                        : "border-sky-200 bg-white text-sky-700 hover:bg-sky-50"
+                                    }`}
                                   >
                                     {u.isCrmAgent ? "Remove CRM" : "Assign CRM"}
                                   </button>
@@ -1408,7 +1484,7 @@ export default function AdminCrmManagement() {
                 </div>
 
                 <div className="grid min-h-0 grid-cols-1 gap-3 overflow-auto">
-                  <div className="rounded-2xl border border-sky-100 bg-white p-3">
+                  <div className="rounded-2xl border border-sky-100/80 bg-gradient-to-br from-white to-sky-50/30 p-3 shadow-[0_4px_14px_rgba(14,165,233,0.08)]">
                     <div className="mb-2 text-sm font-semibold text-gray-900">Team Mix</div>
                     <div className="h-44">
                       <Doughnut
@@ -1422,14 +1498,14 @@ export default function AdminCrmManagement() {
                     </div>
                   </div>
 
-                  <div className="rounded-2xl border border-rose-100 bg-white p-3">
+                  <div className="rounded-2xl border border-rose-100/80 bg-gradient-to-br from-white to-rose-50/30 p-3 shadow-[0_4px_14px_rgba(244,63,94,0.08)]">
                     <div className="mb-2 text-sm font-semibold text-gray-900">Lead Status Snapshot</div>
                     <div className="h-44">
                       <Bar data={leadStatusChartData} options={compactChartOptions} />
                     </div>
                   </div>
 
-                  <div className="rounded-2xl border border-amber-100 bg-white p-3">
+                  <div className="rounded-2xl border border-amber-100/80 bg-gradient-to-br from-white to-amber-50/30 p-3 shadow-[0_4px_14px_rgba(245,158,11,0.08)]">
                     <div className="mb-2 text-sm font-semibold text-gray-900">Recent Import Trend</div>
                     <div className="h-44">
                       <Line data={importTrendChartData} options={compactLineOptions} />
@@ -1931,6 +2007,16 @@ export default function AdminCrmManagement() {
           </div>
         ) : null}
       </main>
+
+      <button
+        type="button"
+        onClick={() => setShowCrmOpsModal(true)}
+        title="CRM Team Operations"
+        className="fixed bottom-6 left-6 z-[89] flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-600 text-white shadow-[0_8px_28px_rgba(14,165,233,0.45),0_2px_6px_rgba(0,0,0,0.12)] transition-all hover:shadow-[0_12px_36px_rgba(14,165,233,0.55)] hover:scale-105 active:scale-95 md:h-auto md:w-auto md:gap-2 md:rounded-2xl md:px-5 md:py-3"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 md:h-5 md:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+        <span className="sr-only md:not-sr-only md:text-sm md:font-semibold">Team Ops</span>
+      </button>
 
       <div className="fixed bottom-4 right-4 z-[90] space-y-2">
         {toasts.map((t) => (
