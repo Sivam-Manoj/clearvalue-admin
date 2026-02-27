@@ -438,6 +438,7 @@ export default function AdminCrmManagement() {
   const [loadingLeads, setLoadingLeads] = useState(false);
   const [leadQ, setLeadQ] = useState("");
   const [leadStatus, setLeadStatus] = useState<string>("");
+  const [leadAssignedTo, setLeadAssignedTo] = useState<string>("");
   const [leadDetailsLoadingId, setLeadDetailsLoadingId] = useState<string | null>(null);
   const [showLeadDetailsModal, setShowLeadDetailsModal] = useState(false);
   const [activeLeadDetails, setActiveLeadDetails] = useState<CrmLeadItem | null>(null);
@@ -481,10 +482,11 @@ export default function AdminCrmManagement() {
     const p = new URLSearchParams();
     if (leadQ.trim()) p.set("q", leadQ.trim());
     if (leadStatus) p.set("status", leadStatus);
+    if (leadAssignedTo) p.set("assignedTo", leadAssignedTo);
     p.set("page", "1");
     p.set("limit", "100");
     return p.toString();
-  }, [leadQ, leadStatus]);
+  }, [leadAssignedTo, leadQ, leadStatus]);
 
   async function loadUsers() {
     setLoadingUsers(true);
@@ -900,6 +902,10 @@ export default function AdminCrmManagement() {
     () => sortedLeadUpdates(activeLeadDetails?.updates),
     [activeLeadDetails?.updates]
   );
+  const crmAgentUsers = useMemo(
+    () => (users?.items || []).filter((u) => u.isCrmAgent),
+    [users?.items]
+  );
 
   const crmVsNonCrmChartData = useMemo(() => {
     const nonCrmCount = Math.max(totalUsersCount - crmUsersCount, 0);
@@ -1112,33 +1118,51 @@ export default function AdminCrmManagement() {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-rose-200 bg-white/90 p-4 md:p-5 shadow-lg">
-          <div className="flex flex-col md:flex-row md:items-end gap-3 md:justify-between">
+        <section className="rounded-3xl border border-rose-200/90 bg-gradient-to-br from-white via-rose-50/70 to-sky-50/60 p-4 md:p-5 shadow-[0_16px_44px_rgba(15,23,42,0.14)]">
+          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
             <div>
               <h2 className="text-lg font-semibold text-gray-900">Lead Activity</h2>
               <p className="text-sm text-gray-600">Latest CRM tasks across all assigned agents.</p>
             </div>
-            <div className="flex gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
               <input
                 value={leadQ}
                 onChange={(e) => setLeadQ(e.target.value)}
                 placeholder="Search lead, email, phone"
-                className="rounded-xl border border-gray-300 px-3 py-2"
+                className="rounded-xl border border-gray-300 bg-white px-3 py-2 shadow-sm"
               />
               <select
                 value={leadStatus}
                 onChange={(e) => setLeadStatus(e.target.value)}
-                className="rounded-xl border border-gray-300 px-3 py-2"
+                className="rounded-xl border border-gray-300 bg-white px-3 py-2 shadow-sm"
               >
                 <option value="">All statuses</option>
                 {CRM_STATUSES.map((s) => (
                   <option key={s} value={s}>{statusLabel(s)}</option>
                 ))}
               </select>
+              <select
+                value={leadAssignedTo}
+                onChange={(e) => setLeadAssignedTo(e.target.value)}
+                className="rounded-xl border border-gray-300 bg-white px-3 py-2 shadow-sm"
+              >
+                <option value="">All agents</option>
+                {crmAgentUsers.map((u) => (
+                  <option key={u._id} value={u._id}>
+                    {u.username || u.email}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
-          <div className="mt-4 overflow-auto max-h-[420px] rounded-xl border border-rose-100">
+          {leadAssignedTo ? (
+            <div className="mt-3 inline-flex rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-medium text-sky-700 shadow-sm">
+              Filtered by agent: {crmAgentUsers.find((u) => u._id === leadAssignedTo)?.username || crmAgentUsers.find((u) => u._id === leadAssignedTo)?.email || "Selected user"}
+            </div>
+          ) : null}
+
+          <div className="mt-4 overflow-auto max-h-[420px] rounded-2xl border border-rose-100 bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.75),0_8px_20px_rgba(15,23,42,0.08)]">
             <table className="min-w-full text-sm">
               <thead className="bg-rose-50 text-gray-600">
                 <tr>
@@ -1157,7 +1181,7 @@ export default function AdminCrmManagement() {
                   <tr><td className="px-3 py-3 text-gray-500" colSpan={6}>No CRM leads found</td></tr>
                 ) : (
                   (leads?.items || []).map((lead) => (
-                    <tr key={lead._id} className="border-t border-rose-100">
+                    <tr key={lead._id} className="border-t border-rose-100 transition-colors hover:bg-rose-50/60">
                       <td className="px-3 py-2">
                         <div className="font-medium text-gray-900">{lead.clientName}</div>
                         <div className="text-xs text-gray-500">
@@ -1176,7 +1200,7 @@ export default function AdminCrmManagement() {
                         {(lead.assignedTo?.username || lead.assignedTo?.email || "-") as string}
                       </td>
                       <td className="px-3 py-2">
-                        <span className="inline-flex rounded-full px-2.5 py-0.5 border text-xs bg-sky-50 text-sky-700 border-sky-200">
+                        <span className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-2.5 py-0.5 text-xs text-sky-700 shadow-sm">
                           {statusLabel(lead.status)}
                         </span>
                       </td>
