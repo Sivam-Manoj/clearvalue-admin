@@ -1063,6 +1063,15 @@ export default function AdminCrmManagement() {
                 <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Total Users</div>
                 <div className="text-xl font-bold text-gray-900">{totalUsersCount}</div>
               </div>
+              <button
+                type="button"
+                onClick={() => setShowCrmOpsModal(true)}
+                title="CRM Team Operations"
+                className="flex items-center gap-2 rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-600 px-4 py-2.5 text-white shadow-[0_6px_20px_rgba(14,165,233,0.35),0_2px_6px_rgba(0,0,0,0.10)] transition-all hover:shadow-[0_8px_28px_rgba(14,165,233,0.45)] hover:brightness-105 active:scale-[0.97]"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                <span className="text-sm font-semibold hidden sm:inline">Team Ops</span>
+              </button>
             </div>
           </div>
         </section>
@@ -2007,16 +2016,6 @@ export default function AdminCrmManagement() {
           </div>
         ) : null}
       </main>
-
-      <button
-        type="button"
-        onClick={() => setShowCrmOpsModal(true)}
-        title="CRM Team Operations"
-        className="fixed bottom-6 left-6 z-[89] flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-600 text-white shadow-[0_8px_28px_rgba(14,165,233,0.45),0_2px_6px_rgba(0,0,0,0.12)] transition-all hover:shadow-[0_12px_36px_rgba(14,165,233,0.55)] hover:scale-105 active:scale-95 md:h-auto md:w-auto md:gap-2 md:rounded-2xl md:px-5 md:py-3"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 md:h-5 md:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-        <span className="sr-only md:not-sr-only md:text-sm md:font-semibold">Team Ops</span>
-      </button>
 
       <div className="fixed bottom-4 right-4 z-[90] space-y-2">
         {toasts.map((t) => (
