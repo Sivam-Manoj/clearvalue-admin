@@ -2,6 +2,21 @@
 
 import { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
+import {
+  Chart as ChartJS,
+  ArcElement,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  PointElement,
+  LineElement,
+  Tooltip,
+  Legend,
+  type ChartOptions,
+} from "chart.js";
+import { Doughnut, Bar, Line } from "react-chartjs-2";
+
+ChartJS.register(ArcElement, CategoryScale, LinearScale, BarElement, PointElement, LineElement, Tooltip, Legend);
 
 type CrmUserItem = {
   _id: string;
@@ -268,6 +283,26 @@ function isLikelyImageUrl(url?: string): boolean {
   return /\.(png|jpe?g|gif|webp|bmp|heic|heif|svg)$/i.test(clean);
 }
 
+function normalizeUpdateId(value: unknown): string {
+  if (typeof value === "string") return value.trim();
+  if (!value || typeof value !== "object") return "";
+
+  const maybeOid = toText((value as { $oid?: unknown }).$oid);
+  if (maybeOid) return maybeOid;
+
+  const nested = toText((value as { _id?: unknown })._id);
+  if (nested && nested !== "[object Object]") return nested;
+
+  const maybeHex = (value as { toHexString?: () => string }).toHexString;
+  if (typeof maybeHex === "function") {
+    const out = toText(maybeHex.call(value));
+    if (out) return out;
+  }
+
+  const fallback = toText(value);
+  return fallback === "[object Object]" ? "" : fallback;
+}
+
 function buildPreviewRows(rows: ExcelRow[]): {
   parsedRows: PreviewLeadRow[];
   duplicateIssues: DuplicateIssue[];
@@ -425,6 +460,7 @@ export default function AdminCrmManagement() {
   const [dueDate, setDueDate] = useState("");
   const [importing, setImporting] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showCrmOpsModal, setShowCrmOpsModal] = useState(false);
   const [parsingPreview, setParsingPreview] = useState(false);
   const [previewRows, setPreviewRows] = useState<PreviewLeadRow[]>([]);
   const [duplicateIssues, setDuplicateIssues] = useState<DuplicateIssue[]>([]);
@@ -685,8 +721,9 @@ export default function AdminCrmManagement() {
   }
 
   function beginEditLeadUpdate(update: CrmLeadUpdateItem) {
-    if (!update?._id) return;
-    setEditingUpdateId(update._id);
+    const updateId = normalizeUpdateId(update?._id);
+    if (!updateId) return;
+    setEditingUpdateId(updateId);
     setEditingComment(update.comment || "");
     setEditingStatus(update.status || activeLeadDetails?.status || "pending");
   }
@@ -698,11 +735,15 @@ export default function AdminCrmManagement() {
   }
 
   async function saveEditedLeadUpdate(update: CrmLeadUpdateItem) {
-    if (!activeLeadDetails?._id || !update?._id) return;
+    const leadId = toText(activeLeadDetails?._id);
+    const updateId = normalizeUpdateId(update?._id);
+    if (!leadId || !updateId) return;
+    const safeLeadId = encodeURIComponent(leadId);
+    const safeUpdateId = encodeURIComponent(updateId);
 
     try {
-      setTimelineBusyKey(`edit:${update._id}`);
-      const res = await fetch(`/api/admin/crm/leads/${activeLeadDetails._id}/updates/${update._id}`, {
+      setTimelineBusyKey(`edit:${updateId}`);
+      const res = await fetch(`/api/admin/crm/leads/${safeLeadId}/updates/${safeUpdateId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -726,13 +767,17 @@ export default function AdminCrmManagement() {
   }
 
   async function deleteLeadUpdate(update: CrmLeadUpdateItem) {
-    if (!activeLeadDetails?._id || !update?._id) return;
+    const leadId = toText(activeLeadDetails?._id);
+    const updateId = normalizeUpdateId(update?._id);
+    if (!leadId || !updateId) return;
+    const safeLeadId = encodeURIComponent(leadId);
+    const safeUpdateId = encodeURIComponent(updateId);
     const ok = window.confirm("Delete this update and all media attached to it?");
     if (!ok) return;
 
     try {
-      setTimelineBusyKey(`delete:${update._id}`);
-      const res = await fetch(`/api/admin/crm/leads/${activeLeadDetails._id}/updates/${update._id}`, {
+      setTimelineBusyKey(`delete:${updateId}`);
+      const res = await fetch(`/api/admin/crm/leads/${safeLeadId}/updates/${safeUpdateId}`, {
         method: "DELETE",
       });
       const json = await res.json().catch(() => ({}));
@@ -749,11 +794,15 @@ export default function AdminCrmManagement() {
   }
 
   async function deleteLeadUpdateAttachment(update: CrmLeadUpdateItem, url: string) {
-    if (!activeLeadDetails?._id || !update?._id || !url) return;
+    const leadId = toText(activeLeadDetails?._id);
+    const updateId = normalizeUpdateId(update?._id);
+    if (!leadId || !updateId || !url) return;
+    const safeLeadId = encodeURIComponent(leadId);
+    const safeUpdateId = encodeURIComponent(updateId);
 
     try {
-      setTimelineBusyKey(`attachment:${update._id}:${url}`);
-      const res = await fetch(`/api/admin/crm/leads/${activeLeadDetails._id}/updates/${update._id}/attachments`, {
+      setTimelineBusyKey(`attachment:${updateId}:${url}`);
+      const res = await fetch(`/api/admin/crm/leads/${safeLeadId}/updates/${safeUpdateId}/attachments`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ urls: [url] }),
@@ -772,11 +821,15 @@ export default function AdminCrmManagement() {
   }
 
   async function deleteLeadUpdateRecording(update: CrmLeadUpdateItem) {
-    if (!activeLeadDetails?._id || !update?._id) return;
+    const leadId = toText(activeLeadDetails?._id);
+    const updateId = normalizeUpdateId(update?._id);
+    if (!leadId || !updateId) return;
+    const safeLeadId = encodeURIComponent(leadId);
+    const safeUpdateId = encodeURIComponent(updateId);
 
     try {
-      setTimelineBusyKey(`recording:${update._id}`);
-      const res = await fetch(`/api/admin/crm/leads/${activeLeadDetails._id}/updates/${update._id}/recording`, {
+      setTimelineBusyKey(`recording:${updateId}`);
+      const res = await fetch(`/api/admin/crm/leads/${safeLeadId}/updates/${safeUpdateId}/recording`, {
         method: "DELETE",
       });
       const json = await res.json().catch(() => ({}));
@@ -848,6 +901,100 @@ export default function AdminCrmManagement() {
     [activeLeadDetails?.updates]
   );
 
+  const crmVsNonCrmChartData = useMemo(() => {
+    const nonCrmCount = Math.max(totalUsersCount - crmUsersCount, 0);
+    return {
+      labels: ["CRM Agents", "Non-CRM Users"],
+      datasets: [
+        {
+          data: [crmUsersCount, nonCrmCount],
+          backgroundColor: ["rgba(14,165,233,0.85)", "rgba(148,163,184,0.8)"],
+          borderColor: ["#0284C7", "#64748B"],
+          borderWidth: 1,
+        },
+      ],
+    };
+  }, [crmUsersCount, totalUsersCount]);
+
+  const leadStatusChartData = useMemo(() => {
+    const counts = CRM_STATUSES.map((status) =>
+      (leads?.items || []).filter((lead) => lead.status === status).length
+    );
+    return {
+      labels: CRM_STATUSES.map((status) => statusLabel(status)),
+      datasets: [
+        {
+          label: "Leads",
+          data: counts,
+          backgroundColor: ["#64748B", "#0EA5E9", "#16A34A", "#F59E0B", "#EF4444"],
+          borderRadius: 6,
+        },
+      ],
+    };
+  }, [leads?.items]);
+
+  const importTrendChartData = useMemo(() => {
+    const items = (importFiles?.items || []).slice(0, 7).reverse();
+    return {
+      labels: items.map((item, idx) => (item.sourceFileName || `Batch ${idx + 1}`).slice(0, 16)),
+      datasets: [
+        {
+          label: "Imported leads",
+          data: items.map((item) => item.leadCount),
+          borderColor: "#F43F5E",
+          backgroundColor: "rgba(244,63,94,0.18)",
+          fill: true,
+          tension: 0.35,
+          pointRadius: 2,
+        },
+      ],
+    };
+  }, [importFiles?.items]);
+
+  const compactChartOptions = useMemo<ChartOptions<"bar">>(
+    () => ({
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+      },
+      scales: {
+        x: {
+          ticks: { color: "#475569", font: { size: 11 } },
+          grid: { display: false },
+        },
+        y: {
+          beginAtZero: true,
+          ticks: { color: "#475569", font: { size: 11 }, precision: 0 },
+          grid: { color: "rgba(148,163,184,0.25)" },
+        },
+      },
+    }),
+    []
+  );
+
+  const compactLineOptions = useMemo<ChartOptions<"line">>(
+    () => ({
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+      },
+      scales: {
+        x: {
+          ticks: { color: "#475569", font: { size: 11 } },
+          grid: { display: false },
+        },
+        y: {
+          beginAtZero: true,
+          ticks: { color: "#475569", font: { size: 11 }, precision: 0 },
+          grid: { color: "rgba(148,163,184,0.25)" },
+        },
+      },
+    }),
+    []
+  );
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-rose-50">
       <main className="max-w-7xl mx-auto px-4 py-8 space-y-6">
@@ -872,84 +1019,50 @@ export default function AdminCrmManagement() {
 
         <section className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           <div className="xl:col-span-2 rounded-2xl border border-rose-200 bg-white/90 p-4 md:p-5 shadow-lg">
-            <div className="flex flex-col md:flex-row gap-3 md:items-end">
-              <div className="flex-1">
-                <label className="block text-sm font-medium text-gray-700">Search users</label>
-                <input
-                  value={userQ}
-                  onChange={(e) => setUserQ(e.target.value)}
-                  placeholder="Email, username, company"
-                  className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5"
-                />
-              </div>
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>
-                <label className="block text-sm font-medium text-gray-700">CRM filter</label>
-                <select
-                  value={crmFilter}
-                  onChange={(e) => setCrmFilter(e.target.value as "all" | "crm" | "noncrm")}
-                  className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5"
+                <h2 className="text-lg font-semibold text-gray-900">CRM Team Operations</h2>
+                <p className="text-sm text-gray-600">
+                  Manage assign/remove CRM roles in a focused modal with analytics snapshots.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowCrmOpsModal(true)}
+                  className="inline-flex items-center justify-center rounded-xl bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700"
                 >
-                  <option value="all">All users</option>
-                  <option value="crm">CRM only</option>
-                  <option value="noncrm">Non-CRM only</option>
-                </select>
+                  Open CRM Team Modal
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void loadUsers()}
+                  disabled={loadingUsers}
+                  className="inline-flex items-center justify-center rounded-xl border border-sky-200 px-4 py-2 text-sm text-sky-700 hover:bg-sky-50 disabled:opacity-60"
+                >
+                  {loadingUsers ? "Refreshing..." : "Refresh Users"}
+                </button>
               </div>
             </div>
 
-            <div className="mt-4 overflow-auto max-h-[420px] rounded-xl border border-rose-100">
-              <table className="min-w-full text-sm">
-                <thead className="bg-rose-50 text-gray-600">
-                  <tr>
-                    <th className="px-3 py-2 text-left">Assign</th>
-                    <th className="px-3 py-2 text-left">User</th>
-                    <th className="px-3 py-2 text-left">CRM Role</th>
-                    <th className="px-3 py-2 text-left">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loadingUsers ? (
-                    <tr><td className="px-3 py-3 text-gray-500" colSpan={4}>Loading users...</td></tr>
-                  ) : (users?.items || []).length === 0 ? (
-                    <tr><td className="px-3 py-3 text-gray-500" colSpan={4}>No users found</td></tr>
-                  ) : (
-                    (users?.items || []).map((u) => {
-                      const selected = selectedUserIds.includes(u._id);
-                      return (
-                        <tr key={u._id} className="border-t border-rose-100">
-                          <td className="px-3 py-2">
-                            <input
-                              type="checkbox"
-                              checked={selected}
-                              disabled={!u.isCrmAgent}
-                              onChange={(e) => toggleSelectedUser(u._id, e.target.checked)}
-                            />
-                          </td>
-                          <td className="px-3 py-2">
-                            <div className="font-medium text-gray-900">{u.email}</div>
-                            <div className="text-xs text-gray-500">{u.username || "-"} {u.companyName ? `• ${u.companyName}` : ""}</div>
-                          </td>
-                          <td className="px-3 py-2">
-                            <span className={`inline-flex rounded-full px-2.5 py-0.5 border text-xs font-medium ${u.isCrmAgent ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-gray-50 text-gray-600 border-gray-200"}`}>
-                              {u.isCrmAgent ? "CRM Agent" : "Not Assigned"}
-                            </span>
-                          </td>
-                          <td className="px-3 py-2">
-                            <button
-                              onClick={() => toggleCrmAgent(u)}
-                              disabled={updatingUserId === u._id || Boolean(u.isBlocked)}
-                              className="inline-flex items-center px-3 py-1.5 rounded-xl border border-rose-300 text-rose-700 hover:bg-rose-50 disabled:opacity-50"
-                            >
-                              {u.isCrmAgent ? "Remove CRM" : "Assign CRM"}
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="rounded-xl border border-sky-100 bg-sky-50/60 px-3 py-3">
+                <div className="text-xs uppercase tracking-wide text-sky-700">CRM Agents</div>
+                <div className="mt-1 text-2xl font-semibold text-sky-900">{crmUsersCount}</div>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-3">
+                <div className="text-xs uppercase tracking-wide text-slate-600">Total Users</div>
+                <div className="mt-1 text-2xl font-semibold text-slate-900">{totalUsersCount}</div>
+              </div>
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 px-3 py-3">
+                <div className="text-xs uppercase tracking-wide text-emerald-700">Selected Assignees</div>
+                <div className="mt-1 text-2xl font-semibold text-emerald-900">{selectedUserIds.length}</div>
+              </div>
             </div>
-            <p className="mt-2 text-xs text-gray-500">Lead import assignment uses selected CRM agents. If none selected, leads distribute across all CRM agents.</p>
+
+            <p className="mt-3 text-xs text-gray-500">
+              Lead import assignment uses selected CRM agents. If none are selected, leads auto-distribute among active CRM agents.
+            </p>
           </div>
 
           <div className="rounded-2xl border border-rose-200 bg-white/90 p-4 md:p-5 shadow-lg">
@@ -1164,6 +1277,145 @@ export default function AdminCrmManagement() {
             </table>
           </div>
         </section>
+
+        {showCrmOpsModal ? (
+          <div className="fixed inset-0 z-[94] p-3 md:p-6 lg:p-8">
+            <div
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-[2px]"
+              onClick={() => setShowCrmOpsModal(false)}
+            />
+
+            <div className="relative mx-auto flex h-[92vh] max-w-7xl flex-col overflow-hidden rounded-3xl border border-sky-200 bg-gradient-to-br from-white via-sky-50/40 to-rose-50 shadow-2xl">
+              <div className="flex items-start justify-between gap-3 border-b border-sky-100 px-5 py-4">
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-900">CRM Team Manager</h3>
+                  <p className="text-sm text-gray-600">
+                    Assign/remove CRM roles and monitor team distribution in one workspace.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowCrmOpsModal(false)}
+                  className="rounded-xl border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  Close
+                </button>
+              </div>
+
+              <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-hidden p-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] lg:p-5">
+                <div className="min-h-0 rounded-2xl border border-rose-100 bg-white p-4">
+                  <div className="flex flex-col gap-3 md:flex-row md:items-end">
+                    <div className="flex-1">
+                      <label className="block text-sm font-medium text-gray-700">Search users</label>
+                      <input
+                        value={userQ}
+                        onChange={(e) => setUserQ(e.target.value)}
+                        placeholder="Email, username, company"
+                        className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">CRM filter</label>
+                      <select
+                        value={crmFilter}
+                        onChange={(e) => setCrmFilter(e.target.value as "all" | "crm" | "noncrm")}
+                        className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5"
+                      >
+                        <option value="all">All users</option>
+                        <option value="crm">CRM only</option>
+                        <option value="noncrm">Non-CRM only</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 max-h-[52vh] overflow-auto rounded-xl border border-rose-100">
+                    <table className="min-w-full text-sm">
+                      <thead className="bg-rose-50 text-gray-600">
+                        <tr>
+                          <th className="px-3 py-2 text-left">Assign</th>
+                          <th className="px-3 py-2 text-left">User</th>
+                          <th className="px-3 py-2 text-left">CRM Role</th>
+                          <th className="px-3 py-2 text-left">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {loadingUsers ? (
+                          <tr><td className="px-3 py-3 text-gray-500" colSpan={4}>Loading users...</td></tr>
+                        ) : (users?.items || []).length === 0 ? (
+                          <tr><td className="px-3 py-3 text-gray-500" colSpan={4}>No users found</td></tr>
+                        ) : (
+                          (users?.items || []).map((u) => {
+                            const selected = selectedUserIds.includes(u._id);
+                            return (
+                              <tr key={u._id} className="border-t border-rose-100">
+                                <td className="px-3 py-2">
+                                  <input
+                                    type="checkbox"
+                                    checked={selected}
+                                    disabled={!u.isCrmAgent}
+                                    onChange={(e) => toggleSelectedUser(u._id, e.target.checked)}
+                                  />
+                                </td>
+                                <td className="px-3 py-2">
+                                  <div className="font-medium text-gray-900">{u.email}</div>
+                                  <div className="text-xs text-gray-500">{u.username || "-"} {u.companyName ? `• ${u.companyName}` : ""}</div>
+                                </td>
+                                <td className="px-3 py-2">
+                                  <span className={`inline-flex rounded-full px-2.5 py-0.5 border text-xs font-medium ${u.isCrmAgent ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-gray-50 text-gray-600 border-gray-200"}`}>
+                                    {u.isCrmAgent ? "CRM Agent" : "Not Assigned"}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-2">
+                                  <button
+                                    onClick={() => toggleCrmAgent(u)}
+                                    disabled={updatingUserId === u._id || Boolean(u.isBlocked)}
+                                    className="inline-flex items-center px-3 py-1.5 rounded-xl border border-rose-300 text-rose-700 hover:bg-rose-50 disabled:opacity-50"
+                                  >
+                                    {u.isCrmAgent ? "Remove CRM" : "Assign CRM"}
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="grid min-h-0 grid-cols-1 gap-3 overflow-auto">
+                  <div className="rounded-2xl border border-sky-100 bg-white p-3">
+                    <div className="mb-2 text-sm font-semibold text-gray-900">Team Mix</div>
+                    <div className="h-44">
+                      <Doughnut
+                        data={crmVsNonCrmChartData}
+                        options={{
+                          responsive: true,
+                          maintainAspectRatio: false,
+                          plugins: { legend: { position: "bottom", labels: { boxWidth: 10, font: { size: 11 } } } },
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-rose-100 bg-white p-3">
+                    <div className="mb-2 text-sm font-semibold text-gray-900">Lead Status Snapshot</div>
+                    <div className="h-44">
+                      <Bar data={leadStatusChartData} options={compactChartOptions} />
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-amber-100 bg-white p-3">
+                    <div className="mb-2 text-sm font-semibold text-gray-900">Recent Import Trend</div>
+                    <div className="h-44">
+                      <Line data={importTrendChartData} options={compactLineOptions} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         {showImportModal ? (
           <div className="fixed inset-0 z-[95] p-3 md:p-6 lg:p-10">
@@ -1488,8 +1740,10 @@ export default function AdminCrmManagement() {
                         </div>
                       ) : (
                         <div className="mt-3 space-y-3">
-                          {activeLeadUpdates.map((update, idx) => (
-                            <div key={update._id || `${idx}-${update.createdAt || "na"}`} className="rounded-xl border border-sky-100 bg-sky-50/40 px-3 py-3">
+                          {activeLeadUpdates.map((update, idx) => {
+                            const updateId = normalizeUpdateId(update._id);
+                            return (
+                              <div key={updateId || `${idx}-${update.createdAt || "na"}`} className="rounded-xl border border-sky-100 bg-sky-50/40 px-3 py-3">
                               <div className="flex flex-wrap items-center justify-between gap-2">
                                 <div className="text-xs font-medium text-sky-800">{leadUpdateAuthorLabel(update)}</div>
                                 <div className="text-[11px] text-gray-500">{toDateTimeValue(update.createdAt)}</div>
@@ -1515,7 +1769,7 @@ export default function AdminCrmManagement() {
                                 </div>
                               ) : null}
 
-                              {!update.isDeleted && editingUpdateId === update._id ? (
+                              {!update.isDeleted && editingUpdateId === updateId ? (
                                 <div className="mt-2 space-y-2 rounded-lg border border-sky-200 bg-white px-2.5 py-2">
                                   <textarea
                                     value={editingComment}
@@ -1531,7 +1785,7 @@ export default function AdminCrmManagement() {
                                     className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
                                   >
                                     {CRM_STATUSES.map((status) => (
-                                      <option key={`${update._id}-${status}`} value={status}>
+                                      <option key={`${updateId}-${status}`} value={status}>
                                         {statusLabel(status)}
                                       </option>
                                     ))}
@@ -1541,7 +1795,7 @@ export default function AdminCrmManagement() {
                                     <button
                                       type="button"
                                       onClick={cancelEditLeadUpdate}
-                                      disabled={timelineBusyKey === `edit:${update._id}`}
+                                      disabled={timelineBusyKey === `edit:${updateId}`}
                                       className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-100 disabled:opacity-60"
                                     >
                                       Cancel
@@ -1549,10 +1803,10 @@ export default function AdminCrmManagement() {
                                     <button
                                       type="button"
                                       onClick={() => void saveEditedLeadUpdate(update)}
-                                      disabled={timelineBusyKey === `edit:${update._id}`}
+                                      disabled={timelineBusyKey === `edit:${updateId}`}
                                       className="rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-700 disabled:opacity-60"
                                     >
-                                      {timelineBusyKey === `edit:${update._id}` ? "Saving..." : "Save"}
+                                      {timelineBusyKey === `edit:${updateId}` ? "Saving..." : "Save"}
                                     </button>
                                   </div>
                                 </div>
@@ -1564,12 +1818,12 @@ export default function AdminCrmManagement() {
                                 </div>
                               ) : null}
 
-                              {!update.isDeleted && editingUpdateId !== update._id ? (
+                              {!update.isDeleted && editingUpdateId !== updateId ? (
                                 <div className="mt-2 flex flex-wrap items-center gap-2">
                                   <button
                                     type="button"
                                     onClick={() => beginEditLeadUpdate(update)}
-                                    disabled={Boolean(timelineBusyKey) || !update._id}
+                                    disabled={Boolean(timelineBusyKey) || !updateId}
                                     className="rounded-lg border border-sky-300 bg-white px-3 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-50 disabled:opacity-60"
                                   >
                                     Edit
@@ -1577,10 +1831,10 @@ export default function AdminCrmManagement() {
                                   <button
                                     type="button"
                                     onClick={() => void deleteLeadUpdate(update)}
-                                    disabled={timelineBusyKey === `delete:${update._id}` || !update._id}
+                                    disabled={timelineBusyKey === `delete:${updateId}` || !updateId}
                                     className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-60"
                                   >
-                                    {timelineBusyKey === `delete:${update._id}` ? "Deleting..." : "Delete"}
+                                    {timelineBusyKey === `delete:${updateId}` ? "Deleting..." : "Delete"}
                                   </button>
                                 </div>
                               ) : null}
@@ -1614,10 +1868,10 @@ export default function AdminCrmManagement() {
                                           <button
                                             type="button"
                                             onClick={() => void deleteLeadUpdateAttachment(update, url)}
-                                            disabled={timelineBusyKey === `attachment:${update._id}:${url}` || !update._id}
+                                            disabled={timelineBusyKey === `attachment:${updateId}:${url}` || !updateId}
                                             className="rounded-md bg-red-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-red-700 disabled:opacity-60"
                                           >
-                                            {timelineBusyKey === `attachment:${update._id}:${url}` ? "Removing..." : "Remove"}
+                                            {timelineBusyKey === `attachment:${updateId}:${url}` ? "Removing..." : "Remove"}
                                           </button>
                                         </div>
                                       </div>
@@ -1633,15 +1887,16 @@ export default function AdminCrmManagement() {
                                   <button
                                     type="button"
                                     onClick={() => void deleteLeadUpdateRecording(update)}
-                                    disabled={timelineBusyKey === `recording:${update._id}` || !update._id}
+                                    disabled={timelineBusyKey === `recording:${updateId}` || !updateId}
                                     className="mt-2 rounded-md bg-red-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-red-700 disabled:opacity-60"
                                   >
-                                    {timelineBusyKey === `recording:${update._id}` ? "Deleting..." : "Delete audio"}
+                                    {timelineBusyKey === `recording:${updateId}` ? "Deleting..." : "Delete audio"}
                                   </button>
                                 </div>
                               ) : null}
-                            </div>
-                          ))}
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
                     </div>
