@@ -133,6 +133,21 @@ const CRM_STATUSES = [
   "not_interested",
 ] as const;
 
+const MONTH_OPTIONS = [
+  { value: "1", label: "January" },
+  { value: "2", label: "February" },
+  { value: "3", label: "March" },
+  { value: "4", label: "April" },
+  { value: "5", label: "May" },
+  { value: "6", label: "June" },
+  { value: "7", label: "July" },
+  { value: "8", label: "August" },
+  { value: "9", label: "September" },
+  { value: "10", label: "October" },
+  { value: "11", label: "November" },
+  { value: "12", label: "December" },
+] as const;
+
 const IMPORT_COLUMN_HELPER = [
   { field: "Client Name", headers: "Client Name, Contact Name, Name, Customer" },
   { field: "Title", headers: "Title, Task, Task Title, Designation, Role" },
@@ -439,6 +454,8 @@ export default function AdminCrmManagement() {
   const [leadQ, setLeadQ] = useState("");
   const [leadStatus, setLeadStatus] = useState<string>("");
   const [leadAssignedTo, setLeadAssignedTo] = useState<string>("");
+  const [leadMonth, setLeadMonth] = useState<string>("");
+  const [leadYear, setLeadYear] = useState<string>("");
   const [leadDetailsLoadingId, setLeadDetailsLoadingId] = useState<string | null>(null);
   const [showLeadDetailsModal, setShowLeadDetailsModal] = useState(false);
   const [activeLeadDetails, setActiveLeadDetails] = useState<CrmLeadItem | null>(null);
@@ -478,15 +495,39 @@ export default function AdminCrmManagement() {
     return p.toString();
   }, [crmFilter, userQ]);
 
+  const leadDateRange = useMemo(() => {
+    const year = Number.parseInt(leadYear, 10);
+    const month = Number.parseInt(leadMonth, 10);
+    if (!Number.isFinite(year) || year < 1970 || year > 9999) {
+      return { from: "", to: "" };
+    }
+
+    if (Number.isFinite(month) && month >= 1 && month <= 12) {
+      const from = new Date(Date.UTC(year, month - 1, 1));
+      const to = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
+      return {
+        from: from.toISOString().slice(0, 10),
+        to: to.toISOString().slice(0, 10),
+      };
+    }
+
+    return {
+      from: `${year}-01-01`,
+      to: `${year}-12-31`,
+    };
+  }, [leadMonth, leadYear]);
+
   const leadQuery = useMemo(() => {
     const p = new URLSearchParams();
     if (leadQ.trim()) p.set("q", leadQ.trim());
     if (leadStatus) p.set("status", leadStatus);
     if (leadAssignedTo) p.set("assignedTo", leadAssignedTo);
+    if (leadDateRange.from) p.set("from", leadDateRange.from);
+    if (leadDateRange.to) p.set("to", leadDateRange.to);
     p.set("page", "1");
     p.set("limit", "100");
     return p.toString();
-  }, [leadAssignedTo, leadQ, leadStatus]);
+  }, [leadAssignedTo, leadDateRange.from, leadDateRange.to, leadQ, leadStatus]);
 
   async function loadUsers() {
     setLoadingUsers(true);
@@ -544,6 +585,11 @@ export default function AdminCrmManagement() {
     loadImportFiles();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!leadAssignedTo) return;
+    setSelectedUserIds((prev) => (prev.length === 1 && prev[0] === leadAssignedTo ? prev : [leadAssignedTo]));
+  }, [leadAssignedTo]);
 
   async function toggleCrmAgent(user: CrmUserItem) {
     try {
@@ -620,8 +666,9 @@ export default function AdminCrmManagement() {
       setImporting(true);
       const formData = new FormData();
       formData.append("file", excelFile);
-      if (selectedUserIds.length > 0) {
-        formData.append("assignedToUserIds", JSON.stringify(selectedUserIds));
+      const effectiveAssigneeIds = leadAssignedTo ? [leadAssignedTo] : selectedUserIds;
+      if (effectiveAssigneeIds.length > 0) {
+        formData.append("assignedToUserIds", JSON.stringify(effectiveAssigneeIds));
       }
       if (taskStartDate) formData.append("taskStartDate", taskStartDate);
       if (taskEndDate) formData.append("taskEndDate", taskEndDate);
@@ -894,9 +941,13 @@ export default function AdminCrmManagement() {
   }, [duplicateIssues]);
   const rowCountWithDuplicates = duplicateIssuesByRow.size;
   const readyPreviewRows = Math.max(0, previewRows.length - rowCountWithDuplicates);
+  const effectiveImportAssigneeIds = useMemo(
+    () => (leadAssignedTo ? [leadAssignedTo] : selectedUserIds),
+    [leadAssignedTo, selectedUserIds]
+  );
   const selectedAssignees = useMemo(
-    () => (users?.items || []).filter((u) => selectedUserIds.includes(u._id)),
-    [selectedUserIds, users?.items]
+    () => (users?.items || []).filter((u) => effectiveImportAssigneeIds.includes(u._id)),
+    [effectiveImportAssigneeIds, users?.items]
   );
   const activeLeadUpdates = useMemo(
     () => sortedLeadUpdates(activeLeadDetails?.updates),
@@ -906,6 +957,15 @@ export default function AdminCrmManagement() {
     () => (users?.items || []).filter((u) => u.isCrmAgent),
     [users?.items]
   );
+  const yearOptions = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    const out = new Set<number>([currentYear, currentYear - 1, currentYear + 1]);
+    (leads?.items || []).forEach((lead) => {
+      const dt = new Date(lead.createdAt || "");
+      if (Number.isFinite(dt.getTime())) out.add(dt.getFullYear());
+    });
+    return [...out].sort((a, b) => b - a);
+  }, [leads?.items]);
 
   const crmVsNonCrmChartData = useMemo(() => {
     const nonCrmCount = Math.max(totalUsersCount - crmUsersCount, 0);
@@ -1049,6 +1109,46 @@ export default function AdminCrmManagement() {
             <div>
               <h1 className="text-xl font-bold text-gray-900 md:text-2xl">CRM Control Center</h1>
               <p className="text-gray-600 text-sm">Assign CRM roles, import lead sheets, and monitor task activity.</p>
+              <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                <select
+                  value={leadAssignedTo}
+                  onChange={(e) => setLeadAssignedTo(e.target.value)}
+                  className="rounded-xl border border-sky-200 bg-white px-3 py-2 text-sm shadow-sm"
+                >
+                  <option value="">Salesperson: All CRM Agents</option>
+                  {crmAgentUsers.map((u) => (
+                    <option key={u._id} value={u._id}>
+                      {u.username || u.email}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={leadMonth}
+                  onChange={(e) => setLeadMonth(e.target.value)}
+                  className="rounded-xl border border-sky-200 bg-white px-3 py-2 text-sm shadow-sm"
+                >
+                  <option value="">Month: All</option>
+                  {MONTH_OPTIONS.map((m) => (
+                    <option key={m.value} value={m.value}>
+                      {m.label}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={leadYear}
+                  onChange={(e) => setLeadYear(e.target.value)}
+                  className="rounded-xl border border-sky-200 bg-white px-3 py-2 text-sm shadow-sm"
+                >
+                  <option value="">Year: All</option>
+                  {yearOptions.map((year) => (
+                    <option key={year} value={String(year)}>
+                      {year}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
             <div className="flex gap-3">
               <div className="rounded-2xl border border-rose-200/80 bg-gradient-to-br from-rose-50 to-white px-4 py-2.5 shadow-[0_4px_14px_rgba(244,63,94,0.12),inset_0_1px_0_rgba(255,255,255,0.8)]">
@@ -1151,8 +1251,8 @@ export default function AdminCrmManagement() {
               <div className="rounded-2xl border border-rose-100 bg-gradient-to-br from-rose-50 to-white px-3.5 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_2px_8px_rgba(15,23,42,0.05)]">
                 <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Assignees</div>
                 <div className="mt-0.5 text-sm font-medium text-gray-900">
-                  {selectedUserIds.length > 0
-                    ? `${selectedUserIds.length} agent${selectedUserIds.length > 1 ? "s" : ""} selected`
+                  {effectiveImportAssigneeIds.length > 0
+                    ? `${effectiveImportAssigneeIds.length} agent${effectiveImportAssigneeIds.length > 1 ? "s" : ""} selected`
                     : "Auto-distribute"}
                 </div>
               </div>
