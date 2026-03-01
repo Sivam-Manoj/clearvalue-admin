@@ -52,7 +52,6 @@ type CrmLeadItem = {
   status: string;
   priority: string;
   taskStartDate?: string;
-  taskEndDate?: string;
   dueDate?: string;
   latestComment?: string;
   latestAttachmentUrls?: string[];
@@ -149,17 +148,17 @@ const MONTH_OPTIONS = [
 ] as const;
 
 const IMPORT_COLUMN_HELPER = [
-  { field: "Client Name", headers: "Client Name, Contact Name, Name, Customer" },
+  { field: "Client Name", headers: "Contact Full Name, First Name + Last Name, Client Name, Contact Name, Name" },
   { field: "Title", headers: "Title, Task, Task Title, Designation, Role" },
-  { field: "Company", headers: "Company, Company Name, Business, Organization" },
-  { field: "Email", headers: "Email, Emails, Email Address, Mail, E-mail" },
-  { field: "Phone", headers: "Phone, Phones, Mobile, Contact Number, Telephone" },
-  { field: "Lists", headers: "Lists, List, List Name, Lead List, Segment, Tags" },
-  { field: "Socials", headers: "Contact Socials, Social, Social Links" },
-  { field: "Location", headers: "Company Location, Location, City, Address" },
-  { field: "Industry", headers: "Industry, Sector" },
-  { field: "Website", headers: "Website, Site, URL, Web" },
-  { field: "Notes", headers: "Notes, Note, Comments, Remarks, Description" },
+  { field: "Company", headers: "Company Name - Cleaned, Company Name, Company, Business, Organization" },
+  { field: "Email", headers: "Email 1, Email 2, Personal Email, Email, Email Address" },
+  { field: "Phone", headers: "Contact Phone 1/2/3, Contact Mobile Phone, Company Phone 1/2/3, Phone" },
+  { field: "Lists", headers: "List, Lists, List Name, Lead List, Segment, Tags" },
+  { field: "Socials", headers: "Contact LI Profile URL, Company LI Profile Url, Contact Socials" },
+  { field: "Location", headers: "Company Location, Contact Location, Company City/State/Country, Contact City/State/Country" },
+  { field: "Industry", headers: "Company Industry, Industry, Sector" },
+  { field: "Website", headers: "Website, Company Website Domain, Site, URL, Web" },
+  { field: "Notes", headers: "Company Description, Department, Seniority, Revenue, Staff Count, SIC/NAICS, Research Date" },
 ] as const;
 
 function toIsoDateValue(value?: string): string {
@@ -232,6 +231,114 @@ function pickField(rowLookup: Record<string, unknown>, candidates: string[]): un
   }
 
   return undefined;
+}
+
+function deriveProvidedClientName(rowLookup: Record<string, unknown>): string {
+  const fullName = toText(
+    pickField(rowLookup, [
+      "contact full name",
+      "client name",
+      "client_name",
+      "client",
+      "customer",
+      "customer name",
+      "name",
+      "contact",
+      "contact person",
+      "contact name",
+      "full name",
+      "person name",
+    ])
+  );
+  if (fullName) return fullName;
+
+  const firstName = toText(pickField(rowLookup, ["first name", "firstname"]));
+  const lastName = toText(pickField(rowLookup, ["last name", "lastname"]));
+  return [firstName, lastName].filter(Boolean).join(" ").trim();
+}
+
+function composeSocials(rowLookup: Record<string, unknown>): string {
+  const values: string[] = [];
+  const seen = new Set<string>();
+
+  const add = (value: unknown) => {
+    const raw = toText(value);
+    if (!raw) return;
+    const parts = raw
+      .split(/[\n,;|]+/g)
+      .map((item) => item.trim())
+      .filter(Boolean);
+    for (const part of parts) {
+      const key = part.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      values.push(part);
+    }
+  };
+
+  add(pickField(rowLookup, ["contact socials", "social", "socials", "social links"]));
+  add(pickField(rowLookup, ["contact li profile url", "contact linkedin", "linkedin", "linkedin profile"]));
+  add(pickField(rowLookup, ["company li profile url", "company linkedin"]));
+
+  return values.join(", ");
+}
+
+function composeLocation(rowLookup: Record<string, unknown>): string {
+  const direct = toText(
+    pickField(rowLookup, ["company location", "contact location", "location", "address"])
+  );
+  if (direct) return direct;
+
+  const companyCity = toText(pickField(rowLookup, ["company city"]));
+  const companyState = toText(pickField(rowLookup, ["company state", "company state abbr"]));
+  const companyCountry = toText(pickField(rowLookup, ["company country", "company country (alpha 2)", "company country (alpha 3)"]));
+  const companyLocation = [companyCity, companyState, companyCountry].filter(Boolean).join(", ");
+  if (companyLocation) return companyLocation;
+
+  const contactCity = toText(pickField(rowLookup, ["contact city"]));
+  const contactState = toText(pickField(rowLookup, ["contact state", "contact state abbr"]));
+  const contactCountry = toText(pickField(rowLookup, ["contact country", "contact country (alpha 2)", "contact country (alpha 3)"]));
+  return [contactCity, contactState, contactCountry].filter(Boolean).join(", ");
+}
+
+function composeNotes(rowLookup: Record<string, unknown>): string {
+  const values: string[] = [];
+  const seen = new Set<string>();
+
+  const addRaw = (value: unknown) => {
+    const text = toText(value);
+    if (!text) return;
+    const key = text.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    values.push(text);
+  };
+
+  const addLabel = (label: string, candidates: string[]) => {
+    const text = toText(pickField(rowLookup, candidates));
+    if (!text) return;
+    const entry = `${label}: ${text}`;
+    const key = entry.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    values.push(entry);
+  };
+
+  addRaw(pickField(rowLookup, ["notes", "note", "comments", "comment", "remarks"]));
+  addLabel("Research Date", ["research date"]);
+  addLabel("Department", ["department"]);
+  addLabel("Seniority", ["seniority"]);
+  addLabel("Company Description", ["company description", "description"]);
+  addLabel("Company Annual Revenue", ["company annual revenue"]);
+  addLabel("Company Revenue Range", ["company revenue range"]);
+  addLabel("Company Staff Count", ["company staff count"]);
+  addLabel("Company Staff Count Range", ["company staff count range"]);
+  addLabel("Company Founded Date", ["company founded date"]);
+  addLabel("Company Post Code", ["company post code"]);
+  addLabel("SIC Code", ["sic code"]);
+  addLabel("NAICS Code", ["naics code"]);
+
+  return values.join(" | ");
 }
 
 function splitListValues(value: unknown): { values: string[]; hasInlineDuplicates: boolean } {
@@ -331,32 +438,35 @@ function buildPreviewRows(rows: ExcelRow[]): {
     const row = toLookup(rawRow);
 
     const providedTitle = toText(
-      pickField(row, ["title", "task", "task title", "designation", "role"])
+      pickField(row, ["title", "task", "task title", "designation", "role", "job title", "position"])
     );
     const title = providedTitle || "CRM Follow-up";
     const companyName = toText(
-      pickField(row, ["company", "company name", "business", "organization"])
+      pickField(row, ["company name - cleaned", "company", "company name", "business", "organization"])
     );
-    const providedClientName = toText(
-      pickField(row, [
-        "client name",
-        "client_name",
-        "client",
-        "customer",
-        "customer name",
-        "name",
-        "contact",
-        "contact person",
-        "contact name",
-        "full name",
-        "person name",
-      ])
-    );
+    const providedClientName = deriveProvidedClientName(row);
     const email = extractPrimaryEmail(
-      pickField(row, ["email", "emails", "email address", "mail", "e-mail"])
+      pickField(row, ["email 1", "email 2", "personal email", "email", "emails", "email address", "mail", "e-mail"])
     );
     const phone = extractPrimaryPhone(
-      pickField(row, ["phone", "phones", "phone number", "number", "mobile", "contact number", "telephone"])
+      pickField(row, [
+        "contact phone 1",
+        "contact phone 2",
+        "contact phone 3",
+        "contact mobile phone",
+        "contact mobile phone 2",
+        "contact mobile phone 3",
+        "company phone 1",
+        "company phone 2",
+        "company phone 3",
+        "phone",
+        "phones",
+        "phone number",
+        "number",
+        "mobile",
+        "contact number",
+        "telephone",
+      ])
     );
     const clientName = deriveClientName({
       providedClientName,
@@ -364,20 +474,14 @@ function buildPreviewRows(rows: ExcelRow[]): {
       companyName,
       email,
     });
-    const socials = toText(
-      pickField(row, ["contact socials", "social", "socials", "social links"])
-    );
-    const location = toText(
-      pickField(row, ["company location", "location", "city", "address"])
-    );
-    const industry = toText(pickField(row, ["industry", "sector"]));
-    const website = toText(pickField(row, ["website", "site", "url", "web"]));
-    const notes = toText(
-      pickField(row, ["notes", "note", "comments", "comment", "remarks", "description"])
-    );
+    const socials = composeSocials(row);
+    const location = composeLocation(row);
+    const industry = toText(pickField(row, ["company industry", "industry", "sector"]));
+    const website = toText(pickField(row, ["website", "company website domain", "site", "url", "web"]));
+    const notes = composeNotes(row);
 
     const listInfo = splitListValues(
-      pickField(row, ["lists", "list", "list name", "lead list", "segment", "tags"])
+      pickField(row, ["list", "lists", "list name", "lead list", "segment", "tags"])
     );
 
     const identity =
@@ -474,7 +578,6 @@ export default function AdminCrmManagement() {
 
   const [excelFile, setExcelFile] = useState<File | null>(null);
   const [taskStartDate, setTaskStartDate] = useState("");
-  const [taskEndDate, setTaskEndDate] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [importing, setImporting] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
@@ -671,7 +774,6 @@ export default function AdminCrmManagement() {
         formData.append("assignedToUserIds", JSON.stringify(effectiveAssigneeIds));
       }
       if (taskStartDate) formData.append("taskStartDate", taskStartDate);
-      if (taskEndDate) formData.append("taskEndDate", taskEndDate);
       if (dueDate) formData.append("dueDate", dueDate);
 
       const res = await fetch(`/api/admin/crm/leads/import`, {
@@ -688,7 +790,6 @@ export default function AdminCrmManagement() {
       setPreviewParseError("");
       setPreviewSheetName("");
       setTaskStartDate("");
-      setTaskEndDate("");
       setDueDate("");
       setShowImportModal(false);
       await Promise.all([loadLeads(), loadImportFiles()]);
@@ -1219,22 +1320,13 @@ export default function AdminCrmManagement() {
             </button>
           </div>
 
-          <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <div>
               <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide">Task Start</label>
               <input
                 type="date"
                 value={taskStartDate}
                 onChange={(e) => setTaskStartDate(e.target.value)}
-                className="mt-1.5 w-full rounded-2xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm shadow-[inset_0_2px_4px_rgba(0,0,0,0.04),0_2px_8px_rgba(15,23,42,0.06)] transition focus:border-rose-300 focus:ring-2 focus:ring-rose-100 focus:outline-none"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide">Task End</label>
-              <input
-                type="date"
-                value={taskEndDate}
-                onChange={(e) => setTaskEndDate(e.target.value)}
                 className="mt-1.5 w-full rounded-2xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm shadow-[inset_0_2px_4px_rgba(0,0,0,0.04),0_2px_8px_rgba(15,23,42,0.06)] transition focus:border-rose-300 focus:ring-2 focus:ring-rose-100 focus:outline-none"
               />
             </div>
@@ -1318,7 +1410,7 @@ export default function AdminCrmManagement() {
                   <th className="px-3 py-2 text-left">Lead</th>
                   <th className="px-3 py-2 text-left">Assigned To</th>
                   <th className="px-3 py-2 text-left">Status</th>
-                  <th className="px-3 py-2 text-left">Window</th>
+                  <th className="px-3 py-2 text-left">Dates</th>
                   <th className="px-3 py-2 text-left">Latest Comment</th>
                   <th className="px-3 py-2 text-left">Actions</th>
                 </tr>
@@ -1354,7 +1446,7 @@ export default function AdminCrmManagement() {
                         </span>
                       </td>
                       <td className="px-3 py-2 text-gray-700 text-xs">
-                        <div>{toIsoDateValue(lead.taskStartDate) || "-"} → {toIsoDateValue(lead.taskEndDate) || "-"}</div>
+                        <div>Start: {toIsoDateValue(lead.taskStartDate) || "-"}</div>
                         <div>Due: {toIsoDateValue(lead.dueDate) || "-"}</div>
                       </td>
                       <td className="px-3 py-2 text-gray-700 max-w-[340px] truncate">{lead.latestComment || "-"}</td>
