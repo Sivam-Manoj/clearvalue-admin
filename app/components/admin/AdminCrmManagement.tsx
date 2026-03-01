@@ -1285,7 +1285,7 @@ export default function AdminCrmManagement() {
                 <div className="text-xl font-bold text-rose-700">{crmUsersCount}</div>
               </div>
               <div className="rounded-2xl border border-sky-200/80 bg-gradient-to-br from-sky-50 to-white px-4 py-2.5 shadow-[0_4px_14px_rgba(14,165,233,0.12),inset_0_1px_0_rgba(255,255,255,0.8)]">
-                <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Total Leads</div>
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Total Leads Assignment</div>
                 <div className="text-xl font-bold text-sky-700">{leads?.total || 0}</div>
               </div>
               <div className="rounded-2xl border border-slate-200/80 bg-gradient-to-br from-slate-50 to-white px-4 py-2.5 shadow-[0_4px_14px_rgba(100,116,139,0.10),inset_0_1px_0_rgba(255,255,255,0.8)]">
