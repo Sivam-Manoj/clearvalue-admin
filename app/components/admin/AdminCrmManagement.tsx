@@ -100,6 +100,17 @@ type ImportFilesResponse = {
   limit: number;
 };
 
+type AssignmentByUploadItem = {
+  sourceBatchId: string;
+  sourceFileName?: string;
+  importedAt: string;
+  leadCount: number;
+  overdueCount: number;
+  agentId: string;
+  agentEmail?: string;
+  agentUsername?: string;
+};
+
 type ExcelRow = Record<string, unknown>;
 
 type PreviewLeadRow = {
@@ -577,6 +588,9 @@ export default function AdminCrmManagement() {
   const [loadingImportFiles, setLoadingImportFiles] = useState(false);
   const [deletingBatchId, setDeletingBatchId] = useState<string | null>(null);
 
+  const [assignmentsByUpload, setAssignmentsByUpload] = useState<AssignmentByUploadItem[]>([]);
+  const [loadingAssignments, setLoadingAssignments] = useState(false);
+
   const [excelFile, setExcelFile] = useState<File | null>(null);
   const [taskStartDate, setTaskStartDate] = useState("");
   const [dueDate, setDueDate] = useState("");
@@ -675,6 +689,20 @@ export default function AdminCrmManagement() {
     }
   }
 
+  async function loadAssignmentsByUpload() {
+    setLoadingAssignments(true);
+    try {
+      const res = await fetch(`/api/admin/crm/assignments-by-upload`, { cache: "no-store" });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.message || "Failed to load assignments");
+      setAssignmentsByUpload(Array.isArray(json?.items) ? json.items : []);
+    } catch (e: unknown) {
+      pushToast(e instanceof Error ? e.message : "Failed to load assignment distribution", "error");
+    } finally {
+      setLoadingAssignments(false);
+    }
+  }
+
   useEffect(() => {
     loadUsers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -687,6 +715,7 @@ export default function AdminCrmManagement() {
 
   useEffect(() => {
     loadImportFiles();
+    loadAssignmentsByUpload();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -1086,6 +1115,16 @@ export default function AdminCrmManagement() {
     () => (users?.items || []).filter((u) => u.isCrmAgent),
     [users?.items]
   );
+  const overdueLeadsCount = useMemo(() => {
+    const now = Date.now();
+    return (leads?.items || []).filter((lead) => {
+      if (lead.status === "completed") return false;
+      if (!lead.dueDate) return false;
+      const due = new Date(lead.dueDate);
+      return Number.isFinite(due.getTime()) && due.getTime() < now;
+    }).length;
+  }, [leads?.items]);
+
   const yearOptions = useMemo(() => {
     const currentYear = new Date().getFullYear();
     const out = new Set<number>([currentYear, currentYear - 1, currentYear + 1]);
@@ -1292,6 +1331,10 @@ export default function AdminCrmManagement() {
                 <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Total Users</div>
                 <div className="text-xl font-bold text-gray-900">{totalUsersCount}</div>
               </div>
+              <div className="rounded-2xl border border-red-200/80 bg-gradient-to-br from-red-50 to-white px-4 py-2.5 shadow-[0_4px_14px_rgba(239,68,68,0.12),inset_0_1px_0_rgba(255,255,255,0.8)]">
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Overdue Assignment</div>
+                <div className="text-xl font-bold text-red-700">{overdueLeadsCount}</div>
+              </div>
               <button
                 type="button"
                 onClick={() => setShowCrmOpsModal(true)}
@@ -1341,42 +1384,11 @@ export default function AdminCrmManagement() {
             <button
               type="button"
               onClick={() => setShowImportModal(true)}
-              className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-rose-500 to-rose-600 px-5 py-2.5 text-sm font-semibold text-white shadow-[0_6px_20px_rgba(244,63,94,0.35)] transition-all hover:shadow-[0_8px_28px_rgba(244,63,94,0.45)] hover:brightness-105 active:scale-[0.97]"
+              className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-rose-500 to-rose-600 px-6 py-3 text-sm font-bold text-white shadow-[0_6px_20px_rgba(244,63,94,0.35)] transition-all hover:shadow-[0_8px_28px_rgba(244,63,94,0.45)] hover:brightness-105 active:scale-[0.97]"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5-5m0 0l5 5m-5-5v12" /></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5-5m0 0l5 5m-5-5v12" /></svg>
               Open Upload Preview
             </button>
-          </div>
-
-          <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <div>
-              <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide">Task Start</label>
-              <input
-                type="date"
-                value={taskStartDate}
-                onChange={(e) => setTaskStartDate(e.target.value)}
-                className="mt-1.5 w-full rounded-2xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm shadow-[inset_0_2px_4px_rgba(0,0,0,0.04),0_2px_8px_rgba(15,23,42,0.06)] transition focus:border-rose-300 focus:ring-2 focus:ring-rose-100 focus:outline-none"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide">Due Date</label>
-              <input
-                type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                className="mt-1.5 w-full rounded-2xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm shadow-[inset_0_2px_4px_rgba(0,0,0,0.04),0_2px_8px_rgba(15,23,42,0.06)] transition focus:border-rose-300 focus:ring-2 focus:ring-rose-100 focus:outline-none"
-              />
-            </div>
-            <div className="flex flex-col justify-end">
-              <div className="rounded-2xl border border-rose-100 bg-gradient-to-br from-rose-50 to-white px-3.5 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_2px_8px_rgba(15,23,42,0.05)]">
-                <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Assignees</div>
-                <div className="mt-0.5 text-sm font-medium text-gray-900">
-                  {effectiveImportAssigneeIds.length > 0
-                    ? `${effectiveImportAssigneeIds.length} agent${effectiveImportAssigneeIds.length > 1 ? "s" : ""} selected`
-                    : "Auto-distribute"}
-                </div>
-              </div>
-            </div>
           </div>
 
           {excelFile ? (
@@ -1588,6 +1600,78 @@ export default function AdminCrmManagement() {
           </div>
         </section>
 
+        <section className="rounded-3xl border border-rose-200/80 bg-gradient-to-br from-white via-sky-50/30 to-rose-50/40 p-4 md:p-5 shadow-[0_10px_36px_rgba(15,23,42,0.10)]">
+          <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Assignment Distribution by Upload</h2>
+              <p className="text-sm text-gray-600">
+                Historical view of how leads from each upload batch were distributed across CRM agents.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => void loadAssignmentsByUpload()}
+              disabled={loadingAssignments}
+              className="inline-flex items-center justify-center gap-1.5 rounded-2xl border border-sky-200 bg-white px-4 py-2 text-sm font-medium text-sky-700 shadow-[0_2px_8px_rgba(14,165,233,0.10)] transition hover:bg-sky-50 hover:shadow-[0_4px_12px_rgba(14,165,233,0.15)] disabled:opacity-60"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+              {loadingAssignments ? "Refreshing..." : "Refresh"}
+            </button>
+          </div>
+
+          <div className="mt-4 overflow-auto max-h-[420px] rounded-2xl border border-rose-100 bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.75),0_4px_14px_rgba(15,23,42,0.06)]">
+            <table className="min-w-full text-sm">
+              <thead className="sticky top-0 z-10 bg-gradient-to-r from-sky-50 to-rose-50/60 text-gray-600">
+                <tr>
+                  <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide">Upload File</th>
+                  <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide">Imported</th>
+                  <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide">Agent</th>
+                  <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide">Leads</th>
+                  <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide">Overdue</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loadingAssignments ? (
+                  <tr><td className="px-3 py-3 text-gray-500" colSpan={5}>Loading assignment distribution...</td></tr>
+                ) : assignmentsByUpload.length === 0 ? (
+                  <tr><td className="px-3 py-3 text-gray-500" colSpan={5}>No assignment data found</td></tr>
+                ) : (
+                  assignmentsByUpload.map((row, idx) => (
+                    <tr key={`${row.sourceBatchId}-${row.agentId}-${idx}`} className="border-t border-rose-100/70 transition-colors hover:bg-rose-50/40">
+                      <td className="px-3 py-2.5">
+                        <div className="font-medium text-gray-900 truncate max-w-[220px]">
+                          {row.sourceFileName || "Unnamed file"}
+                        </div>
+                        <div className="text-[10px] text-gray-400 truncate max-w-[220px]">{row.sourceBatchId}</div>
+                      </td>
+                      <td className="px-3 py-2.5 text-xs text-gray-700">
+                        {row.importedAt ? new Date(row.importedAt).toLocaleDateString() : "-"}
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <div className="font-medium text-gray-900">{row.agentUsername || row.agentEmail || "Unknown"}</div>
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <span className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-700 shadow-sm">
+                          {row.leadCount}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2.5">
+                        {row.overdueCount > 0 ? (
+                          <span className="inline-flex rounded-full border border-red-200 bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700 shadow-sm">
+                            {row.overdueCount}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-gray-400">0</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
         {showCrmOpsModal ? (
           <div className="fixed inset-0 z-[94] p-3 md:p-6 lg:p-8">
             <div
@@ -1782,20 +1866,61 @@ export default function AdminCrmManagement() {
                 </button>
               </div>
 
-              <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[340px_minmax(0,1fr)]">
-                <div className="overflow-y-auto border-b border-rose-100 p-4 lg:border-b-0 lg:border-r lg:p-5">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Excel file</label>
+              <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[360px_minmax(0,1fr)]">
+                <div className="flex flex-col border-b border-rose-100 lg:border-b-0 lg:border-r">
+                  {/* Import button — always visible at top */}
+                  <div className="sticky top-0 z-20 border-b border-rose-100 bg-gradient-to-r from-emerald-50 to-sky-50 px-4 py-3">
+                    <button
+                      type="button"
+                      onClick={() => void onImportLeads()}
+                      disabled={
+                        importing ||
+                        parsingPreview ||
+                        !excelFile ||
+                        previewRows.length === 0 ||
+                        duplicateIssues.length > 0
+                      }
+                      className="w-full rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 px-4 py-3 text-sm font-bold text-white shadow-[0_6px_20px_rgba(16,185,129,0.35)] transition-all hover:shadow-[0_8px_28px_rgba(16,185,129,0.45)] hover:brightness-105 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 disabled:shadow-none"
+                    >
+                      <div className="flex items-center justify-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5-5m0 0l5 5m-5-5v12" /></svg>
+                        {importing ? "Importing..." : "Import Leads to CRM"}
+                      </div>
+                      {previewRows.length > 0 && !duplicateIssues.length && excelFile ? (
+                        <div className="mt-1 text-xs font-medium text-emerald-100">{readyPreviewRows} leads ready to import</div>
+                      ) : null}
+                    </button>
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto p-4 lg:p-5">
+                  {/* File upload — prominent drag-drop zone */}
+                  <label
+                    className={`group relative flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-4 py-6 text-center transition-all ${
+                      excelFile
+                        ? "border-emerald-300 bg-emerald-50/60"
+                        : "border-rose-300 bg-rose-50/40 hover:border-rose-400 hover:bg-rose-50/80"
+                    }`}
+                  >
                     <input
                       type="file"
                       accept=".xlsx,.xls,.csv"
                       onChange={(e) => void handleExcelFileChange(e.target.files?.[0] || null)}
-                      className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2"
+                      className="absolute inset-0 cursor-pointer opacity-0"
                     />
                     {excelFile ? (
-                      <p className="mt-1 text-xs text-gray-500 truncate">{excelFile.name}</p>
-                    ) : null}
-                  </div>
+                      <>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        <div className="mt-2 text-sm font-semibold text-emerald-800 truncate max-w-full">{excelFile.name}</div>
+                        <div className="mt-1 text-xs text-emerald-600">Click or drop to replace file</div>
+                      </>
+                    ) : (
+                      <>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-rose-400 group-hover:text-rose-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+                        <div className="mt-2 text-sm font-bold text-rose-700">Click to upload Excel file</div>
+                        <div className="mt-1 text-xs text-rose-500">or drag and drop .xlsx, .xls, .csv</div>
+                      </>
+                    )}
+                  </label>
 
                   {parsingPreview ? (
                     <div className="mt-3 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-700">
@@ -1808,6 +1933,32 @@ export default function AdminCrmManagement() {
                       {previewParseError}
                     </div>
                   ) : null}
+
+                  {/* Task Start & Due Date — per-upload deadlines */}
+                  <div className="mt-4 rounded-xl border border-indigo-100 bg-gradient-to-br from-indigo-50/50 to-white px-3 py-3">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-indigo-700">Upload Deadline</div>
+                    <p className="mt-0.5 text-[11px] text-indigo-600/80">Set a start and due date for all leads in this upload batch.</p>
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[11px] font-medium text-gray-600">Task Start</label>
+                        <input
+                          type="date"
+                          value={taskStartDate}
+                          onChange={(e) => setTaskStartDate(e.target.value)}
+                          className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-sm shadow-sm focus:border-indigo-300 focus:ring-1 focus:ring-indigo-100 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-medium text-gray-600">Due Date</label>
+                        <input
+                          type="date"
+                          value={dueDate}
+                          onChange={(e) => setDueDate(e.target.value)}
+                          className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-sm shadow-sm focus:border-indigo-300 focus:ring-1 focus:ring-indigo-100 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
 
                   <div className="mt-4 grid grid-cols-2 gap-2">
                     <div className="rounded-xl border border-sky-100 bg-white px-3 py-2">
@@ -1885,21 +2036,7 @@ export default function AdminCrmManagement() {
                       </ul>
                     </div>
                   ) : null}
-
-                  <button
-                    type="button"
-                    onClick={() => void onImportLeads()}
-                    disabled={
-                      importing ||
-                      parsingPreview ||
-                      !excelFile ||
-                      previewRows.length === 0 ||
-                      duplicateIssues.length > 0
-                    }
-                    className="mt-5 w-full rounded-xl bg-rose-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-rose-600 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {importing ? "Importing..." : "Import Leads to CRM"}
-                  </button>
+                  </div>
                 </div>
 
                 <div className="min-h-0 overflow-hidden p-4 lg:p-5">
