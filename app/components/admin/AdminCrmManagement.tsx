@@ -1981,22 +1981,6 @@ export default function AdminCrmManagement() {
                     </div>
                   </div>
 
-                  <div className="mt-4 rounded-xl border border-sky-100 bg-gradient-to-br from-sky-50 to-white px-3 py-3">
-                    <div className="text-xs font-semibold uppercase tracking-wide text-sky-700">
-                      Imported from Excel mapping
-                    </div>
-                    <p className="mt-1 text-[11px] leading-4 text-sky-800/80">
-                      Use any matching header name. For <span className="font-medium">Emails</span> and <span className="font-medium">Phones</span>, only the first value is used.
-                    </p>
-                    <div className="mt-2 max-h-40 space-y-1.5 overflow-auto pr-1">
-                      {IMPORT_COLUMN_HELPER.map((item) => (
-                        <div key={item.field} className="rounded-lg border border-sky-100 bg-white/90 px-2 py-1.5">
-                          <div className="text-[11px] font-semibold text-gray-800">{item.field}</div>
-                          <div className="text-[11px] leading-4 text-gray-600">{item.headers}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
 
                   <div className="mt-4 rounded-xl border border-rose-100 bg-white px-3 py-3">
                     <div className="text-xs text-gray-500">Assigned CRM reps for this import</div>
@@ -2040,60 +2024,124 @@ export default function AdminCrmManagement() {
                 </div>
 
                 <div className="min-h-0 overflow-hidden p-4 lg:p-5">
-                  <div className="h-full overflow-auto rounded-2xl border border-rose-100 bg-white">
-                    <div className="sticky top-0 z-10 border-b border-rose-100 bg-gradient-to-r from-rose-50 to-sky-50 px-4 py-3">
-                      <div className="text-sm font-semibold text-gray-900">Extracted lead details</div>
+                  <div className="h-full overflow-auto">
+                    <div className="sticky top-0 z-10 rounded-t-2xl border border-rose-100 bg-gradient-to-r from-rose-50 to-sky-50 px-4 py-3">
+                      <div className="text-sm font-semibold text-gray-900">Extracted Lead Details</div>
                       <div className="text-xs text-gray-600">
-                        Preview of parsed columns including lists, socials, location, industry, and website.
+                        {previewRows.length} lead{previewRows.length !== 1 ? "s" : ""} parsed &middot; {readyPreviewRows} ready &middot; {rowCountWithDuplicates} duplicate{rowCountWithDuplicates !== 1 ? "s" : ""}
                       </div>
                     </div>
 
                     {previewRows.length === 0 ? (
-                      <div className="px-4 py-10 text-center text-sm text-gray-500">
-                        Choose an Excel file to extract and preview lead rows.
+                      <div className="rounded-b-2xl border border-t-0 border-rose-100 bg-white px-4 py-14 text-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-12 w-12 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                        <div className="mt-3 text-sm font-medium text-gray-500">Upload an Excel file to preview leads</div>
+                        <div className="mt-1 text-xs text-gray-400">Supported: .xlsx, .xls, .csv</div>
                       </div>
                     ) : (
-                      <div className="divide-y divide-rose-50">
+                      <div className="grid grid-cols-1 gap-3 pt-3 sm:grid-cols-2 xl:grid-cols-3">
                         {previewRows.map((row) => {
                           const issues = duplicateIssuesByRow.get(row.rowNumber) || [];
                           const hasIssue = issues.length > 0;
                           return (
                             <div
                               key={`${row.rowNumber}-${row.duplicateKey}`}
-                              className={`px-4 py-3 ${hasIssue ? "bg-amber-50/60" : "bg-white"}`}
+                              className={`group relative flex flex-col rounded-2xl border p-4 shadow-[0_2px_10px_rgba(15,23,42,0.06)] transition-all hover:shadow-[0_4px_16px_rgba(15,23,42,0.10)] ${
+                                hasIssue
+                                  ? "border-amber-200 bg-gradient-to-br from-amber-50/80 to-white"
+                                  : "border-slate-200/80 bg-gradient-to-br from-white to-sky-50/30"
+                              }`}
                             >
-                              <div className="flex flex-wrap items-start justify-between gap-2">
-                                <div>
-                                  <div className="text-xs text-gray-500">Row {row.rowNumber}</div>
-                                  <div className="text-sm font-semibold text-gray-900">{row.clientName}</div>
-                                  <div className="text-xs text-gray-600">
-                                    {row.title} • {row.companyName || "No company"}
+                              {/* Header */}
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-sky-500 to-indigo-500 text-[11px] font-bold text-white shadow-sm">
+                                      {(row.clientName || "?")[0].toUpperCase()}
+                                    </div>
+                                    <div className="min-w-0">
+                                      <div className="truncate text-sm font-semibold text-gray-900">{row.clientName || "Unnamed"}</div>
+                                      <div className="truncate text-[11px] text-gray-500">{row.title}{row.title && row.companyName ? " · " : ""}{row.companyName}</div>
+                                    </div>
                                   </div>
                                 </div>
-                                <span className="rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[11px] text-sky-700">
-                                  {issues.length > 0 ? "Needs Fix" : "Ready"}
-                                </span>
+                                <div className="flex flex-shrink-0 flex-col items-end gap-1">
+                                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                                    hasIssue
+                                      ? "border border-amber-300 bg-amber-100 text-amber-800"
+                                      : "border border-emerald-200 bg-emerald-50 text-emerald-700"
+                                  }`}>
+                                    {hasIssue ? "Duplicate" : "Ready"}
+                                  </span>
+                                  <span className="text-[10px] text-gray-400">#{row.rowNumber}</span>
+                                </div>
                               </div>
 
-                              <div className="mt-2 grid grid-cols-1 gap-1 text-xs text-gray-700 md:grid-cols-2">
-                                <div><span className="font-medium">Email:</span> {row.email || "-"}</div>
-                                <div><span className="font-medium">Phone:</span> {row.phone || "-"}</div>
-                                <div><span className="font-medium">Lists:</span> {row.lists.join(", ") || "-"}</div>
-                                <div><span className="font-medium">Socials:</span> {row.socials || "-"}</div>
-                                <div><span className="font-medium">Location:</span> {row.location || "-"}</div>
-                                <div><span className="font-medium">Industry:</span> {row.industry || "-"}</div>
-                                <div className="md:col-span-2"><span className="font-medium">Website:</span> {row.website || "-"}</div>
-                                {row.notes ? (
-                                  <div className="md:col-span-2"><span className="font-medium">Notes:</span> {row.notes}</div>
+                              {/* Contact info */}
+                              <div className="mt-3 space-y-1.5">
+                                {row.email ? (
+                                  <div className="flex items-center gap-2 text-xs">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 flex-shrink-0 text-sky-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                                    <span className="truncate text-gray-700">{row.email}</span>
+                                  </div>
+                                ) : null}
+                                {row.phone ? (
+                                  <div className="flex items-center gap-2 text-xs">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 flex-shrink-0 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
+                                    <span className="text-gray-700">{row.phone}</span>
+                                  </div>
+                                ) : null}
+                                {row.website ? (
+                                  <div className="flex items-center gap-2 text-xs">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 flex-shrink-0 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>
+                                    <span className="truncate text-gray-700">{row.website}</span>
+                                  </div>
                                 ) : null}
                               </div>
 
+                              {/* Tags row */}
+                              <div className="mt-3 flex flex-wrap gap-1.5">
+                                {row.location ? (
+                                  <span className="inline-flex items-center gap-1 rounded-full border border-violet-100 bg-violet-50 px-2 py-0.5 text-[10px] font-medium text-violet-700">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                                    {row.location}
+                                  </span>
+                                ) : null}
+                                {row.industry ? (
+                                  <span className="inline-flex items-center gap-1 rounded-full border border-amber-100 bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                                    {row.industry}
+                                  </span>
+                                ) : null}
+                                {row.socials ? (
+                                  <span className="inline-flex items-center gap-1 rounded-full border border-pink-100 bg-pink-50 px-2 py-0.5 text-[10px] font-medium text-pink-700">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                                    {row.socials}
+                                  </span>
+                                ) : null}
+                                {row.lists.length > 0 ? row.lists.map((list, li) => (
+                                  <span key={li} className="inline-flex rounded-full border border-sky-100 bg-sky-50 px-2 py-0.5 text-[10px] font-medium text-sky-700">
+                                    {list}
+                                  </span>
+                                )) : null}
+                              </div>
+
+                              {/* Notes */}
+                              {row.notes ? (
+                                <div className="mt-2 rounded-lg bg-slate-50 px-2.5 py-1.5 text-[11px] leading-4 text-gray-600">
+                                  {row.notes}
+                                </div>
+                              ) : null}
+
+                              {/* Duplicate warnings */}
                               {hasIssue ? (
-                                <ul className="mt-2 list-disc space-y-0.5 pl-4 text-xs text-amber-800">
+                                <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5">
                                   {issues.map((reason, idx) => (
-                                    <li key={`${row.rowNumber}-${idx}`}>{reason}</li>
+                                    <div key={`${row.rowNumber}-${idx}`} className="text-[11px] text-amber-800">
+                                      ⚠ {reason}
+                                    </div>
                                   ))}
-                                </ul>
+                                </div>
                               ) : null}
                             </div>
                           );
