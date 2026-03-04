@@ -47,7 +47,7 @@ export default function LoginPageView() {
                   CV
                 </div>
                 <div>
-                  <div className="text-sm text-gray-500 font-medium">ClearValue</div>
+                  <div className="text-sm text-gray-500 font-medium">Asset Insight</div>
                   <div className="font-bold text-gray-900 text-lg">Admin Console</div>
                 </div>
               </div>
@@ -130,7 +130,7 @@ export default function LoginPageView() {
           }`}
         >
           <p className="text-xs text-gray-500">
-            By signing in you agree to ClearValue&apos;s{' '}
+            By signing in you agree to Asset Insight&apos;s{' '}
             <span className="text-gray-700 hover:text-rose-600 transition-colors cursor-pointer font-medium">Terms of Service</span>
             {' '}and{' '}
             <span className="text-gray-700 hover:text-rose-600 transition-colors cursor-pointer font-medium">Privacy Policy</span>

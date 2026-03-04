@@ -201,7 +201,7 @@ export default function AdminManagement() {
               CV
             </div>
             <div>
-              <div className="text-sm text-gray-500">ClearValue</div>
+              <div className="text-sm text-gray-500">Asset Insight</div>
               <div className="font-semibold text-gray-900">
                 Admin Management
               </div>

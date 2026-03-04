@@ -126,7 +126,7 @@ export default function AdminNavbar() {
               CV
             </div>
             <div className="leading-tight">
-              <div className="text-[11px] font-medium tracking-wide text-slate-500">ClearValue</div>
+              <div className="text-[11px] font-medium tracking-wide text-slate-500">Asset Insight</div>
               <div className="text-sm font-bold text-slate-900">Admin Console</div>
             </div>
           </Link>

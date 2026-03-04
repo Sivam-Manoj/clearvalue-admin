@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ClearValue Admin",
-  description: "ClearValue Admin",
+  title: "Asset Insight Admin",
+  description: "Asset Insight Admin",
 };
 
 export default function RootLayout({
