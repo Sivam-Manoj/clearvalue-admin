@@ -11,7 +11,7 @@ export default function LoginPageView() {
     return () => clearTimeout(t);
   }, []);
 
-  const supportEmail = process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "support@assetinsightvaluator.com";
+  const supportEmail = process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "support@assetinsightvaluation.com";
 
   return (
     <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-white via-rose-50 to-rose-100">

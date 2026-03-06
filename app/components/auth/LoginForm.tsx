@@ -59,7 +59,7 @@ export default function LoginForm({ embedded = false }: { embedded?: boolean }) 
               onChange={(e) => setEmail(e.target.value)}
               disabled={loading}
               className="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder-gray-400 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent hover:border-gray-400 disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
-              placeholder="admin@assetinsightvaluator.com"
+              placeholder="admin@assetinsightvaluation.com"
             />
           </div>
         </div>
