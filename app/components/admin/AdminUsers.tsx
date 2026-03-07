@@ -11,6 +11,9 @@ type UserItem = {
   contactEmail?: string;
   contactPhone?: string;
   companyAddress?: string;
+  crmAddress?: string;
+  crmQuadrant?: string;
+  crmSpecializations?: string[];
   role: string;
   isBlocked: boolean;
   isVerified?: boolean;
@@ -25,6 +28,20 @@ type ApiResponse = {
   page: number;
   limit: number;
 };
+
+const CRM_SPECIALIZATION_LABELS: Record<string, string> = {
+  industrial_construction: "Industrial & Construction",
+  farm_equipment_sales: "Farm & Farm Equipment Sales",
+  others: "Others",
+};
+
+function formatCrmSpecializations(values?: string[]): string {
+  if (!Array.isArray(values) || values.length === 0) return "-";
+  return values
+    .map((value) => CRM_SPECIALIZATION_LABELS[value] || value)
+    .filter(Boolean)
+    .join(", ");
+}
 
 export default function AdminUsers() {
   // Filters
@@ -287,6 +304,13 @@ export default function AdminUsers() {
                           }`}>
                             {u.isCrmAgent ? "CRM Agent" : "Not Assigned"}
                           </span>
+                          {u.isCrmAgent ? (
+                            <div className="mt-1 text-xs text-sky-700">
+                              {[u.crmQuadrant ? `Quadrant ${u.crmQuadrant}` : "", formatCrmSpecializations(u.crmSpecializations)]
+                                .filter((value) => value && value !== "-")
+                                .join(" • ") || "-"}
+                            </div>
+                          ) : null}
                         </td>
                         <td className="py-2 pr-4 text-gray-700">{new Date(u.createdAt).toLocaleString()}</td>
                         <td className="py-2 pr-4">
@@ -351,6 +375,13 @@ export default function AdminUsers() {
                       <div>
                         <div className="text-gray-500">CRM</div>
                         <div className="font-medium text-gray-900">{u.isCrmAgent ? "CRM Agent" : "Not Assigned"}</div>
+                        {u.isCrmAgent ? (
+                          <div className="text-xs text-sky-700 mt-1">
+                            {[u.crmQuadrant ? `Quadrant ${u.crmQuadrant}` : "", formatCrmSpecializations(u.crmSpecializations)]
+                              .filter((value) => value && value !== "-")
+                              .join(" • ") || "-"}
+                          </div>
+                        ) : null}
                       </div>
                       <div className="col-span-2">
                         <div className="text-gray-500">Contact</div>

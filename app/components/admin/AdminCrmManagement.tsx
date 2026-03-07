@@ -24,6 +24,9 @@ type CrmUserItem = {
   username?: string;
   companyName?: string;
   contactPhone?: string;
+  crmAddress?: string;
+  crmQuadrant?: string;
+  crmSpecializations?: string[];
   isBlocked?: boolean;
   isCrmAgent: boolean;
   crmAssignedAt?: string;
@@ -158,19 +161,19 @@ const MONTH_OPTIONS = [
   { value: "12", label: "December" },
 ] as const;
 
-const IMPORT_COLUMN_HELPER = [
-  { field: "Client Name", headers: "Contact Full Name, First Name + Last Name, Client Name, Contact Name, Name" },
-  { field: "Title", headers: "Title, Task, Task Title, Designation, Role" },
-  { field: "Company", headers: "Company Name - Cleaned, Company Name, Company, Business, Organization" },
-  { field: "Email", headers: "Email 1, Email 2, Personal Email, Email, Email Address" },
-  { field: "Phone", headers: "Contact Phone 1/2/3, Contact Mobile Phone, Company Phone 1/2/3, Phone" },
-  { field: "Lists", headers: "List, Lists, List Name, Lead List, Segment, Tags" },
-  { field: "Socials", headers: "Contact LI Profile URL, Company LI Profile Url, Contact Socials" },
-  { field: "Location", headers: "Company Location, Contact Location, Company City/State/Country, Contact City/State/Country" },
-  { field: "Industry", headers: "Company Industry, Industry, Sector" },
-  { field: "Website", headers: "Website, Company Website Domain, Site, URL, Web" },
-  { field: "Notes", headers: "Company Description, Department, Seniority, Revenue, Staff Count, SIC/NAICS, Research Date" },
-] as const;
+const CRM_SPECIALIZATION_LABELS: Record<string, string> = {
+  industrial_construction: "Industrial & Construction",
+  farm_equipment_sales: "Farm & Farm Equipment Sales",
+  others: "Others",
+};
+
+function formatCrmSpecializations(values?: string[]): string {
+  if (!Array.isArray(values) || values.length === 0) return "";
+  return values
+    .map((value) => CRM_SPECIALIZATION_LABELS[value] || value)
+    .filter(Boolean)
+    .join(", ");
+}
 
 function toIsoDateValue(value?: string): string {
   if (!value) return "";
@@ -1779,6 +1782,13 @@ export default function AdminCrmManagement() {
                                 <td className="px-3 py-2.5">
                                   <div className="font-medium text-gray-900">{u.email}</div>
                                   <div className="text-xs text-gray-500">{u.username || "-"} {u.companyName ? `• ${u.companyName}` : ""}</div>
+                                  {(u.crmQuadrant || formatCrmSpecializations(u.crmSpecializations)) ? (
+                                    <div className="mt-1 text-[11px] text-sky-700">
+                                      {[u.crmQuadrant ? `Quadrant ${u.crmQuadrant}` : "", formatCrmSpecializations(u.crmSpecializations)]
+                                        .filter(Boolean)
+                                        .join(" • ")}
+                                    </div>
+                                  ) : null}
                                 </td>
                                 <td className="px-3 py-2.5">
                                   <span className={`inline-flex rounded-full px-2.5 py-0.5 border text-xs font-medium shadow-sm ${u.isCrmAgent ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-gray-50 text-gray-500 border-gray-200"}`}>
@@ -1992,6 +2002,11 @@ export default function AdminCrmManagement() {
                             className="rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs text-rose-700"
                           >
                             {agent.username || agent.email}
+                            {(agent.crmQuadrant || formatCrmSpecializations(agent.crmSpecializations))
+                              ? ` • ${[agent.crmQuadrant ? `Q ${agent.crmQuadrant}` : "", formatCrmSpecializations(agent.crmSpecializations)]
+                                  .filter(Boolean)
+                                  .join(" • ")}`
+                              : ""}
                           </span>
                         ))
                       ) : (
