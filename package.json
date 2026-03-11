@@ -10,6 +10,7 @@
     "deploy": "git pull && npm install && npm run build && pm2 restart clearvalue-admin"
   },
   "dependencies": {
+    "@tanstack/react-table": "^8.21.3",
     "@cloudinary/url-gen": "^1.22.0",
     "chart.js": "^4.5.0",
     "next": "^15.5.12",

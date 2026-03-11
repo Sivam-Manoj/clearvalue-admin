@@ -1,6 +1,19 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import {
+  type Cell,
+  type CellContext,
+  type ColumnDef,
+  flexRender,
+  getCoreRowModel,
+  type Header,
+  type HeaderGroup,
+  type Row,
+  getSortedRowModel,
+  type SortingState,
+  useReactTable,
+} from "@tanstack/react-table";
 import ConfirmModal from "@/app/components/common/ConfirmModal";
 
 type UserItem = {
@@ -43,6 +56,23 @@ function formatCrmSpecializations(values?: string[]): string {
     .join(", ");
 }
 
+function formatCreatedAt(value: string) {
+  return new Date(value).toLocaleString();
+}
+
+function SortIndicator({ direction }: { direction: false | "asc" | "desc" }) {
+  return (
+    <span
+      className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px] transition-colors ${
+        direction ? "bg-rose-100 text-rose-600" : "bg-gray-100 text-gray-400"
+      }`}
+      aria-hidden="true"
+    >
+      {direction === "asc" ? "↑" : direction === "desc" ? "↓" : "↕"}
+    </span>
+  );
+}
+
 export default function AdminUsers() {
   // Filters
   const [q, setQ] = useState("");
@@ -64,6 +94,8 @@ export default function AdminUsers() {
 
   // Toasts
   const [toasts, setToasts] = useState<{ id: number; type: "success" | "error" | "info"; message: string }[]>([]);
+  const [sorting, setSorting] = useState<SortingState>([{ id: "createdAt", desc: true }]);
+
   function pushToast(message: string, type: "success" | "error" | "info" = "info") {
     const id = Date.now() + Math.random();
     setToasts((t) => [...t, { id, type, message }]);
@@ -177,10 +209,136 @@ export default function AdminUsers() {
     return data ? Math.max(1, Math.ceil((data.total || 0) / (data.limit || limit))) : 1;
   }, [data, limit]);
 
+  const items = data?.items || [];
+
+  const columns: ColumnDef<UserItem>[] = [
+    {
+      id: "account",
+      accessorFn: (row: UserItem) => row.email,
+      header: "User",
+      cell: ({ row }: CellContext<UserItem, unknown>) => {
+        const u = row.original;
+        return (
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="break-all font-semibold text-gray-900">{u.email}</span>
+              <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${
+                u.isBlocked
+                  ? "border-rose-200 bg-rose-50 text-rose-700"
+                  : "border-emerald-200 bg-emerald-50 text-emerald-700"
+              }`}>
+                {u.isBlocked ? "Blocked" : "Active"}
+              </span>
+              <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${
+                u.isVerified
+                  ? "border-sky-200 bg-sky-50 text-sky-700"
+                  : "border-amber-200 bg-amber-50 text-amber-700"
+              }`}>
+                {u.isVerified ? "Verified" : "Unverified"}
+              </span>
+            </div>
+            <div className="mt-1 text-sm text-gray-600 break-words">{u.username || "No username set"}</div>
+          </div>
+        );
+      },
+    },
+    {
+      id: "company",
+      accessorFn: (row: UserItem) => row.companyName || row.contactEmail || "",
+      header: "Company / Contact",
+      cell: ({ row }: CellContext<UserItem, unknown>) => {
+        const u = row.original;
+        return (
+          <div className="min-w-0">
+            <div className="font-medium text-gray-900 break-words">{u.companyName || "-"}</div>
+            <div className="mt-1 text-sm text-gray-600 break-all">{u.contactEmail || "-"}</div>
+            <div className="mt-1 text-xs text-gray-500 break-all">{u.contactPhone || "-"}</div>
+          </div>
+        );
+      },
+    },
+    {
+      id: "crm",
+      accessorFn: (row: UserItem) => (row.isCrmAgent ? 1 : 0),
+      header: "CRM",
+      cell: ({ row }: CellContext<UserItem, unknown>) => {
+        const u = row.original;
+        return (
+          <div className="min-w-0">
+            <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${
+              u.isCrmAgent
+                ? "border-sky-200 bg-sky-50 text-sky-700"
+                : "border-gray-200 bg-gray-50 text-gray-600"
+            }`}>
+              {u.isCrmAgent ? "CRM Agent" : "Not Assigned"}
+            </span>
+            <div className="mt-2 text-xs leading-5 text-gray-600 break-words">
+              {u.isCrmAgent
+                ? [u.crmQuadrant ? `Quadrant ${u.crmQuadrant}` : "", formatCrmSpecializations(u.crmSpecializations)]
+                    .filter((value) => value && value !== "-")
+                    .join(" • ") || "-"
+                : "No CRM assignment"}
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: "createdAt",
+      header: "Created",
+      cell: ({ row }: CellContext<UserItem, unknown>) => (
+        <div className="text-sm font-medium leading-5 text-gray-700">{formatCreatedAt(row.original.createdAt)}</div>
+      ),
+    },
+    {
+      id: "actions",
+      enableSorting: false,
+      header: "Actions",
+      cell: ({ row }: CellContext<UserItem, unknown>) => {
+        const u = row.original;
+        return (
+          <div className="flex flex-wrap justify-end gap-2">
+            <button
+              onClick={() => toggleCrmRole(u)}
+              disabled={updatingCrmId === u._id || u.isBlocked}
+              className="cursor-pointer inline-flex items-center justify-center gap-1 rounded-xl border border-sky-300 bg-white px-3 py-1.5 text-sky-700 shadow-sm hover:bg-sky-50 hover:shadow disabled:opacity-50"
+            >
+              {u.isCrmAgent ? "Remove CRM" : "Assign CRM"}
+            </button>
+            <button
+              onClick={() => toggleBlock(u)}
+              className={`cursor-pointer inline-flex items-center justify-center gap-1 rounded-xl border bg-white px-3 py-1.5 shadow-sm hover:shadow transition-all ${
+                u.isBlocked
+                  ? "border-emerald-300 text-emerald-700 hover:bg-emerald-50 active:bg-emerald-100"
+                  : "border-amber-300 text-amber-700 hover:bg-amber-50 active:bg-amber-100"
+              }`}
+            >
+              {u.isBlocked ? "Unblock" : "Block"}
+            </button>
+            <button
+              onClick={() => openDelete(u._id)}
+              className="cursor-pointer inline-flex items-center justify-center gap-1 rounded-xl border border-red-300 bg-white px-3 py-1.5 text-red-700 shadow-sm hover:bg-red-50 hover:shadow"
+            >
+              Delete
+            </button>
+          </div>
+        );
+      },
+    },
+  ];
+
+  const table = useReactTable({
+    data: items,
+    columns,
+    state: { sorting },
+    onSortingChange: setSorting,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+  });
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-rose-50">
       <main className="max-w-6xl mx-auto px-4 py-8 space-y-6">
-        {/* Hero Summary */}
         <section className="rounded-2xl border border-rose-200 bg-white/80 backdrop-blur shadow-xl shadow-rose-100 p-5 md:p-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
@@ -196,7 +354,6 @@ export default function AdminUsers() {
           </div>
         </section>
 
-        {/* Filters */}
         <section className="rounded-2xl border border-rose-200 bg-white/80 backdrop-blur shadow-lg shadow-rose-100 p-4 md:p-6">
           <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
             <div className="md:col-span-2">
@@ -252,7 +409,6 @@ export default function AdminUsers() {
           </div>
         </section>
 
-        {/* List */}
         <section className="rounded-2xl border border-rose-200 bg-white/80 backdrop-blur shadow-lg shadow-rose-100 p-4 md:p-6">
           {loading ? (
             <div className="text-gray-500">Loading...</div>
@@ -260,95 +416,69 @@ export default function AdminUsers() {
             <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md p-2">{error}</div>
           ) : (
             <>
-              {/* Table */}
-              <div className="hidden xl:block">
-                <table className="min-w-full table-fixed text-left text-sm">
-                  <thead>
-                    <tr className="text-gray-600">
-                      <th className="py-3 pr-4 w-[16%]">Email</th>
-                      <th className="py-3 pr-4 w-[12%]">Username</th>
-                      <th className="py-3 pr-4 w-[12%]">Company</th>
-                      <th className="py-3 pr-4 w-[18%]">Contact</th>
-                      <th className="py-3 pr-4 w-[10%]">Status</th>
-                      <th className="py-3 pr-4 w-[14%]">CRM</th>
-                      <th className="py-3 pr-4 w-[10%]">Created</th>
-                      <th className="py-3 pr-0 w-[18%]">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(data?.items || []).map((u) => (
-                      <tr key={u._id} className="border-t border-rose-100/70 hover:bg-rose-50/40">
-                        <td className="py-3 pr-4 text-gray-900 break-all">{u.email}</td>
-                        <td className="py-3 pr-4 text-gray-700 break-words">{u.username || "-"}</td>
-                        <td className="py-3 pr-4 text-gray-700 break-words">{u.companyName || "-"}</td>
-                        <td className="py-3 pr-4 text-gray-700">
-                          <div className="flex flex-col">
-                            <span className="break-all">{u.contactEmail || "-"}</span>
-                            <span className="text-xs text-gray-500 break-all">{u.contactPhone || "-"}</span>
-                          </div>
-                        </td>
-                        <td className="py-3 pr-4 align-top">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
-                            u.isBlocked
-                              ? "bg-rose-50 text-rose-800 border-rose-200"
-                              : "bg-emerald-50 text-emerald-800 border-emerald-200"
-                          }`}>
-                            {u.isBlocked ? "Blocked" : "Active"}
-                          </span>
-                        </td>
-                        <td className="py-3 pr-4 align-top">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
-                            u.isCrmAgent
-                              ? "bg-sky-50 text-sky-800 border-sky-200"
-                              : "bg-gray-50 text-gray-600 border-gray-200"
-                          }`}>
-                            {u.isCrmAgent ? "CRM Agent" : "Not Assigned"}
-                          </span>
-                          {u.isCrmAgent ? (
-                            <div className="mt-1 text-xs text-sky-700">
-                              {[u.crmQuadrant ? `Quadrant ${u.crmQuadrant}` : "", formatCrmSpecializations(u.crmSpecializations)]
-                                .filter((value) => value && value !== "-")
-                                .join(" • ") || "-"}
-                            </div>
-                          ) : null}
-                        </td>
-                        <td className="py-3 pr-4 text-gray-700 text-xs leading-5">{new Date(u.createdAt).toLocaleString()}</td>
-                        <td className="py-3 pr-0 align-top">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <button
-                              onClick={() => toggleCrmRole(u)}
-                              disabled={updatingCrmId === u._id || u.isBlocked}
-                              className="cursor-pointer inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-sky-300 text-sky-700 bg-white hover:bg-sky-50 active:bg-sky-100 shadow-sm hover:shadow transition-all disabled:opacity-50"
-                            >
-                              {u.isCrmAgent ? "Remove CRM" : "Assign CRM"}
-                            </button>
-                            <button
-                              onClick={() => toggleBlock(u)}
-                              className={`cursor-pointer inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border bg-white shadow-sm hover:shadow transition-all ${
-                                u.isBlocked
-                                  ? "border-emerald-300 text-emerald-700 hover:bg-emerald-50 active:bg-emerald-100"
-                                  : "border-amber-300 text-amber-700 hover:bg-amber-50 active:bg-amber-100"
-                              }`}
-                            >
-                              {u.isBlocked ? "Unblock" : "Block"}
-                            </button>
-                            <button
-                              onClick={() => openDelete(u._id)}
-                              className="cursor-pointer inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-red-300 text-red-700 bg-white hover:bg-red-50 active:bg-red-100 shadow-sm hover:shadow transition-all"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="hidden lg:block">
+                <div className="overflow-hidden rounded-2xl border border-rose-100 bg-white/90 shadow-sm">
+                  <table className="min-w-full table-fixed text-left text-sm">
+                    <thead className="bg-rose-50/80">
+                      {table.getHeaderGroups().map((headerGroup: HeaderGroup<UserItem>) => (
+                        <tr key={headerGroup.id} className="border-b border-rose-100 text-xs uppercase tracking-[0.16em] text-gray-500">
+                          {headerGroup.headers.map((header: Header<UserItem, unknown>) => {
+                            const canSort = header.column.getCanSort();
+                            const direction = header.column.getIsSorted();
+                            const headerWidthClass = [
+                              "w-[29%] pl-5",
+                              "w-[24%]",
+                              "w-[20%]",
+                              "w-[12%]",
+                              "w-[15%] pr-5",
+                            ][header.index] || "";
+                            return (
+                              <th key={header.id} className={`px-4 py-3 font-semibold ${headerWidthClass}`}>
+                                {header.isPlaceholder ? null : canSort ? (
+                                  <button
+                                    type="button"
+                                    onClick={header.column.getToggleSortingHandler()}
+                                    className="inline-flex items-center gap-2 text-left font-semibold text-gray-600 transition-colors hover:text-rose-600"
+                                  >
+                                    {flexRender(header.column.columnDef.header, header.getContext())}
+                                    <SortIndicator direction={direction} />
+                                  </button>
+                                ) : (
+                                  <div className="text-left font-semibold text-gray-600">
+                                    {flexRender(header.column.columnDef.header, header.getContext())}
+                                  </div>
+                                )}
+                              </th>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </thead>
+                    <tbody>
+                      {table.getRowModel().rows.length ? (
+                        table.getRowModel().rows.map((row: Row<UserItem>) => (
+                          <tr key={row.id} className="border-t border-rose-100/70 align-top transition-colors hover:bg-rose-50/40">
+                            {row.getVisibleCells().map((cell: Cell<UserItem, unknown>) => (
+                              <td key={cell.id} className="px-4 py-4 first:pl-5 last:pr-5">
+                                {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                              </td>
+                            ))}
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={columns.length} className="px-5 py-10 text-center text-sm text-gray-500">
+                            No users found for the current filters.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
 
-              {/* Responsive cards */}
-              <div className="grid grid-cols-1 gap-4 sm:gap-5 xl:hidden lg:grid-cols-2">
-                {(data?.items || []).map((u) => (
+              <div className="grid grid-cols-1 gap-4 lg:hidden">
+                {items.map((u) => (
                   <div key={u._id} className="rounded-2xl border border-rose-200 bg-white/95 backdrop-blur p-4 shadow-md shadow-rose-100 sm:p-5">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div className="min-w-0 flex-1">
@@ -371,6 +501,13 @@ export default function AdminUsers() {
                         }`}>
                           {u.isCrmAgent ? "CRM Agent" : "Not Assigned"}
                         </span>
+                        <span className={`shrink-0 inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${
+                          u.isVerified
+                            ? "bg-sky-50 text-sky-800 border-sky-200"
+                            : "bg-amber-50 text-amber-800 border-amber-200"
+                        }`}>
+                          {u.isVerified ? "Verified" : "Unverified"}
+                        </span>
                       </div>
                     </div>
                     <div className="mt-4 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
@@ -380,7 +517,7 @@ export default function AdminUsers() {
                       </div>
                       <div className="rounded-xl border border-rose-100 bg-white p-3 shadow-sm">
                         <div className="text-xs font-medium uppercase tracking-wide text-gray-500">Created</div>
-                        <div className="mt-1 font-medium text-gray-900 text-sm leading-5">{new Date(u.createdAt).toLocaleString()}</div>
+                        <div className="mt-1 font-medium text-gray-900 text-sm leading-5">{formatCreatedAt(u.createdAt)}</div>
                       </div>
                       <div className="rounded-xl border border-rose-100 bg-white p-3 shadow-sm sm:col-span-2 lg:col-span-1">
                         <div className="text-xs font-medium uppercase tracking-wide text-gray-500">Contact</div>
