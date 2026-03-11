@@ -261,33 +261,33 @@ export default function AdminUsers() {
           ) : (
             <>
               {/* Table */}
-              <div className="overflow-x-auto hidden md:block">
-                <table className="min-w-full text-left text-sm">
+              <div className="hidden xl:block">
+                <table className="min-w-full table-fixed text-left text-sm">
                   <thead>
                     <tr className="text-gray-600">
-                      <th className="py-2 pr-4">Email</th>
-                      <th className="py-2 pr-4">Username</th>
-                      <th className="py-2 pr-4">Company</th>
-                      <th className="py-2 pr-4">Contact</th>
-                      <th className="py-2 pr-4">Status</th>
-                      <th className="py-2 pr-4">CRM</th>
-                      <th className="py-2 pr-4">Created</th>
-                      <th className="py-2 pr-4">Actions</th>
+                      <th className="py-3 pr-4 w-[16%]">Email</th>
+                      <th className="py-3 pr-4 w-[12%]">Username</th>
+                      <th className="py-3 pr-4 w-[12%]">Company</th>
+                      <th className="py-3 pr-4 w-[18%]">Contact</th>
+                      <th className="py-3 pr-4 w-[10%]">Status</th>
+                      <th className="py-3 pr-4 w-[14%]">CRM</th>
+                      <th className="py-3 pr-4 w-[10%]">Created</th>
+                      <th className="py-3 pr-0 w-[18%]">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {(data?.items || []).map((u) => (
                       <tr key={u._id} className="border-t border-rose-100/70 hover:bg-rose-50/40">
-                        <td className="py-2 pr-4 text-gray-900">{u.email}</td>
-                        <td className="py-2 pr-4 text-gray-700">{u.username || "-"}</td>
-                        <td className="py-2 pr-4 text-gray-700">{u.companyName || "-"}</td>
-                        <td className="py-2 pr-4 text-gray-700">
+                        <td className="py-3 pr-4 text-gray-900 break-all">{u.email}</td>
+                        <td className="py-3 pr-4 text-gray-700 break-words">{u.username || "-"}</td>
+                        <td className="py-3 pr-4 text-gray-700 break-words">{u.companyName || "-"}</td>
+                        <td className="py-3 pr-4 text-gray-700">
                           <div className="flex flex-col">
-                            <span>{u.contactEmail || "-"}</span>
-                            <span className="text-xs text-gray-500">{u.contactPhone || "-"}</span>
+                            <span className="break-all">{u.contactEmail || "-"}</span>
+                            <span className="text-xs text-gray-500 break-all">{u.contactPhone || "-"}</span>
                           </div>
                         </td>
-                        <td className="py-2 pr-4">
+                        <td className="py-3 pr-4 align-top">
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
                             u.isBlocked
                               ? "bg-rose-50 text-rose-800 border-rose-200"
@@ -296,7 +296,7 @@ export default function AdminUsers() {
                             {u.isBlocked ? "Blocked" : "Active"}
                           </span>
                         </td>
-                        <td className="py-2 pr-4">
+                        <td className="py-3 pr-4 align-top">
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
                             u.isCrmAgent
                               ? "bg-sky-50 text-sky-800 border-sky-200"
@@ -312,9 +312,9 @@ export default function AdminUsers() {
                             </div>
                           ) : null}
                         </td>
-                        <td className="py-2 pr-4 text-gray-700">{new Date(u.createdAt).toLocaleString()}</td>
-                        <td className="py-2 pr-4">
-                          <div className="flex items-center gap-2">
+                        <td className="py-3 pr-4 text-gray-700 text-xs leading-5">{new Date(u.createdAt).toLocaleString()}</td>
+                        <td className="py-3 pr-0 align-top">
+                          <div className="flex flex-wrap items-center gap-2">
                             <button
                               onClick={() => toggleCrmRole(u)}
                               disabled={updatingCrmId === u._id || u.isBlocked}
@@ -346,62 +346,70 @@ export default function AdminUsers() {
                 </table>
               </div>
 
-              {/* Mobile cards */}
-              <div className="grid grid-cols-1 gap-4 md:hidden">
+              {/* Responsive cards */}
+              <div className="grid grid-cols-1 gap-4 sm:gap-5 xl:hidden lg:grid-cols-2">
                 {(data?.items || []).map((u) => (
-                  <div key={u._id} className="rounded-xl border border-rose-200 bg-white/90 backdrop-blur p-4 shadow-md">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="font-semibold text-gray-900">{u.email}</div>
-                        <div className="text-sm text-gray-600">{u.username || "-"}</div>
+                  <div key={u._id} className="rounded-2xl border border-rose-200 bg-white/95 backdrop-blur p-4 shadow-md shadow-rose-100 sm:p-5">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs font-semibold uppercase tracking-[0.18em] text-rose-500">User account</div>
+                        <div className="mt-1 break-all text-base font-semibold text-gray-900">{u.email}</div>
+                        <div className="mt-1 text-sm text-gray-600 break-words">{u.username || "No username set"}</div>
                       </div>
-                      <span className={`shrink-0 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
-                        u.isBlocked
-                          ? "bg-rose-50 text-rose-800 border-rose-200"
-                          : "bg-emerald-50 text-emerald-800 border-emerald-200"
-                      }`}>
-                        {u.isBlocked ? "Blocked" : "Active"}
-                      </span>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className={`shrink-0 inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${
+                          u.isBlocked
+                            ? "bg-rose-50 text-rose-800 border-rose-200"
+                            : "bg-emerald-50 text-emerald-800 border-emerald-200"
+                        }`}>
+                          {u.isBlocked ? "Blocked" : "Active"}
+                        </span>
+                        <span className={`shrink-0 inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${
+                          u.isCrmAgent
+                            ? "bg-sky-50 text-sky-800 border-sky-200"
+                            : "bg-gray-50 text-gray-600 border-gray-200"
+                        }`}>
+                          {u.isCrmAgent ? "CRM Agent" : "Not Assigned"}
+                        </span>
+                      </div>
                     </div>
-                    <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
-                      <div>
-                        <div className="text-gray-500">Company</div>
-                        <div className="font-medium text-gray-900">{u.companyName || "-"}</div>
+                    <div className="mt-4 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+                      <div className="rounded-xl border border-rose-100 bg-rose-50/40 p-3">
+                        <div className="text-xs font-medium uppercase tracking-wide text-gray-500">Company</div>
+                        <div className="mt-1 font-medium text-gray-900 break-words">{u.companyName || "-"}</div>
                       </div>
-                      <div>
-                        <div className="text-gray-500">Created</div>
-                        <div className="font-medium text-gray-900">{new Date(u.createdAt).toLocaleString()}</div>
+                      <div className="rounded-xl border border-rose-100 bg-white p-3 shadow-sm">
+                        <div className="text-xs font-medium uppercase tracking-wide text-gray-500">Created</div>
+                        <div className="mt-1 font-medium text-gray-900 text-sm leading-5">{new Date(u.createdAt).toLocaleString()}</div>
                       </div>
-                      <div>
-                        <div className="text-gray-500">CRM</div>
-                        <div className="font-medium text-gray-900">{u.isCrmAgent ? "CRM Agent" : "Not Assigned"}</div>
+                      <div className="rounded-xl border border-rose-100 bg-white p-3 shadow-sm sm:col-span-2 lg:col-span-1">
+                        <div className="text-xs font-medium uppercase tracking-wide text-gray-500">Contact</div>
+                        <div className="mt-1 font-medium text-gray-900 break-all">{u.contactEmail || "-"}</div>
+                        <div className="mt-1 text-xs text-gray-500 break-all">{u.contactPhone || "-"}</div>
+                      </div>
+                      <div className="rounded-xl border border-rose-100 bg-white p-3 shadow-sm sm:col-span-2 lg:col-span-1">
+                        <div className="text-xs font-medium uppercase tracking-wide text-gray-500">CRM details</div>
+                        <div className="mt-1 font-medium text-gray-900">{u.isCrmAgent ? "Assigned" : "Not Assigned"}</div>
                         {u.isCrmAgent ? (
-                          <div className="text-xs text-sky-700 mt-1">
+                          <div className="mt-1 text-xs leading-5 text-sky-700 break-words">
                             {[u.crmQuadrant ? `Quadrant ${u.crmQuadrant}` : "", formatCrmSpecializations(u.crmSpecializations)]
                               .filter((value) => value && value !== "-")
                               .join(" • ") || "-"}
                           </div>
                         ) : null}
                       </div>
-                      <div className="col-span-2">
-                        <div className="text-gray-500">Contact</div>
-                        <div className="font-medium text-gray-900">
-                          {u.contactEmail || "-"}
-                          {u.contactPhone ? <span className="text-xs text-gray-500 ml-2">{u.contactPhone}</span> : null}
-                        </div>
-                      </div>
                     </div>
-                    <div className="mt-3 flex items-center gap-2">
+                    <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
                       <button
                         onClick={() => toggleCrmRole(u)}
                         disabled={updatingCrmId === u._id || u.isBlocked}
-                        className="cursor-pointer inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-sky-300 text-sky-700 bg-white hover:bg-sky-50 active:bg-sky-100 shadow-sm hover:shadow transition-all disabled:opacity-50"
+                        className="cursor-pointer inline-flex w-full items-center justify-center gap-1 px-3 py-2 rounded-xl border border-sky-300 text-sky-700 bg-white hover:bg-sky-50 active:bg-sky-100 shadow-sm hover:shadow transition-all disabled:opacity-50"
                       >
                         {u.isCrmAgent ? "Remove CRM" : "Assign CRM"}
                       </button>
                       <button
                         onClick={() => toggleBlock(u)}
-                        className={`cursor-pointer inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border bg-white shadow-sm hover:shadow transition-all ${
+                        className={`cursor-pointer inline-flex w-full items-center justify-center gap-1 px-3 py-2 rounded-xl border bg-white shadow-sm hover:shadow transition-all ${
                           u.isBlocked
                             ? "border-emerald-300 text-emerald-700 hover:bg-emerald-50 active:bg-emerald-100"
                             : "border-amber-300 text-amber-700 hover:bg-amber-50 active:bg-amber-100"
@@ -409,7 +417,7 @@ export default function AdminUsers() {
                       >
                         {u.isBlocked ? "Unblock" : "Block"}
                       </button>
-                      <button onClick={() => openDelete(u._id)} className="cursor-pointer inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-red-300 text-red-700 bg-white hover:bg-red-50 active:bg-red-100 shadow-sm hover:shadow transition-all">
+                      <button onClick={() => openDelete(u._id)} className="cursor-pointer inline-flex w-full items-center justify-center gap-1 px-3 py-2 rounded-xl border border-red-300 text-red-700 bg-white hover:bg-red-50 active:bg-red-100 shadow-sm hover:shadow transition-all">
                         Delete
                       </button>
                     </div>
@@ -418,13 +426,13 @@ export default function AdminUsers() {
               </div>
 
               {/* Pagination */}
-              <div className="mt-4 flex items-center justify-between">
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="text-sm text-gray-600">
                   {data ? (
                     <>Showing {data.items?.length || 0} of {data.total} users</>
                   ) : null}
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <button
                     className="cursor-pointer px-3 py-1.5 rounded-xl border border-rose-300 text-rose-700 bg-white hover:bg-rose-50 active:bg-rose-100 shadow-sm hover:shadow transition-all disabled:opacity-50"
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
