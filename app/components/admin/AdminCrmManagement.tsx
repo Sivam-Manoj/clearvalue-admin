@@ -114,6 +114,20 @@ type AssignmentByUploadItem = {
   agentUsername?: string;
 };
 
+type AssignmentByUploadSummary = {
+  sourceBatchId: string;
+  sourceFileName?: string;
+  importedAt: string;
+  leadCount: number;
+  overdueCount: number;
+  agents: Array<{
+    agentId: string;
+    agentEmail?: string;
+    agentUsername?: string;
+    leadCount: number;
+  }>;
+};
+
 type ExcelRow = Record<string, unknown>;
 
 type PreviewLeadRow = {
@@ -1188,6 +1202,47 @@ export default function AdminCrmManagement() {
     };
   }, [importFiles?.items]);
 
+  const assignmentUploadRows = useMemo<AssignmentByUploadSummary[]>(() => {
+    const grouped = new Map<string, AssignmentByUploadSummary>();
+
+    for (const row of assignmentsByUpload) {
+      const existing = grouped.get(row.sourceBatchId);
+      if (existing) {
+        existing.leadCount += row.leadCount || 0;
+        existing.overdueCount += row.overdueCount || 0;
+        existing.agents.push({
+          agentId: row.agentId,
+          agentEmail: row.agentEmail,
+          agentUsername: row.agentUsername,
+          leadCount: row.leadCount || 0,
+        });
+        continue;
+      }
+
+      grouped.set(row.sourceBatchId, {
+        sourceBatchId: row.sourceBatchId,
+        sourceFileName: row.sourceFileName,
+        importedAt: row.importedAt,
+        leadCount: row.leadCount || 0,
+        overdueCount: row.overdueCount || 0,
+        agents: [
+          {
+            agentId: row.agentId,
+            agentEmail: row.agentEmail,
+            agentUsername: row.agentUsername,
+            leadCount: row.leadCount || 0,
+          },
+        ],
+      });
+    }
+
+    return Array.from(grouped.values()).sort((a, b) => {
+      const aTime = new Date(a.importedAt || "").getTime() || 0;
+      const bTime = new Date(b.importedAt || "").getTime() || 0;
+      return bTime - aTime;
+    });
+  }, [assignmentsByUpload]);
+
   const compactChartOptions = useMemo<ChartOptions<"bar">>(
     () => ({
       responsive: true,
@@ -1606,9 +1661,9 @@ export default function AdminCrmManagement() {
         <section className="rounded-3xl border border-rose-200/80 bg-gradient-to-br from-white via-sky-50/30 to-rose-50/40 p-4 md:p-5 shadow-[0_10px_36px_rgba(15,23,42,0.10)]">
           <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">Assignment Distribution by Upload</h2>
+              <h2 className="text-lg font-semibold text-gray-900">Lead Assignment by Upload</h2>
               <p className="text-sm text-gray-600">
-                Historical view of how leads from each upload batch were distributed across CRM agents.
+                See how many leads each upload created and which CRM agents received them.
               </p>
             </div>
             <button
@@ -1628,19 +1683,18 @@ export default function AdminCrmManagement() {
                 <tr>
                   <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide">Upload File</th>
                   <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide">Imported</th>
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide">Agent</th>
                   <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide">Leads</th>
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide">Overdue</th>
+                  <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide">Agents</th>
                 </tr>
               </thead>
               <tbody>
                 {loadingAssignments ? (
-                  <tr><td className="px-3 py-3 text-gray-500" colSpan={5}>Loading assignment distribution...</td></tr>
-                ) : assignmentsByUpload.length === 0 ? (
-                  <tr><td className="px-3 py-3 text-gray-500" colSpan={5}>No assignment data found</td></tr>
+                  <tr><td className="px-3 py-3 text-gray-500" colSpan={4}>Loading assignment distribution...</td></tr>
+                ) : assignmentUploadRows.length === 0 ? (
+                  <tr><td className="px-3 py-3 text-gray-500" colSpan={4}>No assignment data found</td></tr>
                 ) : (
-                  assignmentsByUpload.map((row, idx) => (
-                    <tr key={`${row.sourceBatchId}-${row.agentId}-${idx}`} className="border-t border-rose-100/70 transition-colors hover:bg-rose-50/40">
+                  assignmentUploadRows.map((row) => (
+                    <tr key={row.sourceBatchId} className="border-t border-rose-100/70 transition-colors hover:bg-rose-50/40">
                       <td className="px-3 py-2.5">
                         <div className="font-medium text-gray-900 truncate max-w-[220px]">
                           {row.sourceFileName || "Unnamed file"}
@@ -1651,21 +1705,27 @@ export default function AdminCrmManagement() {
                         {row.importedAt ? new Date(row.importedAt).toLocaleDateString() : "-"}
                       </td>
                       <td className="px-3 py-2.5">
-                        <div className="font-medium text-gray-900">{row.agentUsername || row.agentEmail || "Unknown"}</div>
-                      </td>
-                      <td className="px-3 py-2.5">
                         <span className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-700 shadow-sm">
                           {row.leadCount}
                         </span>
+                        {row.overdueCount > 0 ? (
+                          <span className="ml-2 inline-flex rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-700 shadow-sm">
+                            {row.overdueCount} overdue
+                          </span>
+                        ) : null}
                       </td>
                       <td className="px-3 py-2.5">
-                        {row.overdueCount > 0 ? (
-                          <span className="inline-flex rounded-full border border-red-200 bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700 shadow-sm">
-                            {row.overdueCount}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-gray-400">0</span>
-                        )}
+                        <div className="flex flex-wrap items-center gap-2">
+                          {row.agents.map((agent) => (
+                            <span
+                              key={`${row.sourceBatchId}-${agent.agentId}`}
+                              className="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-medium text-rose-700"
+                            >
+                              <span>{agent.agentUsername || agent.agentEmail || "Unknown"}</span>
+                              <span className="text-rose-500">{agent.leadCount}</span>
+                            </span>
+                          ))}
+                        </div>
                       </td>
                     </tr>
                   ))
