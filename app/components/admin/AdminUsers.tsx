@@ -15,6 +15,14 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import ConfirmModal from "@/app/components/common/ConfirmModal";
+import Modal from "@/app/components/common/Modal";
+
+const CRM_QUADRANT_OPTIONS = ["NW", "NE", "SW", "SE", "NORTH", "SOUTH", "EAST", "WEST", "CENTRAL"] as const;
+const CRM_SPECIALIZATION_OPTIONS = [
+  { value: "industrial_construction", label: "Industrial & Construction" },
+  { value: "farm_equipment_sales", label: "Farm & Farm Equipment Sales" },
+  { value: "others", label: "Others" },
+] as const;
 
 type UserItem = {
   _id: string;
@@ -92,9 +100,48 @@ export default function AdminUsers() {
   const [deleting, setDeleting] = useState(false);
   const [updatingCrmId, setUpdatingCrmId] = useState<string | null>(null);
 
+  // CRM profile edit
+  const [crmEditUser, setCrmEditUser] = useState<UserItem | null>(null);
+  const [crmEditQuadrant, setCrmEditQuadrant] = useState("");
+  const [crmEditSpecs, setCrmEditSpecs] = useState<string[]>([]);
+  const [crmEditSaving, setCrmEditSaving] = useState(false);
+
   // Toasts
   const [toasts, setToasts] = useState<{ id: number; type: "success" | "error" | "info"; message: string }[]>([]);
   const [sorting, setSorting] = useState<SortingState>([{ id: "createdAt", desc: true }]);
+
+  function openCrmEdit(u: UserItem) {
+    setCrmEditUser(u);
+    setCrmEditQuadrant(u.crmQuadrant || "");
+    setCrmEditSpecs(Array.isArray(u.crmSpecializations) ? [...u.crmSpecializations] : []);
+  }
+
+  async function saveCrmProfile() {
+    if (!crmEditUser) return;
+    try {
+      setCrmEditSaving(true);
+      const res = await fetch(`/api/admin/crm/users/${crmEditUser._id}/crm-profile`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ crmQuadrant: crmEditQuadrant, crmSpecializations: crmEditSpecs }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j?.message || "Failed to update CRM profile");
+      pushToast("CRM profile updated", "success");
+      setCrmEditUser(null);
+      await load();
+    } catch (e: unknown) {
+      pushToast(e instanceof Error ? e.message : "Failed to update CRM profile", "error");
+    } finally {
+      setCrmEditSaving(false);
+    }
+  }
+
+  function toggleCrmEditSpec(value: string) {
+    setCrmEditSpecs((prev) =>
+      prev.includes(value) ? prev.filter((s) => s !== value) : [...prev, value]
+    );
+  }
 
   function pushToast(message: string, type: "success" | "error" | "info" = "info") {
     const id = Date.now() + Math.random();
@@ -305,6 +352,14 @@ export default function AdminUsers() {
             >
               {u.isCrmAgent ? "Remove CRM" : "Assign CRM"}
             </button>
+            {u.isCrmAgent && (
+              <button
+                onClick={() => openCrmEdit(u)}
+                className="cursor-pointer inline-flex items-center justify-center gap-1 rounded-xl border border-indigo-300 bg-white px-3 py-1.5 text-indigo-700 shadow-sm hover:bg-indigo-50 hover:shadow transition-all"
+              >
+                Edit CRM
+              </button>
+            )}
             <button
               onClick={() => toggleBlock(u)}
               className={`cursor-pointer inline-flex items-center justify-center gap-1 rounded-xl border bg-white px-3 py-1.5 shadow-sm hover:shadow transition-all ${
@@ -536,7 +591,7 @@ export default function AdminUsers() {
                         ) : null}
                       </div>
                     </div>
-                    <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                    <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-4">
                       <button
                         onClick={() => toggleCrmRole(u)}
                         disabled={updatingCrmId === u._id || u.isBlocked}
@@ -544,6 +599,14 @@ export default function AdminUsers() {
                       >
                         {u.isCrmAgent ? "Remove CRM" : "Assign CRM"}
                       </button>
+                      {u.isCrmAgent && (
+                        <button
+                          onClick={() => openCrmEdit(u)}
+                          className="cursor-pointer inline-flex w-full items-center justify-center gap-1 px-3 py-2 rounded-xl border border-indigo-300 text-indigo-700 bg-white hover:bg-indigo-50 active:bg-indigo-100 shadow-sm hover:shadow transition-all"
+                        >
+                          Edit CRM
+                        </button>
+                      )}
                       <button
                         onClick={() => toggleBlock(u)}
                         className={`cursor-pointer inline-flex w-full items-center justify-center gap-1 px-3 py-2 rounded-xl border bg-white shadow-sm hover:shadow transition-all ${
@@ -593,6 +656,93 @@ export default function AdminUsers() {
           )}
         </section>
       </main>
+
+      {/* CRM Profile Edit Modal */}
+      <Modal
+        open={!!crmEditUser}
+        onClose={() => setCrmEditUser(null)}
+        title={`Edit CRM Profile — ${crmEditUser?.email || ""}`}
+        maxWidthClass="max-w-lg"
+        footer={
+          <>
+            <button
+              onClick={() => setCrmEditUser(null)}
+              className="cursor-pointer px-4 py-2 rounded-xl bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 shadow-sm transition-all"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={saveCrmProfile}
+              disabled={crmEditSaving}
+              className="cursor-pointer px-4 py-2 rounded-xl bg-rose-500 hover:bg-rose-600 text-white font-medium shadow-md transition-all disabled:opacity-50"
+            >
+              {crmEditSaving ? "Saving..." : "Save"}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-5">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">CRM Quadrant</label>
+            <div className="flex flex-wrap gap-2">
+              {CRM_QUADRANT_OPTIONS.map((q) => (
+                <button
+                  key={q}
+                  type="button"
+                  onClick={() => setCrmEditQuadrant(crmEditQuadrant === q ? "" : q)}
+                  className={`cursor-pointer px-3 py-1.5 rounded-xl border text-sm font-medium transition-all ${
+                    crmEditQuadrant === q
+                      ? "border-rose-400 bg-rose-50 text-rose-700 shadow-sm"
+                      : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50"
+                  }`}
+                >
+                  {q}
+                </button>
+              ))}
+            </div>
+            {crmEditQuadrant && (
+              <button
+                type="button"
+                onClick={() => setCrmEditQuadrant("")}
+                className="cursor-pointer mt-2 text-xs text-rose-600 hover:underline"
+              >
+                Clear quadrant
+              </button>
+            )}
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">CRM Specialization</label>
+            <div className="flex flex-wrap gap-2">
+              {CRM_SPECIALIZATION_OPTIONS.map((opt) => {
+                const selected = crmEditSpecs.includes(opt.value);
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => toggleCrmEditSpec(opt.value)}
+                    className={`cursor-pointer px-3 py-1.5 rounded-xl border text-sm font-medium transition-all ${
+                      selected
+                        ? "border-sky-400 bg-sky-50 text-sky-700 shadow-sm"
+                        : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+            {crmEditSpecs.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setCrmEditSpecs([])}
+                className="cursor-pointer mt-2 text-xs text-rose-600 hover:underline"
+              >
+                Clear all specializations
+              </button>
+            )}
+          </div>
+        </div>
+      </Modal>
 
       {/* Delete Confirm */}
       <ConfirmModal

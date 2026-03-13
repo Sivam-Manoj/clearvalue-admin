@@ -20,8 +20,8 @@ export default async function Page() {
     .catch(() => ({} as unknown as { user?: { role?: string } }));
   const role = data?.user?.role;
 
-  // Only superadmin can access CRM controls
-  if (role !== "superadmin") redirect("/reports");
+  // Admin and superadmin can access CRM controls
+  if (role !== "superadmin" && role !== "admin") redirect("/reports");
 
   return (
     <>

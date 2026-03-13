@@ -793,15 +793,11 @@ export default function AdminCrmManagement() {
       return;
     }
 
-    if (duplicateIssues.length > 0) {
-      pushToast("Duplicate list items found. Please fix before importing.", "error");
-      return;
-    }
-
     try {
       setImporting(true);
       const formData = new FormData();
       formData.append("file", excelFile);
+      formData.append("duplicateMode", "skip");
       const effectiveAssigneeIds = leadAssignedTo ? [leadAssignedTo] : selectedUserIds;
       if (effectiveAssigneeIds.length > 0) {
         formData.append("assignedToUserIds", JSON.stringify(effectiveAssigneeIds));
@@ -816,7 +812,11 @@ export default function AdminCrmManagement() {
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json?.message || "Failed to import CRM leads");
 
-      pushToast(`Imported ${json?.imported || 0} CRM leads`, "success");
+      const dupCount = json?.duplicateCount || 0;
+      const msg = dupCount > 0
+        ? `Imported ${json?.imported || 0} CRM leads (${dupCount} duplicate${dupCount === 1 ? "" : "s"} skipped)`
+        : `Imported ${json?.imported || 0} CRM leads`;
+      pushToast(msg, "success");
       setExcelFile(null);
       setPreviewRows([]);
       setDuplicateIssues([]);
@@ -1887,8 +1887,7 @@ export default function AdminCrmManagement() {
                         importing ||
                         parsingPreview ||
                         !excelFile ||
-                        previewRows.length === 0 ||
-                        duplicateIssues.length > 0
+                        previewRows.length === 0
                       }
                       className="w-full rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 px-4 py-3 text-sm font-bold text-white shadow-[0_6px_20px_rgba(16,185,129,0.35)] transition-all hover:shadow-[0_8px_28px_rgba(16,185,129,0.45)] hover:brightness-105 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 disabled:shadow-none"
                     >
@@ -1931,6 +1930,22 @@ export default function AdminCrmManagement() {
                       </>
                     )}
                   </label>
+
+                  {excelFile && !importing && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setExcelFile(null);
+                        setPreviewRows([]);
+                        setDuplicateIssues([]);
+                        setPreviewParseError("");
+                        setPreviewSheetName("");
+                      }}
+                      className="mt-3 w-full rounded-xl border border-rose-300 bg-white px-3 py-2 text-sm font-medium text-rose-700 hover:bg-rose-50 active:bg-rose-100 shadow-sm transition-all"
+                    >
+                      Cancel Upload
+                    </button>
+                  )}
 
                   {parsingPreview ? (
                     <div className="mt-3 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-700">

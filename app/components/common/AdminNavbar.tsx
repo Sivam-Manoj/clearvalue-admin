@@ -78,7 +78,7 @@ export default function AdminNavbar() {
       : role === "user"
       ? "User"
       : "Loading";
-  const homeHref = role === "superadmin" ? "/dashboard" : "/reports";
+  const homeHref = role === "superadmin" || role === "admin" ? "/dashboard" : "/reports";
 
   const linkBase =
     "inline-flex items-center gap-2 rounded-2xl px-3 py-2 text-sm font-medium transition-all duration-200 cursor-pointer shrink-0";
@@ -173,8 +173,8 @@ export default function AdminNavbar() {
 
         {/* Desktop links */}
         <div className="hidden min-w-0 flex-1 items-center gap-2 overflow-x-auto px-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:flex">
-          {/* User and Admin see Reports and Gallery */}
-          {(role === "user" || role === "admin") ? (
+          {/* User role sees only Reports and Gallery */}
+          {role === "user" ? (
             <>
               <NavLink
                 href="/reports"
@@ -216,7 +216,7 @@ export default function AdminNavbar() {
                 }
               />
             </>
-          ) : role === "superadmin" ? (
+          ) : (role === "superadmin" || role === "admin") ? (
             <>
               <NavLink
                 href="/dashboard"
@@ -314,6 +314,7 @@ export default function AdminNavbar() {
                   </svg>
                 }
               />
+              {role === "superadmin" && (
               <NavLink
                 href="/admins"
                 label="Admins"
@@ -335,6 +336,7 @@ export default function AdminNavbar() {
                   </svg>
                 }
               />
+              )}
               <NavLink
                 href="/gallery"
                 label="Image Gallery"
@@ -406,8 +408,8 @@ export default function AdminNavbar() {
                 Home
               </Link>
             </div>
-            {/* User and Admin see Reports and Gallery */}
-            {(role === "user" || role === "admin") ? (
+            {/* User role sees only Reports and Gallery */}
+            {role === "user" ? (
               <>
                 <NavLink
                   href="/reports"
@@ -451,7 +453,7 @@ export default function AdminNavbar() {
                   }
                 />
               </>
-            ) : role === "superadmin" ? (
+            ) : (role === "superadmin" || role === "admin") ? (
               <>
                 <NavLink
                   href="/dashboard"
@@ -554,6 +556,7 @@ export default function AdminNavbar() {
                     </svg>
                   }
                 />
+                {role === "superadmin" && (
                 <NavLink
                   href="/admins"
                   label="Admins"
@@ -576,6 +579,7 @@ export default function AdminNavbar() {
                     </svg>
                   }
                 />
+                )}
                 <NavLink
                   href="/gallery"
                   label="Image Gallery"
