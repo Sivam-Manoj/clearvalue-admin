@@ -1,5 +1,5 @@
 import AdminApprovals from "@/app/components/admin/AdminApprovals";
-import AdminNavbar from "@/app/components/common/AdminNavbar";
+import AdminNavbarV2 from "@/app/components/common/AdminNavbarV2";
 import { SERVER_URL } from "@/lib/api";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -24,7 +24,7 @@ export default async function Page() {
 
   return (
     <>
-      <AdminNavbar />
+      <AdminNavbarV2 />
       <AdminApprovals />
     </>
   );

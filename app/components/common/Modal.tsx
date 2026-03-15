@@ -1,6 +1,14 @@
 "use client";
 
 import React from "react";
+import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
+import {
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  IconButton,
+} from "@mui/material";
 
 type ModalProps = {
   open: boolean;
@@ -11,36 +19,41 @@ type ModalProps = {
   maxWidthClass?: string; // e.g., "max-w-md", "max-w-lg"
 };
 
+const maxWidthMap: Record<string, number> = {
+  "max-w-md": 448,
+  "max-w-lg": 512,
+  "max-w-xl": 576,
+  "max-w-2xl": 672,
+  "max-w-3xl": 768,
+  "max-w-4xl": 896,
+  "max-w-5xl": 1024,
+  "max-w-6xl": 1152,
+  "max-w-7xl": 1280,
+};
+
 export default function Modal({ open, onClose, title, children, footer, maxWidthClass = "max-w-lg" }: ModalProps) {
-  if (!open) return null;
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
-      <div className={`relative w-full ${maxWidthClass} rounded-2xl border border-rose-200 bg-white/90 backdrop-blur shadow-2xl shadow-rose-100`}>
-        <div className="px-5 pt-5 pb-3 border-b border-rose-200/70">
-          <div className="flex items-center justify-between gap-2">
-            <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
-            <button
-              aria-label="Close"
-              onClick={onClose}
-              className="cursor-pointer inline-flex items-center justify-center h-8 w-8 rounded-xl border border-gray-300 text-gray-600 bg-white hover:bg-gray-50 active:bg-gray-100 shadow-sm"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            </button>
-          </div>
-        </div>
-        <div className="p-5">
-          {children}
-        </div>
-        {footer ? (
-          <div className="px-5 py-4 border-t border-rose-200/70 bg-white/70 flex items-center justify-end gap-2">
-            {footer}
-          </div>
-        ) : null}
-      </div>
-    </div>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      fullWidth
+      maxWidth={false}
+      PaperProps={{
+        sx: {
+          width: "100%",
+          maxWidth: maxWidthMap[maxWidthClass] || maxWidthMap["max-w-lg"],
+          borderRadius: 4,
+        },
+      }}
+    >
+      <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, pr: 1.5 }}>
+        <span>{title}</span>
+        <IconButton aria-label="Close" onClick={onClose}>
+          <CloseRoundedIcon fontSize="small" />
+        </IconButton>
+      </DialogTitle>
+      <DialogContent dividers>{children}</DialogContent>
+      {footer ? <DialogActions sx={{ px: 3, py: 2 }}>{footer}</DialogActions> : null}
+    </Dialog>
   );
 }

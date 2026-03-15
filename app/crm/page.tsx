@@ -1,4 +1,4 @@
-import AdminNavbar from "@/app/components/common/AdminNavbar";
+import AdminNavbarV2 from "@/app/components/common/AdminNavbarV2";
 import AdminCrmManagement from "@/app/components/admin/AdminCrmManagement";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -25,7 +25,7 @@ export default async function Page() {
 
   return (
     <>
-      <AdminNavbar />
+      <AdminNavbarV2 />
       <AdminCrmManagement />
     </>
   );

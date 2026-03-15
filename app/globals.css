@@ -31,3 +31,47 @@
 .animate-shake {
   animation: shake 0.5s ease-in-out;
 }
+
+:root {
+  --admin-bg: #eef4ff;
+  --admin-bg-elevated: rgba(255, 255, 255, 0.82);
+  --admin-surface: rgba(255, 255, 255, 0.9);
+  --admin-border: rgba(148, 163, 184, 0.22);
+  --admin-text: #132238;
+  --admin-text-muted: #52637a;
+}
+
+html[data-theme="dark"] {
+  --admin-bg: #081426;
+  --admin-bg-elevated: rgba(15, 27, 45, 0.86);
+  --admin-surface: rgba(10, 19, 34, 0.9);
+  --admin-border: rgba(148, 163, 184, 0.16);
+  --admin-text: #e6eefc;
+  --admin-text-muted: #93a9c8;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  background: var(--admin-bg);
+  color: var(--admin-text);
+}
+
+.admin-page-shell {
+  min-height: calc(100vh - 82px);
+  padding: 1.5rem;
+}
+
+.admin-glass-surface {
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.12);
+  backdrop-filter: blur(18px);
+}
+
+.admin-text-muted {
+  color: var(--admin-text-muted);
+}

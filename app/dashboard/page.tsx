@@ -1,5 +1,5 @@
-import DashboardShell from "@/app/components/dashboard/DashboardShell";
-import AdminNavbar from "@/app/components/common/AdminNavbar";
+import DashboardShellV2 from "@/app/components/dashboard/DashboardShellV2";
+import AdminNavbarV2 from "@/app/components/common/AdminNavbarV2";
 import { SERVER_URL } from "@/lib/api";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -26,8 +26,8 @@ export default async function Page() {
 
   return (
     <>
-      <AdminNavbar />
-      <DashboardShell />
+      <AdminNavbarV2 />
+      <DashboardShellV2 />
     </>
   );
 }

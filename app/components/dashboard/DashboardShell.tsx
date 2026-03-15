@@ -1,13 +1,10 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import MonthlyCharts from "@/app/components/dashboard/MonthlyCharts";
 import Link from "next/link";
 
 export default function DashboardShell() {
-  const router = useRouter();
-  const [loggingOut, setLoggingOut] = useState(false);
   const [now, setNow] = useState<Date>(() => new Date());
   const [me, setMe] = useState<{
     email?: string;
@@ -57,17 +54,6 @@ export default function DashboardShell() {
     if (h < 18) return "Good afternoon";
     return "Good evening";
   }, [now]);
-
-  async function logout() {
-    setLoggingOut(true);
-    try {
-      await fetch("/api/admin/logout", { method: "POST" });
-      router.push("/login");
-      router.refresh();
-    } finally {
-      setLoggingOut(false);
-    }
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-rose-50">

@@ -1,5 +1,5 @@
 import AdminReports from "@/app/components/reports/AdminReports";
-import AdminNavbar from "@/app/components/common/AdminNavbar";
+import AdminNavbarV2 from "@/app/components/common/AdminNavbarV2";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { SERVER_URL } from "@/lib/api";
@@ -19,7 +19,7 @@ export default async function Page() {
   // All authenticated users can access reports (filtering done at API level)
   return (
     <>
-      <AdminNavbar />
+      <AdminNavbarV2 />
       <AdminReports />
     </>
   );

@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import LoginForm from "@/app/components/auth/LoginForm";
-import Link from "next/link";
 
 export default function LoginPageView() {
   const [mounted, setMounted] = useState(false);

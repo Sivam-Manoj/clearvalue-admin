@@ -1,10 +1,10 @@
 import { Suspense } from "react";
-import LoginPageView from "@/app/components/auth/LoginPageView";
+import LoginPageViewV2 from "@/app/components/auth/LoginPageViewV2";
 
 export default function Page() {
   return (
     <Suspense fallback={null}>
-      <LoginPageView />
+      <LoginPageViewV2 />
     </Suspense>
   );
 }

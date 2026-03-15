@@ -54,9 +54,9 @@ export default function ImageGallery() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white to-rose-50">
-      <main className="max-w-6xl mx-auto px-4 py-8 space-y-6">
-        <section className="rounded-2xl border border-rose-200 bg-white/80 backdrop-blur shadow-xl shadow-rose-100 p-6">
+    <div className="admin-page-shell">
+      <main className="max-w-6xl mx-auto space-y-6">
+        <section className="admin-glass-surface rounded-3xl p-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
             <div>
               <h1 className="text-xl md:text-2xl font-semibold text-gray-900">

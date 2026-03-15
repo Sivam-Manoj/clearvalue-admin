@@ -1,10 +1,10 @@
 import ImageGallery from "@/app/components/gallery/ImageGallery";
-import AdminNavbar from "@/app/components/common/AdminNavbar";
+import AdminNavbarV2 from "@/app/components/common/AdminNavbarV2";
 
 export default function Page() {
   return (
     <>
-      <AdminNavbar />
+      <AdminNavbarV2 />
       <ImageGallery />
     </>
   );

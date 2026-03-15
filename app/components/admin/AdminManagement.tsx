@@ -193,8 +193,8 @@ export default function AdminManagement() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white to-rose-50">
-      <header className="sticky top-0 z-10 backdrop-blur bg-white/70 border-b border-rose-200/60">
+    <div className="admin-page-shell">
+      <header className="sticky top-0 z-10 admin-glass-surface rounded-3xl">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="h-9 w-9 rounded-xl bg-rose-500 shadow-md shadow-rose-200 ring-1 ring-rose-300 flex items-center justify-center text-white font-bold">
@@ -216,9 +216,9 @@ export default function AdminManagement() {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 py-8 space-y-8">
+      <main className="max-w-6xl mx-auto pt-6 space-y-8">
         {/* Hero Summary */}
-        <section className="rounded-2xl border border-rose-200 bg-white/80 backdrop-blur shadow-xl shadow-rose-100 p-6">
+        <section className="admin-glass-surface rounded-3xl p-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
               <h1 className="text-xl md:text-2xl font-semibold text-gray-900">
@@ -252,7 +252,7 @@ export default function AdminManagement() {
           </div>
         </section>
         {/* Create Admin modal trigger */}
-        <section className="rounded-2xl border border-rose-200 bg-white/80 backdrop-blur shadow-lg shadow-rose-100 p-6">
+        <section className="admin-glass-surface rounded-3xl p-6">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-gray-900">Add Admin</h2>
             <button
@@ -283,7 +283,7 @@ export default function AdminManagement() {
         </section>
 
         {/* Filters for list */}
-        <section className="rounded-2xl border border-rose-200 bg-white/80 backdrop-blur shadow-lg shadow-rose-100 p-4 md:p-6">
+        <section className="admin-glass-surface rounded-3xl p-4 md:p-6">
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700">

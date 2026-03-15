@@ -198,9 +198,9 @@ export default function AdminApprovals() {
   }, [data]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white to-rose-50">
-      <main className="max-w-6xl mx-auto px-4 py-8 space-y-8">
-        <section className="rounded-2xl border border-rose-200 bg-white/80 backdrop-blur shadow-xl shadow-rose-100 p-6">
+    <div className="admin-page-shell">
+      <main className="max-w-6xl mx-auto space-y-8">
+        <section className="admin-glass-surface rounded-3xl p-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
               <h1 className="text-xl md:text-2xl font-semibold text-gray-900">Report Approvals</h1>
@@ -213,7 +213,7 @@ export default function AdminApprovals() {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-rose-200 bg-white/80 backdrop-blur shadow-lg shadow-rose-100 p-4 md:p-6">
+        <section className="admin-glass-surface rounded-3xl p-4 md:p-6">
           {loading ? (
             <div className="text-gray-500">Loading...</div>
           ) : error ? (

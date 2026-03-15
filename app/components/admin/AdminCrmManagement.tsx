@@ -1328,9 +1328,9 @@ export default function AdminCrmManagement() {
   }, [leads?.items]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white to-rose-50">
-      <main className="max-w-7xl mx-auto px-4 py-8 space-y-6">
-        <section className="rounded-3xl border border-rose-200/80 bg-gradient-to-br from-white via-rose-50/40 to-sky-50/30 p-5 md:p-6 shadow-[0_14px_40px_rgba(15,23,42,0.12)]">
+    <div className="admin-page-shell">
+      <main className="max-w-7xl mx-auto space-y-6">
+        <section className="admin-glass-surface rounded-3xl p-5 md:p-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
               <h1 className="text-xl font-bold text-gray-900 md:text-2xl">CRM Control Center</h1>
@@ -1407,7 +1407,7 @@ export default function AdminCrmManagement() {
         </section>
 
         <section className="grid grid-cols-1 gap-5 md:grid-cols-2">
-          <div className="rounded-3xl border border-rose-200/80 bg-gradient-to-br from-white via-rose-50/50 to-sky-50/40 p-4 md:p-5 shadow-[0_10px_36px_rgba(15,23,42,0.10)]">
+          <div className="admin-glass-surface rounded-3xl p-4 md:p-5">
             <h2 className="text-base font-semibold text-gray-900">Lead Status Distribution</h2>
             <p className="text-xs text-gray-500 mt-0.5">Breakdown of all leads by current status.</p>
             <div className="mt-3 h-52 sm:h-56">
@@ -1422,7 +1422,7 @@ export default function AdminCrmManagement() {
             </div>
           </div>
 
-          <div className="rounded-3xl border border-rose-200/80 bg-gradient-to-br from-white via-sky-50/50 to-rose-50/40 p-4 md:p-5 shadow-[0_10px_36px_rgba(15,23,42,0.10)]">
+          <div className="admin-glass-surface rounded-3xl p-4 md:p-5">
             <h2 className="text-base font-semibold text-gray-900">Leads per Agent</h2>
             <p className="text-xs text-gray-500 mt-0.5">Top assigned CRM agents by lead count.</p>
             <div className="mt-3 h-52 sm:h-56">
@@ -1431,7 +1431,7 @@ export default function AdminCrmManagement() {
           </div>
         </section>
 
-        <section className="rounded-3xl border border-rose-200/80 bg-gradient-to-br from-white via-rose-50/60 to-amber-50/40 p-5 md:p-6 shadow-[0_12px_40px_rgba(15,23,42,0.12)]">
+        <section className="admin-glass-surface rounded-3xl p-5 md:p-6">
           <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
             <div>
               <h2 className="text-lg font-semibold text-gray-900">Import Leads (Excel)</h2>
@@ -1457,7 +1457,7 @@ export default function AdminCrmManagement() {
           ) : null}
         </section>
 
-        <section className="rounded-3xl border border-rose-200/90 bg-gradient-to-br from-white via-rose-50/70 to-sky-50/60 p-4 md:p-5 shadow-[0_16px_44px_rgba(15,23,42,0.14)]">
+        <section className="admin-glass-surface rounded-3xl p-4 md:p-5">
           <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
             <div>
               <h2 className="text-lg font-semibold text-gray-900">Lead Activity</h2>

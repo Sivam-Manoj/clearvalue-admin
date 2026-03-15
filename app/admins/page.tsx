@@ -1,4 +1,5 @@
 import AdminManagement from "@/app/components/admin/AdminManagement";
+import AdminNavbarV2 from "@/app/components/common/AdminNavbarV2";
 import { SERVER_URL } from "@/lib/api";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -22,5 +23,10 @@ export default async function Page() {
   // Only superadmin can access admins management
   if (role !== "superadmin") redirect("/reports");
 
-  return <AdminManagement />;
+  return (
+    <>
+      <AdminNavbarV2 />
+      <AdminManagement />
+    </>
+  );
 }

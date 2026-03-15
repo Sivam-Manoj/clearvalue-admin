@@ -185,10 +185,10 @@ export default function AdminReports() {
   }, [data]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white to-rose-50">
-      <main className="max-w-6xl mx-auto px-4 py-8 space-y-6">
+    <div className="admin-page-shell">
+      <main className="max-w-6xl mx-auto space-y-6">
         {/* Hero Summary */}
-        <section className="rounded-2xl border border-rose-200 bg-white/80 backdrop-blur shadow-xl shadow-rose-100 p-5 md:p-6">
+        <section className="admin-glass-surface rounded-3xl p-5 md:p-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
               <h1 className="text-xl md:text-2xl font-semibold text-gray-900">
@@ -216,7 +216,7 @@ export default function AdminReports() {
         </section>
 
         {/* Filters */}
-        <section className="rounded-2xl border border-rose-200 bg-white/80 backdrop-blur shadow-lg shadow-rose-100 p-4 md:p-6">
+        <section className="admin-glass-surface rounded-3xl p-4 md:p-6">
           <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700">
@@ -311,7 +311,7 @@ export default function AdminReports() {
         </section>
 
         {/* List */}
-        <section className="rounded-2xl border border-rose-200 bg-white/80 backdrop-blur shadow-lg shadow-rose-100 p-4 md:p-6">
+        <section className="admin-glass-surface rounded-3xl p-4 md:p-6">
           {loading ? (
             <div className="text-gray-500">Loading...</div>
           ) : error ? (
