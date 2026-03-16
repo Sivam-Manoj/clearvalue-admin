@@ -1,14 +1,14 @@
 "use client";
 
 import AssessmentRoundedIcon from "@mui/icons-material/AssessmentRounded";
+import ChevronLeftRoundedIcon from "@mui/icons-material/ChevronLeftRounded";
+import ChevronRightRoundedIcon from "@mui/icons-material/ChevronRightRounded";
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
-import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import DashboardRoundedIcon from "@mui/icons-material/DashboardRounded";
 import GroupsRoundedIcon from "@mui/icons-material/GroupsRounded";
 import ImageRoundedIcon from "@mui/icons-material/ImageRounded";
 import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
 import ManageAccountsRoundedIcon from "@mui/icons-material/ManageAccountsRounded";
-import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
 import SupportAgentRoundedIcon from "@mui/icons-material/SupportAgentRounded";
 import Image from "next/image";
 import {
@@ -16,7 +16,6 @@ import {
   Button,
   Chip,
   Divider,
-  Drawer,
   IconButton,
   List,
   ListItemButton,
@@ -24,7 +23,6 @@ import {
   ListItemText,
   Stack,
   Toolbar,
-  Typography,
   useMediaQuery,
   useTheme,
 } from "@mui/material";
@@ -34,6 +32,8 @@ import { type ReactNode, useEffect, useMemo, useState } from "react";
 import ThemeModeToggle from "@/app/components/common/ThemeModeToggle";
 
 const SIDEBAR_WIDTH = 272;
+const SIDEBAR_COLLAPSED_WIDTH = 92;
+const MOBILE_TOPBAR_HEIGHT = 118;
 
 type NavItem = {
   href: string;
@@ -48,7 +48,7 @@ export default function AdminNavbarV2({ children }: { children?: ReactNode }) {
   const isDesktop = useMediaQuery(theme.breakpoints.up("lg"));
   const [role, setRole] = useState<string | null>(null);
   const [loggingOut, setLoggingOut] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const [desktopCollapsed, setDesktopCollapsed] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -81,10 +81,6 @@ export default function AdminNavbarV2({ children }: { children?: ReactNode }) {
       window.clearInterval(intervalId);
     };
   }, []);
-
-  useEffect(() => {
-    setMobileOpen(false);
-  }, [pathname]);
 
   const roleLabel =
     role === "superadmin"
@@ -133,6 +129,8 @@ export default function AdminNavbarV2({ children }: { children?: ReactNode }) {
     }
   }
 
+  const desktopNavWidth = desktopCollapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_WIDTH;
+
   const sidebarContent = (
     <Box
       sx={{
@@ -145,29 +143,53 @@ export default function AdminNavbarV2({ children }: { children?: ReactNode }) {
     >
       {/* Brand */}
       <Box
-        component={Link}
-        href={homeHref}
         sx={{
           display: "flex",
           alignItems: "center",
-          gap: 1.5,
-          px: 1.5,
+          justifyContent: desktopCollapsed ? "center" : "space-between",
+          gap: 1,
+          px: desktopCollapsed ? 0.5 : 1.5,
           py: 1.5,
           mb: 1,
-          borderRadius: 3,
-          textDecoration: "none",
-          transition: "background 200ms",
-          "&:hover": { bgcolor: "action.hover" },
         }}
       >
-        <Image
-          src="/logo.png"
-          alt="Logo"
-          width={140}
-          height={60}
-          style={{ objectFit: "contain" }}
-          priority
-        />
+        <Box
+          component={Link}
+          href={homeHref}
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: desktopCollapsed ? "center" : "flex-start",
+            flexGrow: 1,
+            minWidth: 0,
+            borderRadius: 3,
+            textDecoration: "none",
+            transition: "background 200ms",
+            "&:hover": { bgcolor: "action.hover" },
+          }}
+        >
+          <Image
+            src="/logo.png"
+            alt="Logo"
+            width={desktopCollapsed ? 52 : 140}
+            height={desktopCollapsed ? 52 : 60}
+            style={{ objectFit: "contain" }}
+            priority
+          />
+        </Box>
+        <IconButton
+          onClick={() => setDesktopCollapsed((prev) => !prev)}
+          size="small"
+          sx={{
+            border: "1px solid",
+            borderColor: "divider",
+            bgcolor: "background.paper",
+            boxShadow: "0 4px 14px rgba(0,0,0,0.08)",
+            ml: desktopCollapsed ? 0 : 1,
+          }}
+        >
+          {desktopCollapsed ? <ChevronRightRoundedIcon fontSize="small" /> : <ChevronLeftRoundedIcon fontSize="small" />}
+        </IconButton>
       </Box>
 
       <Divider sx={{ mx: 1, mb: 1 }} />
@@ -184,10 +206,11 @@ export default function AdminNavbarV2({ children }: { children?: ReactNode }) {
               selected={active}
               sx={{
                 borderRadius: 2.5,
-                mb: 0.5,
-                px: 1.5,
+                mb: 0.75,
+                px: desktopCollapsed ? 1 : 1.5,
                 py: 1,
                 minHeight: 44,
+                justifyContent: desktopCollapsed ? "center" : "flex-start",
                 transition: "all 180ms ease",
                 border: "1px solid",
                 borderColor: active ? "primary.main" : "transparent",
@@ -206,20 +229,23 @@ export default function AdminNavbarV2({ children }: { children?: ReactNode }) {
             >
               <ListItemIcon
                 sx={{
-                  minWidth: 36,
+                  minWidth: desktopCollapsed ? 0 : 36,
+                  mr: desktopCollapsed ? 0 : 0.5,
                   color: active ? "primary.main" : "text.secondary",
                 }}
               >
                 {item.icon}
               </ListItemIcon>
-              <ListItemText
-                primary={item.label}
-                primaryTypographyProps={{
-                  fontSize: "0.85rem",
-                  fontWeight: active ? 700 : 500,
-                  color: active ? "primary.main" : "text.primary",
-                }}
-              />
+              {!desktopCollapsed && (
+                <ListItemText
+                  primary={item.label}
+                  primaryTypographyProps={{
+                    fontSize: "0.85rem",
+                    fontWeight: active ? 700 : 500,
+                    color: active ? "primary.main" : "text.primary",
+                  }}
+                />
+              )}
             </ListItemButton>
           );
         })}
@@ -229,28 +255,37 @@ export default function AdminNavbarV2({ children }: { children?: ReactNode }) {
 
       {/* Footer controls */}
       <Stack spacing={1} sx={{ px: 1 }}>
-        <Chip
-          label={roleLabel}
-          color="primary"
-          variant="outlined"
-          size="small"
-          sx={{ fontWeight: 700, alignSelf: "flex-start" }}
-        />
-        <Stack direction="row" alignItems="center" justifyContent="space-between">
+        {!desktopCollapsed && (
+          <Chip
+            label={roleLabel}
+            color="primary"
+            variant="outlined"
+            size="small"
+            sx={{ fontWeight: 700, alignSelf: "flex-start" }}
+          />
+        )}
+        <Stack
+          direction={desktopCollapsed ? "column" : "row"}
+          alignItems="center"
+          justifyContent="space-between"
+          spacing={desktopCollapsed ? 1 : 0}
+        >
           <ThemeModeToggle />
           <Button
             onClick={onLogout}
             disabled={loggingOut}
             color="inherit"
             size="small"
-            startIcon={<LogoutRoundedIcon sx={{ fontSize: 18 }} />}
+            startIcon={desktopCollapsed ? undefined : <LogoutRoundedIcon sx={{ fontSize: 18 }} />}
             sx={{
               fontSize: "0.78rem",
               color: "text.secondary",
+              minWidth: desktopCollapsed ? 40 : undefined,
+              px: desktopCollapsed ? 1 : 1.5,
               "&:hover": { color: "error.main" },
             }}
           >
-            {loggingOut ? "Logging out…" : "Logout"}
+            {desktopCollapsed ? <LogoutRoundedIcon sx={{ fontSize: 18 }} /> : loggingOut ? "Logging out…" : "Logout"}
           </Button>
         </Stack>
       </Stack>
@@ -264,7 +299,7 @@ export default function AdminNavbarV2({ children }: { children?: ReactNode }) {
         <Box
           component="nav"
           sx={{
-            width: SIDEBAR_WIDTH,
+            width: desktopNavWidth,
             flexShrink: 0,
             position: "fixed",
             top: 0,
@@ -282,6 +317,8 @@ export default function AdminNavbarV2({ children }: { children?: ReactNode }) {
               t.palette.mode === "dark"
                 ? "4px 0 24px rgba(0,0,0,0.35)"
                 : "4px 0 24px rgba(37,99,235,0.08)",
+            transition: "width 220ms ease, box-shadow 220ms ease",
+            overflowX: "hidden",
           }}
         >
           {sidebarContent}
@@ -311,7 +348,7 @@ export default function AdminNavbarV2({ children }: { children?: ReactNode }) {
                 : "0 4px 20px rgba(37,99,235,0.10)",
           }}
         >
-          <Toolbar sx={{ minHeight: 64, px: 2, justifyContent: "space-between" }}>
+          <Toolbar sx={{ minHeight: 64, px: 2, justifyContent: "space-between", gap: 1.5 }}>
             <Stack direction="row" alignItems="center" spacing={1.5}>
               <Link href={homeHref} style={{ display: "flex", alignItems: "center" }}>
                 <Image
@@ -325,53 +362,80 @@ export default function AdminNavbarV2({ children }: { children?: ReactNode }) {
               </Link>
             </Stack>
             <Stack direction="row" alignItems="center" spacing={0.5}>
+              <Chip
+                label={roleLabel}
+                color="primary"
+                variant="outlined"
+                size="small"
+                sx={{ fontWeight: 700, maxWidth: 110 }}
+              />
               <ThemeModeToggle />
-              <IconButton
-                onClick={() => setMobileOpen(true)}
-                sx={{
-                  border: "1px solid",
-                  borderColor: "divider",
-                  bgcolor: "background.paper",
-                }}
-              >
-                <MenuRoundedIcon />
-              </IconButton>
             </Stack>
           </Toolbar>
+          <Box
+            sx={{
+              px: 1,
+              pb: 1.25,
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              overflowX: "auto",
+              scrollbarWidth: "none",
+              "&::-webkit-scrollbar": { display: "none" },
+            }}
+          >
+            {items.map((item) => {
+              const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+              return (
+                <Button
+                  key={item.href}
+                  component={Link}
+                  href={item.href}
+                  startIcon={item.icon}
+                  variant={active ? "contained" : "outlined"}
+                  color={active ? "primary" : "inherit"}
+                  sx={{
+                    flexShrink: 0,
+                    borderRadius: 999,
+                    px: 1.75,
+                    whiteSpace: "nowrap",
+                    minWidth: "fit-content",
+                    boxShadow: active ? "0 8px 18px rgba(37,99,235,0.18)" : "none",
+                  }}
+                >
+                  {item.label}
+                </Button>
+              );
+            })}
+            <Button
+              onClick={onLogout}
+              disabled={loggingOut}
+              startIcon={<LogoutRoundedIcon sx={{ fontSize: 18 }} />}
+              color="inherit"
+              variant="outlined"
+              sx={{
+                flexShrink: 0,
+                borderRadius: 999,
+                px: 1.75,
+                whiteSpace: "nowrap",
+              }}
+            >
+              {loggingOut ? "Logging out…" : "Logout"}
+            </Button>
+          </Box>
         </Box>
       )}
-
-      {/* ── Mobile drawer ── */}
-      <Drawer
-        anchor="left"
-        open={mobileOpen}
-        onClose={() => setMobileOpen(false)}
-        ModalProps={{ keepMounted: true }}
-        sx={{
-          display: { lg: "none" },
-          "& .MuiDrawer-paper": {
-            width: SIDEBAR_WIDTH,
-            boxSizing: "border-box",
-          },
-        }}
-      >
-        <Box sx={{ display: "flex", justifyContent: "flex-end", pt: 1, pr: 1 }}>
-          <IconButton size="small" onClick={() => setMobileOpen(false)}>
-            <CloseRoundedIcon fontSize="small" />
-          </IconButton>
-        </Box>
-        {sidebarContent}
-      </Drawer>
 
       {/* ── Main content area ── */}
       <Box
         component="main"
         sx={{
           flexGrow: 1,
-          ml: isDesktop ? `${SIDEBAR_WIDTH}px` : 0,
-          mt: isDesktop ? 0 : "64px",
-          minHeight: isDesktop ? "100vh" : "calc(100vh - 64px)",
+          ml: isDesktop ? `${desktopNavWidth}px` : 0,
+          mt: isDesktop ? 0 : `${MOBILE_TOPBAR_HEIGHT}px`,
+          minHeight: isDesktop ? "100vh" : `calc(100vh - ${MOBILE_TOPBAR_HEIGHT}px)`,
           overflow: "auto",
+          transition: "margin-left 220ms ease",
         }}
       >
         {children}
@@ -379,3 +443,4 @@ export default function AdminNavbarV2({ children }: { children?: ReactNode }) {
     </Box>
   );
 }
+ 
