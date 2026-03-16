@@ -70,7 +70,7 @@ export default function AdminReports() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/admin/reports?${queryString}`, {
+      const res = await fetch(`/api/admin/reports?${queryString}&_t=${Date.now()}`, {
         cache: "no-store",
       });
       const json = await res.json().catch(() => ({}));
