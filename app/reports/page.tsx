@@ -18,9 +18,8 @@ export default async function Page() {
 
   // All authenticated users can access reports (filtering done at API level)
   return (
-    <>
-      <AdminNavbarV2 />
+    <AdminNavbarV2>
       <AdminReports />
-    </>
+    </AdminNavbarV2>
   );
 }

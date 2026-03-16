@@ -23,9 +23,8 @@ export default async function Page() {
   if (role !== "superadmin" && role !== "admin") redirect("/reports");
 
   return (
-    <>
-      <AdminNavbarV2 />
+    <AdminNavbarV2>
       <AdminUsers />
-    </>
+    </AdminNavbarV2>
   );
 }

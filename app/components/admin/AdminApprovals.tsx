@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Modal from "@/app/components/common/Modal";
 import ConfirmModal from "@/app/components/common/ConfirmModal";
 
@@ -43,7 +43,7 @@ export default function AdminApprovals() {
 
   const totalPages = useMemo(() => (data ? Math.max(1, Math.ceil((data.total || 0) / (data.limit || limit))) : 1), [data, limit]);
 
-  async function load(p = page) {
+  const load = useCallback(async (p = page) => {
     setLoading(true);
     setError(null);
     try {
@@ -57,12 +57,11 @@ export default function AdminApprovals() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [limit, page]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    load(1);
-  }, []);
+    void load(1);
+  }, [load]);
 
   // Approve / Reject state
   const [confirmOpen, setConfirmOpen] = useState(false);

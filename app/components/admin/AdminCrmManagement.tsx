@@ -15,6 +15,49 @@ import {
   type ChartOptions,
 } from "chart.js";
 import { Doughnut, Bar, Line, Pie } from "react-chartjs-2";
+import AttachFileRoundedIcon from "@mui/icons-material/AttachFileRounded";
+import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
+import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
+import CloudUploadRoundedIcon from "@mui/icons-material/CloudUploadRounded";
+import DeleteRoundedIcon from "@mui/icons-material/DeleteRounded";
+import EditRoundedIcon from "@mui/icons-material/EditRounded";
+import GroupsRoundedIcon from "@mui/icons-material/GroupsRounded";
+import MicRoundedIcon from "@mui/icons-material/MicRounded";
+import OpenInNewRoundedIcon from "@mui/icons-material/OpenInNewRounded";
+import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
+import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
+import SendRoundedIcon from "@mui/icons-material/SendRounded";
+import VisibilityRoundedIcon from "@mui/icons-material/VisibilityRounded";
+import {
+  Alert,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Checkbox,
+  Chip,
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  FormControl,
+  Grid,
+  IconButton,
+  InputAdornment,
+  InputLabel,
+  LinearProgress,
+  MenuItem,
+  Select,
+  Snackbar,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TextField,
+  Typography,
+} from "@mui/material";
 
 ChartJS.register(ArcElement, CategoryScale, LinearScale, BarElement, PointElement, LineElement, Tooltip, Legend);
 
@@ -1328,1217 +1371,894 @@ export default function AdminCrmManagement() {
   }, [leads?.items]);
 
   return (
-    <div className="admin-page-shell">
-      <main className="max-w-7xl mx-auto space-y-6">
-        <section className="admin-glass-surface rounded-3xl p-5 md:p-6">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h1 className="text-xl font-bold text-gray-900 md:text-2xl">CRM Control Center</h1>
-              <p className="text-gray-600 text-sm">Assign CRM roles, import lead sheets, and monitor task activity.</p>
-              <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
-                <select
-                  value={leadAssignedTo}
-                  onChange={(e) => setLeadAssignedTo(e.target.value)}
-                  className="rounded-xl border border-sky-200 bg-white px-3 py-2 text-sm shadow-sm"
+    <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1400, mx: "auto" }}>
+      <Stack spacing={3}>
+        {/* ── Header + Filters + Stats ── */}
+        <Card>
+          <CardContent sx={{ p: { xs: 2, md: 3 } }}>
+            <Stack spacing={2.5}>
+              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2, alignItems: "flex-start", justifyContent: "space-between" }}>
+                <Box>
+                  <Typography variant="h5" fontWeight={800}>CRM Control Center</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Assign CRM roles, import lead sheets, and monitor task activity.
+                  </Typography>
+                </Box>
+                <Button
+                  variant="contained"
+                  startIcon={<GroupsRoundedIcon />}
+                  onClick={() => setShowCrmOpsModal(true)}
                 >
-                  <option value="">Salesperson: All CRM Agents</option>
-                  {crmAgentUsers.map((u) => (
-                    <option key={u._id} value={u._id}>
-                      {u.username || u.email}
-                    </option>
-                  ))}
-                </select>
+                  Team Ops
+                </Button>
+              </Box>
 
-                <select
-                  value={leadMonth}
-                  onChange={(e) => setLeadMonth(e.target.value)}
-                  className="rounded-xl border border-sky-200 bg-white px-3 py-2 text-sm shadow-sm"
-                >
-                  <option value="">Month: All</option>
-                  {MONTH_OPTIONS.map((m) => (
-                    <option key={m.value} value={m.value}>
-                      {m.label}
-                    </option>
-                  ))}
-                </select>
+              <Grid container spacing={1.5}>
+                <Grid size={{ xs: 12, sm: 4 }}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Salesperson</InputLabel>
+                    <Select value={leadAssignedTo} label="Salesperson" onChange={(e) => setLeadAssignedTo(e.target.value)}>
+                      <MenuItem value="">All CRM Agents</MenuItem>
+                      {crmAgentUsers.map((u) => (
+                        <MenuItem key={u._id} value={u._id}>{u.username || u.email}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid size={{ xs: 6, sm: 4 }}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Month</InputLabel>
+                    <Select value={leadMonth} label="Month" onChange={(e) => setLeadMonth(e.target.value)}>
+                      <MenuItem value="">All</MenuItem>
+                      {MONTH_OPTIONS.map((m) => (
+                        <MenuItem key={m.value} value={m.value}>{m.label}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid size={{ xs: 6, sm: 4 }}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Year</InputLabel>
+                    <Select value={leadYear} label="Year" onChange={(e) => setLeadYear(e.target.value)}>
+                      <MenuItem value="">All</MenuItem>
+                      {yearOptions.map((year) => (
+                        <MenuItem key={year} value={String(year)}>{year}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+              </Grid>
 
-                <select
-                  value={leadYear}
-                  onChange={(e) => setLeadYear(e.target.value)}
-                  className="rounded-xl border border-sky-200 bg-white px-3 py-2 text-sm shadow-sm"
-                >
-                  <option value="">Year: All</option>
-                  {yearOptions.map((year) => (
-                    <option key={year} value={String(year)}>
-                      {year}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <div className="rounded-2xl border border-rose-200/80 bg-gradient-to-br from-rose-50 to-white px-4 py-2.5 shadow-[0_4px_14px_rgba(244,63,94,0.12),inset_0_1px_0_rgba(255,255,255,0.8)]">
-                <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">CRM Agents</div>
-                <div className="text-xl font-bold text-rose-700">{crmUsersCount}</div>
-              </div>
-              <div className="rounded-2xl border border-sky-200/80 bg-gradient-to-br from-sky-50 to-white px-4 py-2.5 shadow-[0_4px_14px_rgba(14,165,233,0.12),inset_0_1px_0_rgba(255,255,255,0.8)]">
-                <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Total Leads Assignment</div>
-                <div className="text-xl font-bold text-sky-700">{leads?.total || 0}</div>
-              </div>
-              <div className="rounded-2xl border border-slate-200/80 bg-gradient-to-br from-slate-50 to-white px-4 py-2.5 shadow-[0_4px_14px_rgba(100,116,139,0.10),inset_0_1px_0_rgba(255,255,255,0.8)]">
-                <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Total Users</div>
-                <div className="text-xl font-bold text-gray-900">{totalUsersCount}</div>
-              </div>
-              <div className="rounded-2xl border border-red-200/80 bg-gradient-to-br from-red-50 to-white px-4 py-2.5 shadow-[0_4px_14px_rgba(239,68,68,0.12),inset_0_1px_0_rgba(255,255,255,0.8)]">
-                <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Overdue Assignment</div>
-                <div className="text-xl font-bold text-red-700">{overdueLeadsCount}</div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowCrmOpsModal(true)}
-                title="CRM Team Operations"
-                className="flex items-center gap-2 rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-600 px-4 py-2.5 text-white shadow-[0_6px_20px_rgba(14,165,233,0.35),0_2px_6px_rgba(0,0,0,0.10)] transition-all hover:shadow-[0_8px_28px_rgba(14,165,233,0.45)] hover:brightness-105 active:scale-[0.97]"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                <span className="text-sm font-semibold hidden sm:inline">Team Ops</span>
-              </button>
-            </div>
-          </div>
-        </section>
-
-        <section className="grid grid-cols-1 gap-5 md:grid-cols-2">
-          <div className="admin-glass-surface rounded-3xl p-4 md:p-5">
-            <h2 className="text-base font-semibold text-gray-900">Lead Status Distribution</h2>
-            <p className="text-xs text-gray-500 mt-0.5">Breakdown of all leads by current status.</p>
-            <div className="mt-3 h-52 sm:h-56">
-              <Pie
-                data={leadStatusPieData}
-                options={{
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  plugins: { legend: { position: "right", labels: { boxWidth: 10, font: { size: 11 }, padding: 8 } } },
-                }}
-              />
-            </div>
-          </div>
-
-          <div className="admin-glass-surface rounded-3xl p-4 md:p-5">
-            <h2 className="text-base font-semibold text-gray-900">Leads per Agent</h2>
-            <p className="text-xs text-gray-500 mt-0.5">Top assigned CRM agents by lead count.</p>
-            <div className="mt-3 h-52 sm:h-56">
-              <Bar data={leadsPerAgentData} options={compactChartOptions} />
-            </div>
-          </div>
-        </section>
-
-        <section className="admin-glass-surface rounded-3xl p-5 md:p-6">
-          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900">Import Leads (Excel)</h2>
-              <p className="text-sm text-gray-600 mt-0.5">
-                Upload Excel, preview extracted rows, and block duplicate entries before import.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowImportModal(true)}
-              className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-rose-500 to-rose-600 px-6 py-3 text-sm font-bold text-white shadow-[0_6px_20px_rgba(244,63,94,0.35)] transition-all hover:shadow-[0_8px_28px_rgba(244,63,94,0.45)] hover:brightness-105 active:scale-[0.97]"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5-5m0 0l5 5m-5-5v12" /></svg>
-              Open Upload Preview
-            </button>
-          </div>
-
-          {excelFile ? (
-            <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-medium text-sky-700 shadow-sm">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-              {excelFile.name}
-            </div>
-          ) : null}
-        </section>
-
-        <section className="admin-glass-surface rounded-3xl p-4 md:p-5">
-          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900">Lead Activity</h2>
-              <p className="text-sm text-gray-600">Latest CRM tasks across all assigned agents.</p>
-            </div>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              <input
-                value={leadQ}
-                onChange={(e) => setLeadQ(e.target.value)}
-                placeholder="Search lead, email, phone"
-                className="rounded-xl border border-gray-300 bg-white px-3 py-2 shadow-sm"
-              />
-              <select
-                value={leadStatus}
-                onChange={(e) => setLeadStatus(e.target.value)}
-                className="rounded-xl border border-gray-300 bg-white px-3 py-2 shadow-sm"
-              >
-                <option value="">All statuses</option>
-                {CRM_STATUSES.map((s) => (
-                  <option key={s} value={s}>{statusLabel(s)}</option>
+              <Grid container spacing={1.5}>
+                {([
+                  { label: "CRM Agents", value: crmUsersCount, color: "primary.main" },
+                  { label: "Total Leads", value: leads?.total || 0, color: "info.main" },
+                  { label: "Total Users", value: totalUsersCount, color: "text.primary" },
+                  { label: "Overdue", value: overdueLeadsCount, color: "error.main" },
+                ] as const).map((stat) => (
+                  <Grid key={stat.label} size={{ xs: 6, sm: 3 }}>
+                    <Card variant="outlined" sx={{ textAlign: "center", py: 1.5 }}>
+                      <Typography variant="overline" color="text.secondary" sx={{ fontSize: "0.65rem" }}>
+                        {stat.label}
+                      </Typography>
+                      <Typography variant="h5" fontWeight={800} color={stat.color}>
+                        {stat.value}
+                      </Typography>
+                    </Card>
+                  </Grid>
                 ))}
-              </select>
-              <select
-                value={leadAssignedTo}
-                onChange={(e) => setLeadAssignedTo(e.target.value)}
-                className="rounded-xl border border-gray-300 bg-white px-3 py-2 shadow-sm"
-              >
-                <option value="">All agents</option>
-                {crmAgentUsers.map((u) => (
-                  <option key={u._id} value={u._id}>
-                    {u.username || u.email}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
+              </Grid>
+            </Stack>
+          </CardContent>
+        </Card>
 
-          {leadAssignedTo ? (
-            <div className="mt-3 inline-flex rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-medium text-sky-700 shadow-sm">
-              Filtered by agent: {crmAgentUsers.find((u) => u._id === leadAssignedTo)?.username || crmAgentUsers.find((u) => u._id === leadAssignedTo)?.email || "Selected user"}
-            </div>
-          ) : null}
+        {/* ── Charts ── */}
+        <Grid container spacing={2}>
+          <Grid size={{ xs: 12, md: 6 }}>
+            <Card>
+              <CardContent>
+                <Typography variant="subtitle2" fontWeight={700}>Lead Status Distribution</Typography>
+                <Typography variant="caption" color="text.secondary">Breakdown of all leads by current status.</Typography>
+                <Box sx={{ height: 220, mt: 1.5 }}>
+                  <Pie
+                    data={leadStatusPieData}
+                    options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "right", labels: { boxWidth: 10, font: { size: 11 }, padding: 8 } } } }}
+                  />
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid size={{ xs: 12, md: 6 }}>
+            <Card>
+              <CardContent>
+                <Typography variant="subtitle2" fontWeight={700}>Leads per Agent</Typography>
+                <Typography variant="caption" color="text.secondary">Top assigned CRM agents by lead count.</Typography>
+                <Box sx={{ height: 220, mt: 1.5 }}>
+                  <Bar data={leadsPerAgentData} options={compactChartOptions} />
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
 
-          <div className="mt-4 overflow-auto max-h-[420px] rounded-2xl border border-rose-100 bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.75),0_8px_20px_rgba(15,23,42,0.08)]">
-            <table className="min-w-full text-sm">
-              <thead className="bg-rose-50 text-gray-600">
-                <tr>
-                  <th className="px-3 py-2 text-left">Lead</th>
-                  <th className="px-3 py-2 text-left">Assigned To</th>
-                  <th className="px-3 py-2 text-left">Status</th>
-                  <th className="px-3 py-2 text-left">Dates</th>
-                  <th className="px-3 py-2 text-left">Latest Comment</th>
-                  <th className="px-3 py-2 text-left">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loadingLeads ? (
-                  <tr><td className="px-3 py-3 text-gray-500" colSpan={6}>Loading leads...</td></tr>
-                ) : (leads?.items || []).length === 0 ? (
-                  <tr><td className="px-3 py-3 text-gray-500" colSpan={6}>No CRM leads found</td></tr>
-                ) : (
-                  (leads?.items || []).map((lead) => (
-                    <tr key={lead._id} className="border-t border-rose-100 transition-colors hover:bg-rose-50/60">
-                      <td className="px-3 py-2">
-                        <div className="font-medium text-gray-900">{lead.clientName}</div>
-                        <div className="text-xs text-gray-500">
-                          {lead.email || "-"} {lead.phoneFormatted || lead.phoneRaw ? `• ${lead.phoneFormatted || lead.phoneRaw}` : ""}
-                        </div>
-                        {lead.companyLocation || lead.industry || lead.website ? (
-                          <div className="text-xs text-gray-500">
-                            {[lead.companyLocation, lead.industry].filter(Boolean).join(" • ") || lead.website}
-                          </div>
-                        ) : null}
-                        {lead.listItems?.length ? (
-                          <div className="text-xs text-gray-500 truncate">Lists: {lead.listItems.join(", ")}</div>
-                        ) : null}
-                      </td>
-                      <td className="px-3 py-2 text-gray-700">
-                        {(lead.assignedTo?.username || lead.assignedTo?.email || "-") as string}
-                      </td>
-                      <td className="px-3 py-2">
-                        <span className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-2.5 py-0.5 text-xs text-sky-700 shadow-sm">
-                          {statusLabel(lead.status)}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2 text-gray-700 text-xs">
-                        <div>Start: {toIsoDateValue(lead.taskStartDate) || "-"}</div>
-                        <div>Due: {toIsoDateValue(lead.dueDate) || "-"}</div>
-                      </td>
-                      <td className="px-3 py-2 text-gray-700 max-w-[340px] truncate">{lead.latestComment || "-"}</td>
-                      <td className="px-3 py-2">
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            type="button"
+        {/* ── Import Leads ── */}
+        <Card>
+          <CardContent sx={{ p: { xs: 2, md: 3 } }}>
+            <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ sm: "center" }} spacing={2}>
+              <Box>
+                <Typography variant="subtitle1" fontWeight={700}>Import Leads (Excel)</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Upload Excel, preview extracted rows, and block duplicates before import.
+                </Typography>
+              </Box>
+              <Button variant="contained" startIcon={<CloudUploadRoundedIcon />} onClick={() => setShowImportModal(true)}>
+                Upload Preview
+              </Button>
+            </Stack>
+            {excelFile && (
+              <Chip
+                icon={<AttachFileRoundedIcon sx={{ fontSize: 16 }} />}
+                label={excelFile.name}
+                color="info"
+                variant="outlined"
+                size="small"
+                sx={{ mt: 1.5 }}
+              />
+            )}
+          </CardContent>
+        </Card>
+
+        {/* ── Lead Activity Table ── */}
+        <Card>
+          <CardContent sx={{ p: { xs: 2, md: 3 } }}>
+            <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" alignItems={{ md: "flex-end" }} spacing={2}>
+              <Box>
+                <Typography variant="subtitle1" fontWeight={700}>Lead Activity</Typography>
+                <Typography variant="body2" color="text.secondary">Latest CRM tasks across all assigned agents.</Typography>
+              </Box>
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ minWidth: { md: 500 } }}>
+                <TextField
+                  size="small"
+                  placeholder="Search lead, email, phone"
+                  value={leadQ}
+                  onChange={(e) => setLeadQ(e.target.value)}
+                  slotProps={{ input: { startAdornment: <InputAdornment position="start"><SearchRoundedIcon sx={{ fontSize: 18 }} /></InputAdornment> } }}
+                  fullWidth
+                />
+                <FormControl size="small" sx={{ minWidth: 140 }}>
+                  <InputLabel>Status</InputLabel>
+                  <Select value={leadStatus} label="Status" onChange={(e) => setLeadStatus(e.target.value)}>
+                    <MenuItem value="">All</MenuItem>
+                    {CRM_STATUSES.map((s) => <MenuItem key={s} value={s}>{statusLabel(s)}</MenuItem>)}
+                  </Select>
+                </FormControl>
+                <FormControl size="small" sx={{ minWidth: 140 }}>
+                  <InputLabel>Agent</InputLabel>
+                  <Select value={leadAssignedTo} label="Agent" onChange={(e) => setLeadAssignedTo(e.target.value)}>
+                    <MenuItem value="">All</MenuItem>
+                    {crmAgentUsers.map((u) => <MenuItem key={u._id} value={u._id}>{u.username || u.email}</MenuItem>)}
+                  </Select>
+                </FormControl>
+              </Stack>
+            </Stack>
+
+            {leadAssignedTo && (
+              <Chip
+                label={`Filtered: ${crmAgentUsers.find((u) => u._id === leadAssignedTo)?.username || crmAgentUsers.find((u) => u._id === leadAssignedTo)?.email || "Agent"}`}
+                color="info"
+                variant="outlined"
+                size="small"
+                sx={{ mt: 1.5 }}
+              />
+            )}
+
+            {loadingLeads && <LinearProgress sx={{ mt: 2, borderRadius: 1 }} />}
+
+            <TableContainer sx={{ maxHeight: 420, mt: 2 }}>
+              <Table size="small" stickyHeader>
+                <TableHead>
+                  <TableRow>
+                    <TableCell sx={{ fontWeight: 700 }}>Lead</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }}>Assigned To</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }}>Dates</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }}>Latest Comment</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }}>Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {!loadingLeads && (leads?.items || []).length === 0 && (
+                    <TableRow><TableCell colSpan={6} sx={{ color: "text.secondary", py: 4, textAlign: "center" }}>No CRM leads found</TableCell></TableRow>
+                  )}
+                  {(leads?.items || []).map((lead) => (
+                    <TableRow key={lead._id} hover>
+                      <TableCell>
+                        <Typography variant="body2" fontWeight={600}>{lead.clientName}</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {lead.email || "-"} {lead.phoneFormatted || lead.phoneRaw ? `· ${lead.phoneFormatted || lead.phoneRaw}` : ""}
+                        </Typography>
+                        {(lead.companyLocation || lead.industry) && (
+                          <Typography variant="caption" display="block" color="text.secondary">
+                            {[lead.companyLocation, lead.industry].filter(Boolean).join(" · ")}
+                          </Typography>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2">{(lead.assignedTo?.username || lead.assignedTo?.email || "-") as string}</Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Chip label={statusLabel(lead.status)} size="small" variant="outlined" />
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="caption" display="block">Start: {toIsoDateValue(lead.taskStartDate) || "-"}</Typography>
+                        <Typography variant="caption" display="block">Due: {toIsoDateValue(lead.dueDate) || "-"}</Typography>
+                      </TableCell>
+                      <TableCell sx={{ maxWidth: 280 }}>
+                        <Typography variant="caption" noWrap>{lead.latestComment || "-"}</Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Stack direction="row" spacing={0.5}>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            startIcon={<VisibilityRoundedIcon sx={{ fontSize: 16 }} />}
                             onClick={() => void openLeadDetailsModal(lead._id)}
                             disabled={leadDetailsLoadingId === lead._id}
-                            className="inline-flex items-center gap-1 rounded-xl border border-sky-300 px-2.5 py-1.5 text-xs font-medium text-sky-700 hover:bg-sky-50 disabled:opacity-60"
                           >
-                            {leadDetailsLoadingId === lead._id ? "Opening..." : "View"}
-                          </button>
-                          <button
-                            type="button"
+                            {leadDetailsLoadingId === lead._id ? "…" : "View"}
+                          </Button>
+                          <IconButton
+                            size="small"
+                            color="error"
                             onClick={() => void deleteLead(lead)}
                             disabled={deletingLeadId === lead._id}
-                            className="inline-flex items-center gap-1 rounded-xl border border-red-200 bg-white px-2.5 py-1.5 text-xs font-medium text-red-700 shadow-sm transition hover:bg-red-50 hover:shadow-[0_2px_8px_rgba(239,68,68,0.15)] disabled:opacity-60"
                           >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                            {deletingLeadId === lead._id ? "Deleting..." : "Delete"}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
+                            <DeleteRoundedIcon sx={{ fontSize: 18 }} />
+                          </IconButton>
+                        </Stack>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </CardContent>
+        </Card>
 
-        <section className="rounded-3xl border border-rose-200/80 bg-gradient-to-br from-white via-amber-50/30 to-rose-50/50 p-4 md:p-5 shadow-[0_10px_36px_rgba(15,23,42,0.10)]">
-          <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900">Uploaded Excel Files</h2>
-              <p className="text-sm text-gray-600">
-                Delete a file to remove every CRM lead imported from that upload batch.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => void loadImportFiles()}
-              disabled={loadingImportFiles || deletingBatchId !== null}
-              className="inline-flex items-center justify-center gap-1.5 rounded-2xl border border-sky-200 bg-white px-4 py-2 text-sm font-medium text-sky-700 shadow-[0_2px_8px_rgba(14,165,233,0.10)] transition hover:bg-sky-50 hover:shadow-[0_4px_12px_rgba(14,165,233,0.15)] disabled:opacity-60"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-              {loadingImportFiles ? "Refreshing..." : "Refresh Files"}
-            </button>
-          </div>
-
-          <div className="mt-4 overflow-auto max-h-[360px] rounded-2xl border border-rose-100 bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.75),0_4px_14px_rgba(15,23,42,0.06)]">
-            <table className="min-w-full text-sm">
-              <thead className="bg-gradient-to-r from-rose-50 to-amber-50/60 text-gray-600">
-                <tr>
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide">File</th>
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide">Imported</th>
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide">Leads</th>
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loadingImportFiles ? (
-                  <tr><td className="px-3 py-3 text-gray-500" colSpan={4}>Loading imported files...</td></tr>
-                ) : (importFiles?.items || []).length === 0 ? (
-                  <tr><td className="px-3 py-3 text-gray-500" colSpan={4}>No imported Excel files found</td></tr>
-                ) : (
-                  (importFiles?.items || []).map((item) => (
-                    <tr key={item.sourceBatchId} className="border-t border-rose-100/80 transition-colors hover:bg-rose-50/40">
-                      <td className="px-3 py-2.5">
-                        <div className="font-medium text-gray-900 truncate max-w-[340px]">
-                          {item.sourceFileName || "Unnamed import file"}
-                        </div>
-                        <div className="text-xs text-gray-500">Batch: {item.sourceBatchId}</div>
-                        {item.sourceFileUrl ? (
-                          <a
-                            href={item.sourceFileUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-xs text-sky-700 hover:underline"
-                          >
-                            View in R2
-                          </a>
-                        ) : null}
-                      </td>
-                      <td className="px-3 py-2.5 text-xs text-gray-700">
-                        <div>{toIsoDateValue(item.importedAt) || "-"}</div>
-                        <div>Latest lead: {toIsoDateValue(item.latestLeadAt) || "-"}</div>
-                      </td>
-                      <td className="px-3 py-2.5">
-                        <span className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-700 shadow-sm">
-                          {item.leadCount}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2.5">
-                        <button
-                          type="button"
+        {/* ── Uploaded Excel Files ── */}
+        <Card>
+          <CardContent sx={{ p: { xs: 2, md: 3 } }}>
+            <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ sm: "center" }} spacing={2}>
+              <Box>
+                <Typography variant="subtitle1" fontWeight={700}>Uploaded Excel Files</Typography>
+                <Typography variant="body2" color="text.secondary">Delete a file to remove every CRM lead imported from that batch.</Typography>
+              </Box>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<RefreshRoundedIcon />}
+                onClick={() => void loadImportFiles()}
+                disabled={loadingImportFiles || deletingBatchId !== null}
+              >
+                {loadingImportFiles ? "Refreshing…" : "Refresh"}
+              </Button>
+            </Stack>
+            <TableContainer sx={{ maxHeight: 360, mt: 2 }}>
+              <Table size="small" stickyHeader>
+                <TableHead>
+                  <TableRow>
+                    <TableCell sx={{ fontWeight: 700 }}>File</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }}>Imported</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }}>Leads</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }}>Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {loadingImportFiles ? (
+                    <TableRow><TableCell colSpan={4}><LinearProgress /></TableCell></TableRow>
+                  ) : (importFiles?.items || []).length === 0 ? (
+                    <TableRow><TableCell colSpan={4} sx={{ color: "text.secondary", py: 3, textAlign: "center" }}>No imported files</TableCell></TableRow>
+                  ) : (importFiles?.items || []).map((item) => (
+                    <TableRow key={item.sourceBatchId} hover>
+                      <TableCell>
+                        <Typography variant="body2" fontWeight={600} noWrap sx={{ maxWidth: 300 }}>{item.sourceFileName || "Unnamed"}</Typography>
+                        <Typography variant="caption" color="text.secondary">Batch: {item.sourceBatchId}</Typography>
+                        {item.sourceFileUrl && (
+                          <Button size="small" href={item.sourceFileUrl} target="_blank" rel="noreferrer" startIcon={<OpenInNewRoundedIcon sx={{ fontSize: 14 }} />} sx={{ fontSize: "0.7rem", p: 0, minWidth: 0, mt: 0.5 }}>R2</Button>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="caption" display="block">{toIsoDateValue(item.importedAt) || "-"}</Typography>
+                        <Typography variant="caption" display="block" color="text.secondary">Latest: {toIsoDateValue(item.latestLeadAt) || "-"}</Typography>
+                      </TableCell>
+                      <TableCell><Chip label={item.leadCount} size="small" color="info" variant="outlined" /></TableCell>
+                      <TableCell>
+                        <Button
+                          size="small"
+                          color="error"
+                          variant="outlined"
+                          startIcon={<DeleteRoundedIcon sx={{ fontSize: 16 }} />}
                           onClick={() => void deleteImportedFile(item)}
                           disabled={deletingBatchId === item.sourceBatchId}
-                          className="inline-flex items-center gap-1 rounded-xl border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-700 shadow-sm transition hover:bg-red-50 hover:shadow-[0_2px_8px_rgba(239,68,68,0.15)] disabled:opacity-60"
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                          {deletingBatchId === item.sourceBatchId ? "Deleting..." : "Delete"}
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
+                          {deletingBatchId === item.sourceBatchId ? "…" : "Delete"}
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </CardContent>
+        </Card>
 
-        <section className="rounded-3xl border border-rose-200/80 bg-gradient-to-br from-white via-sky-50/30 to-rose-50/40 p-4 md:p-5 shadow-[0_10px_36px_rgba(15,23,42,0.10)]">
-          <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900">Lead Assignment by Upload</h2>
-              <p className="text-sm text-gray-600">
-                See how many leads each upload created and which CRM agents received them.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => void loadAssignmentsByUpload()}
-              disabled={loadingAssignments}
-              className="inline-flex items-center justify-center gap-1.5 rounded-2xl border border-sky-200 bg-white px-4 py-2 text-sm font-medium text-sky-700 shadow-[0_2px_8px_rgba(14,165,233,0.10)] transition hover:bg-sky-50 hover:shadow-[0_4px_12px_rgba(14,165,233,0.15)] disabled:opacity-60"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-              {loadingAssignments ? "Refreshing..." : "Refresh"}
-            </button>
-          </div>
-
-          <div className="mt-4 overflow-auto max-h-[420px] rounded-2xl border border-rose-100 bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.75),0_4px_14px_rgba(15,23,42,0.06)]">
-            <table className="min-w-full text-sm">
-              <thead className="sticky top-0 z-10 bg-gradient-to-r from-sky-50 to-rose-50/60 text-gray-600">
-                <tr>
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide">Upload File</th>
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide">Imported</th>
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide">Leads</th>
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide">Agents</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loadingAssignments ? (
-                  <tr><td className="px-3 py-3 text-gray-500" colSpan={4}>Loading assignment distribution...</td></tr>
-                ) : assignmentUploadRows.length === 0 ? (
-                  <tr><td className="px-3 py-3 text-gray-500" colSpan={4}>No assignment data found</td></tr>
-                ) : (
-                  assignmentUploadRows.map((row) => (
-                    <tr key={row.sourceBatchId} className="border-t border-rose-100/70 transition-colors hover:bg-rose-50/40">
-                      <td className="px-3 py-2.5">
-                        <div className="font-medium text-gray-900 truncate max-w-[220px]">
-                          {row.sourceFileName || "Unnamed file"}
-                        </div>
-                        <div className="text-[10px] text-gray-400 truncate max-w-[220px]">{row.sourceBatchId}</div>
-                      </td>
-                      <td className="px-3 py-2.5 text-xs text-gray-700">
-                        {row.importedAt ? new Date(row.importedAt).toLocaleDateString() : "-"}
-                      </td>
-                      <td className="px-3 py-2.5">
-                        <span className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-700 shadow-sm">
-                          {row.leadCount}
-                        </span>
-                        {row.overdueCount > 0 ? (
-                          <span className="ml-2 inline-flex rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-700 shadow-sm">
-                            {row.overdueCount} overdue
-                          </span>
-                        ) : null}
-                      </td>
-                      <td className="px-3 py-2.5">
-                        <div className="flex flex-wrap items-center gap-2">
+        {/* ── Lead Assignment by Upload ── */}
+        <Card>
+          <CardContent sx={{ p: { xs: 2, md: 3 } }}>
+            <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ sm: "center" }} spacing={2}>
+              <Box>
+                <Typography variant="subtitle1" fontWeight={700}>Lead Assignment by Upload</Typography>
+                <Typography variant="body2" color="text.secondary">See how many leads each upload created and which agents received them.</Typography>
+              </Box>
+              <Button variant="outlined" size="small" startIcon={<RefreshRoundedIcon />} onClick={() => void loadAssignmentsByUpload()} disabled={loadingAssignments}>
+                {loadingAssignments ? "Refreshing…" : "Refresh"}
+              </Button>
+            </Stack>
+            <TableContainer sx={{ maxHeight: 420, mt: 2 }}>
+              <Table size="small" stickyHeader>
+                <TableHead>
+                  <TableRow>
+                    <TableCell sx={{ fontWeight: 700 }}>Upload File</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }}>Imported</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }}>Leads</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }}>Agents</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {loadingAssignments ? (
+                    <TableRow><TableCell colSpan={4}><LinearProgress /></TableCell></TableRow>
+                  ) : assignmentUploadRows.length === 0 ? (
+                    <TableRow><TableCell colSpan={4} sx={{ color: "text.secondary", py: 3, textAlign: "center" }}>No assignment data</TableCell></TableRow>
+                  ) : assignmentUploadRows.map((row) => (
+                    <TableRow key={row.sourceBatchId} hover>
+                      <TableCell>
+                        <Typography variant="body2" fontWeight={600} noWrap sx={{ maxWidth: 220 }}>{row.sourceFileName || "Unnamed"}</Typography>
+                        <Typography variant="caption" color="text.secondary" noWrap sx={{ maxWidth: 220 }}>{row.sourceBatchId}</Typography>
+                      </TableCell>
+                      <TableCell><Typography variant="caption">{row.importedAt ? new Date(row.importedAt).toLocaleDateString() : "-"}</Typography></TableCell>
+                      <TableCell>
+                        <Stack direction="row" spacing={0.5} alignItems="center">
+                          <Chip label={row.leadCount} size="small" color="info" variant="outlined" />
+                          {row.overdueCount > 0 && <Chip label={`${row.overdueCount} overdue`} size="small" color="error" variant="outlined" />}
+                        </Stack>
+                      </TableCell>
+                      <TableCell>
+                        <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
                           {row.agents.map((agent) => (
-                            <span
+                            <Chip
                               key={`${row.sourceBatchId}-${agent.agentId}`}
-                              className="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-medium text-rose-700"
-                            >
-                              <span>{agent.agentUsername || agent.agentEmail || "Unknown"}</span>
-                              <span className="text-rose-500">{agent.leadCount}</span>
-                            </span>
+                              label={`${agent.agentUsername || agent.agentEmail || "?"} (${agent.leadCount})`}
+                              size="small"
+                              variant="outlined"
+                            />
                           ))}
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
+                        </Stack>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </CardContent>
+        </Card>
 
-        {showCrmOpsModal ? (
-          <div className="fixed inset-0 z-[94] p-3 md:p-6 lg:p-8">
-            <div
-              className="absolute inset-0 bg-slate-900/60 backdrop-blur-[2px]"
-              onClick={() => setShowCrmOpsModal(false)}
-            />
+        {/* ── CRM Team Manager Dialog ── */}
+        <Dialog open={showCrmOpsModal} onClose={() => setShowCrmOpsModal(false)} maxWidth="xl" fullWidth scroll="paper">
+          <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", pb: 1 }}>
+            <Box>
+              <Typography variant="h6" fontWeight={800}>CRM Team Manager</Typography>
+              <Typography variant="body2" color="text.secondary">Assign/remove CRM roles and monitor team distribution.</Typography>
+            </Box>
+            <Stack direction="row" spacing={1}>
+              <Button size="small" variant="outlined" startIcon={<RefreshRoundedIcon />} onClick={() => void loadUsers()} disabled={loadingUsers}>
+                {loadingUsers ? "…" : "Refresh"}
+              </Button>
+              <IconButton size="small" onClick={() => setShowCrmOpsModal(false)}><CloseRoundedIcon /></IconButton>
+            </Stack>
+          </DialogTitle>
+          <DialogContent dividers sx={{ p: 0 }}>
+            <Grid container sx={{ minHeight: 500 }}>
+              <Grid size={{ xs: 12, lg: 7 }} sx={{ p: 2, borderRight: { lg: "1px solid" }, borderColor: { lg: "divider" } }}>
+                <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} mb={2}>
+                  <TextField
+                    size="small"
+                    fullWidth
+                    placeholder="Email, username, company"
+                    value={userQ}
+                    onChange={(e) => setUserQ(e.target.value)}
+                    slotProps={{ input: { startAdornment: <InputAdornment position="start"><SearchRoundedIcon sx={{ fontSize: 18 }} /></InputAdornment> } }}
+                  />
+                  <FormControl size="small" sx={{ minWidth: 150 }}>
+                    <InputLabel>CRM Filter</InputLabel>
+                    <Select value={crmFilter} label="CRM Filter" onChange={(e) => setCrmFilter(e.target.value as "all" | "crm" | "noncrm")}>
+                      <MenuItem value="all">All users</MenuItem>
+                      <MenuItem value="crm">CRM only</MenuItem>
+                      <MenuItem value="noncrm">Non-CRM only</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Stack>
 
-            <div className="relative mx-auto flex h-[92vh] max-w-7xl flex-col overflow-hidden rounded-3xl border border-sky-200/80 bg-gradient-to-br from-white via-sky-50/50 to-rose-50/40 shadow-[0_24px_64px_rgba(15,23,42,0.18)]">
-              <div className="flex items-start justify-between gap-3 border-b border-sky-100 bg-gradient-to-r from-sky-50/60 to-transparent px-5 py-4">
-                <div>
-                  <h3 className="text-xl font-bold text-gray-900">CRM Team Manager</h3>
-                  <p className="text-sm text-gray-600">
-                    Assign/remove CRM roles and monitor team distribution.
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => void loadUsers()}
-                    disabled={loadingUsers}
-                    className="rounded-xl border border-sky-200 bg-white px-3 py-1.5 text-xs font-medium text-sky-700 shadow-sm transition hover:bg-sky-50 disabled:opacity-60"
+                <Grid container spacing={1} mb={2}>
+                  {([
+                    { label: "Agents", value: crmUsersCount, color: "primary.main" },
+                    { label: "Total", value: totalUsersCount, color: "text.primary" },
+                    { label: "Selected", value: selectedUserIds.length, color: "success.main" },
+                  ] as const).map((s) => (
+                    <Grid key={s.label} size={{ xs: 4 }}>
+                      <Card variant="outlined" sx={{ textAlign: "center", py: 1 }}>
+                        <Typography variant="overline" sx={{ fontSize: "0.6rem" }}>{s.label}</Typography>
+                        <Typography variant="h6" fontWeight={800} color={s.color}>{s.value}</Typography>
+                      </Card>
+                    </Grid>
+                  ))}
+                </Grid>
+
+                {loadingUsers && <LinearProgress sx={{ mb: 1 }} />}
+
+                <TableContainer sx={{ maxHeight: 380 }}>
+                  <Table size="small" stickyHeader>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell padding="checkbox" />
+                        <TableCell sx={{ fontWeight: 700 }}>User</TableCell>
+                        <TableCell sx={{ fontWeight: 700 }}>CRM Role</TableCell>
+                        <TableCell sx={{ fontWeight: 700 }}>Actions</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {(users?.items || []).length === 0 && !loadingUsers && (
+                        <TableRow><TableCell colSpan={4} sx={{ textAlign: "center", py: 3, color: "text.secondary" }}>No users found</TableCell></TableRow>
+                      )}
+                      {(users?.items || []).map((u) => (
+                        <TableRow key={u._id} hover>
+                          <TableCell padding="checkbox">
+                            <Checkbox
+                              size="small"
+                              checked={selectedUserIds.includes(u._id)}
+                              disabled={!u.isCrmAgent}
+                              onChange={(e) => toggleSelectedUser(u._id, e.target.checked)}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" fontWeight={600}>{u.email}</Typography>
+                            <Typography variant="caption" color="text.secondary">{u.username || "-"} {u.companyName ? `· ${u.companyName}` : ""}</Typography>
+                            {(u.crmQuadrant || formatCrmSpecializations(u.crmSpecializations)) ? (
+                              <Typography variant="caption" display="block" color="info.main">
+                                {[u.crmQuadrant ? `Quadrant ${u.crmQuadrant}` : "", formatCrmSpecializations(u.crmSpecializations)].filter(Boolean).join(" · ")}
+                              </Typography>
+                            ) : null}
+                          </TableCell>
+                          <TableCell>
+                            <Chip
+                              label={u.isCrmAgent ? "CRM Agent" : "Not Assigned"}
+                              size="small"
+                              color={u.isCrmAgent ? "success" : "default"}
+                              variant="outlined"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              color={u.isCrmAgent ? "error" : "primary"}
+                              onClick={() => toggleCrmAgent(u)}
+                              disabled={updatingUserId === u._id || Boolean(u.isBlocked)}
+                            >
+                              {u.isCrmAgent ? "Remove" : "Assign"}
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Grid>
+
+              <Grid size={{ xs: 12, lg: 5 }} sx={{ p: 2, overflow: "auto" }}>
+                <Stack spacing={2}>
+                  <Card variant="outlined">
+                    <CardContent sx={{ py: 1.5 }}>
+                      <Typography variant="subtitle2" fontWeight={700} gutterBottom>Team Mix</Typography>
+                      <Box sx={{ height: 180 }}>
+                        <Doughnut data={crmVsNonCrmChartData} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom", labels: { boxWidth: 10, font: { size: 11 } } } } }} />
+                      </Box>
+                    </CardContent>
+                  </Card>
+                  <Card variant="outlined">
+                    <CardContent sx={{ py: 1.5 }}>
+                      <Typography variant="subtitle2" fontWeight={700} gutterBottom>Lead Status Snapshot</Typography>
+                      <Box sx={{ height: 180 }}><Bar data={leadStatusChartData} options={compactChartOptions} /></Box>
+                    </CardContent>
+                  </Card>
+                  <Card variant="outlined">
+                    <CardContent sx={{ py: 1.5 }}>
+                      <Typography variant="subtitle2" fontWeight={700} gutterBottom>Recent Import Trend</Typography>
+                      <Box sx={{ height: 180 }}><Line data={importTrendChartData} options={compactLineOptions} /></Box>
+                    </CardContent>
+                  </Card>
+                </Stack>
+              </Grid>
+            </Grid>
+          </DialogContent>
+        </Dialog>
+
+        {/* ── Import Preview Dialog ── */}
+        <Dialog open={showImportModal} onClose={() => !importing && setShowImportModal(false)} maxWidth="xl" fullWidth scroll="paper">
+          <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", pb: 1 }}>
+            <Box>
+              <Typography variant="h6" fontWeight={800}>CRM Excel Upload Preview</Typography>
+              <Typography variant="body2" color="text.secondary">Extracted rows shown below. Duplicates are blocked before upload.</Typography>
+            </Box>
+            <IconButton size="small" disabled={importing} onClick={() => setShowImportModal(false)}><CloseRoundedIcon /></IconButton>
+          </DialogTitle>
+          <DialogContent dividers sx={{ p: 0 }}>
+            <Grid container sx={{ minHeight: 500 }}>
+              {/* Left sidebar */}
+              <Grid size={{ xs: 12, lg: 4 }} sx={{ borderRight: { lg: "1px solid" }, borderColor: { lg: "divider" }, display: "flex", flexDirection: "column" }}>
+                <Box sx={{ p: 2, borderBottom: "1px solid", borderColor: "divider" }}>
+                  <Button
+                    fullWidth
+                    variant="contained"
+                    color="success"
+                    size="large"
+                    startIcon={<CloudUploadRoundedIcon />}
+                    onClick={() => void onImportLeads()}
+                    disabled={importing || parsingPreview || !excelFile || previewRows.length === 0}
                   >
-                    {loadingUsers ? "Refreshing..." : "Refresh"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowCrmOpsModal(false)}
-                    className="rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-700 shadow-sm transition hover:bg-gray-50"
+                    {importing ? "Importing…" : "Import Leads to CRM"}
+                  </Button>
+                  {previewRows.length > 0 && !duplicateIssues.length && excelFile && (
+                    <Typography variant="caption" color="success.main" sx={{ mt: 0.5, display: "block", textAlign: "center" }}>
+                      {readyPreviewRows} leads ready to import
+                    </Typography>
+                  )}
+                </Box>
+
+                <Box sx={{ flex: 1, overflow: "auto", p: 2 }}>
+                  {/* File upload zone */}
+                  <Button
+                    component="label"
+                    variant="outlined"
+                    fullWidth
+                    color={excelFile ? "success" : "primary"}
+                    startIcon={excelFile ? <CheckCircleRoundedIcon /> : <CloudUploadRoundedIcon />}
+                    sx={{ py: 3, border: "2px dashed", borderColor: excelFile ? "success.main" : "divider" }}
                   >
-                    Close
-                  </button>
-                </div>
-              </div>
-
-              <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-hidden p-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] lg:p-5">
-                <div className="flex min-h-0 flex-col rounded-2xl border border-rose-100/80 bg-white p-4 shadow-[0_4px_16px_rgba(15,23,42,0.06)]">
-                  <div className="flex flex-col gap-3 md:flex-row md:items-end">
-                    <div className="flex-1">
-                      <label className="block text-xs font-semibold uppercase tracking-wide text-gray-600">Search users</label>
-                      <input
-                        value={userQ}
-                        onChange={(e) => setUserQ(e.target.value)}
-                        placeholder="Email, username, company"
-                        className="mt-1.5 w-full rounded-2xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm shadow-[inset_0_2px_4px_rgba(0,0,0,0.04),0_2px_8px_rgba(15,23,42,0.05)] transition focus:border-sky-300 focus:ring-2 focus:ring-sky-100 focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold uppercase tracking-wide text-gray-600">CRM filter</label>
-                      <select
-                        value={crmFilter}
-                        onChange={(e) => setCrmFilter(e.target.value as "all" | "crm" | "noncrm")}
-                        className="mt-1.5 w-full rounded-2xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm shadow-[inset_0_2px_4px_rgba(0,0,0,0.04),0_2px_8px_rgba(15,23,42,0.05)] transition focus:border-sky-300 focus:ring-2 focus:ring-sky-100 focus:outline-none"
-                      >
-                        <option value="all">All users</option>
-                        <option value="crm">CRM only</option>
-                        <option value="noncrm">Non-CRM only</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="mt-3 grid grid-cols-3 gap-2">
-                    <div className="rounded-xl border border-sky-100 bg-gradient-to-br from-sky-50 to-white px-2.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
-                      <div className="text-[10px] font-semibold uppercase tracking-wider text-sky-600">Agents</div>
-                      <div className="text-lg font-bold text-sky-800">{crmUsersCount}</div>
-                    </div>
-                    <div className="rounded-xl border border-slate-100 bg-gradient-to-br from-slate-50 to-white px-2.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
-                      <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Total</div>
-                      <div className="text-lg font-bold text-slate-800">{totalUsersCount}</div>
-                    </div>
-                    <div className="rounded-xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-white px-2.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
-                      <div className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600">Selected</div>
-                      <div className="text-lg font-bold text-emerald-800">{selectedUserIds.length}</div>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 min-h-0 flex-1 overflow-auto rounded-2xl border border-rose-100/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]">
-                    <table className="min-w-full text-sm">
-                      <thead className="sticky top-0 z-10 bg-gradient-to-r from-rose-50 to-sky-50/40 text-gray-600">
-                        <tr>
-                          <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide">Assign</th>
-                          <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide">User</th>
-                          <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide">CRM Role</th>
-                          <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {loadingUsers ? (
-                          <tr><td className="px-3 py-3 text-gray-500" colSpan={4}>Loading users...</td></tr>
-                        ) : (users?.items || []).length === 0 ? (
-                          <tr><td className="px-3 py-3 text-gray-500" colSpan={4}>No users found</td></tr>
-                        ) : (
-                          (users?.items || []).map((u) => {
-                            const selected = selectedUserIds.includes(u._id);
-                            return (
-                              <tr key={u._id} className="border-t border-rose-100/70 transition-colors hover:bg-rose-50/40">
-                                <td className="px-3 py-2.5">
-                                  <input
-                                    type="checkbox"
-                                    checked={selected}
-                                    disabled={!u.isCrmAgent}
-                                    onChange={(e) => toggleSelectedUser(u._id, e.target.checked)}
-                                    className="h-4 w-4 rounded border-gray-300 text-sky-600 focus:ring-sky-200"
-                                  />
-                                </td>
-                                <td className="px-3 py-2.5">
-                                  <div className="font-medium text-gray-900">{u.email}</div>
-                                  <div className="text-xs text-gray-500">{u.username || "-"} {u.companyName ? `• ${u.companyName}` : ""}</div>
-                                  {(u.crmQuadrant || formatCrmSpecializations(u.crmSpecializations)) ? (
-                                    <div className="mt-1 text-[11px] text-sky-700">
-                                      {[u.crmQuadrant ? `Quadrant ${u.crmQuadrant}` : "", formatCrmSpecializations(u.crmSpecializations)]
-                                        .filter(Boolean)
-                                        .join(" • ")}
-                                    </div>
-                                  ) : null}
-                                </td>
-                                <td className="px-3 py-2.5">
-                                  <span className={`inline-flex rounded-full px-2.5 py-0.5 border text-xs font-medium shadow-sm ${u.isCrmAgent ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-gray-50 text-gray-500 border-gray-200"}`}>
-                                    {u.isCrmAgent ? "CRM Agent" : "Not Assigned"}
-                                  </span>
-                                </td>
-                                <td className="px-3 py-2.5">
-                                  <button
-                                    onClick={() => toggleCrmAgent(u)}
-                                    disabled={updatingUserId === u._id || Boolean(u.isBlocked)}
-                                    className={`inline-flex items-center gap-1 rounded-xl border px-3 py-1.5 text-xs font-medium shadow-sm transition disabled:opacity-50 ${
-                                      u.isCrmAgent
-                                        ? "border-red-200 bg-white text-red-700 hover:bg-red-50"
-                                        : "border-sky-200 bg-white text-sky-700 hover:bg-sky-50"
-                                    }`}
-                                  >
-                                    {u.isCrmAgent ? "Remove CRM" : "Assign CRM"}
-                                  </button>
-                                </td>
-                              </tr>
-                            );
-                          })
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                <div className="grid min-h-0 grid-cols-1 gap-3 overflow-auto">
-                  <div className="rounded-2xl border border-sky-100/80 bg-gradient-to-br from-white to-sky-50/30 p-3 shadow-[0_4px_14px_rgba(14,165,233,0.08)]">
-                    <div className="mb-2 text-sm font-semibold text-gray-900">Team Mix</div>
-                    <div className="h-44">
-                      <Doughnut
-                        data={crmVsNonCrmChartData}
-                        options={{
-                          responsive: true,
-                          maintainAspectRatio: false,
-                          plugins: { legend: { position: "bottom", labels: { boxWidth: 10, font: { size: 11 } } } },
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="rounded-2xl border border-rose-100/80 bg-gradient-to-br from-white to-rose-50/30 p-3 shadow-[0_4px_14px_rgba(244,63,94,0.08)]">
-                    <div className="mb-2 text-sm font-semibold text-gray-900">Lead Status Snapshot</div>
-                    <div className="h-44">
-                      <Bar data={leadStatusChartData} options={compactChartOptions} />
-                    </div>
-                  </div>
-
-                  <div className="rounded-2xl border border-amber-100/80 bg-gradient-to-br from-white to-amber-50/30 p-3 shadow-[0_4px_14px_rgba(245,158,11,0.08)]">
-                    <div className="mb-2 text-sm font-semibold text-gray-900">Recent Import Trend</div>
-                    <div className="h-44">
-                      <Line data={importTrendChartData} options={compactLineOptions} />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : null}
-
-        {showImportModal ? (
-          <div className="fixed inset-0 z-[95] p-3 md:p-6 lg:p-10">
-            <div
-              className="absolute inset-0 bg-slate-900/60 backdrop-blur-[2px]"
-              onClick={() => !importing && setShowImportModal(false)}
-            />
-
-            <div className="relative mx-auto flex h-[92vh] max-w-7xl flex-col overflow-hidden rounded-3xl border border-rose-200 bg-gradient-to-br from-white via-rose-50/40 to-sky-50 shadow-2xl">
-              <div className="flex items-center justify-between border-b border-rose-100 px-5 py-4 md:px-6">
-                <div>
-                  <h3 className="text-xl font-semibold text-gray-900">CRM Excel Upload Preview</h3>
-                  <p className="text-sm text-gray-600">
-                    Extracted rows are shown below. Duplicate list items are blocked before upload.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  disabled={importing}
-                  onClick={() => setShowImportModal(false)}
-                  className="rounded-xl border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60"
-                >
-                  Close
-                </button>
-              </div>
-
-              <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[360px_minmax(0,1fr)]">
-                <div className="flex flex-col border-b border-rose-100 lg:border-b-0 lg:border-r">
-                  {/* Import button — always visible at top */}
-                  <div className="sticky top-0 z-20 border-b border-rose-100 bg-gradient-to-r from-emerald-50 to-sky-50 px-4 py-3">
-                    <button
-                      type="button"
-                      onClick={() => void onImportLeads()}
-                      disabled={
-                        importing ||
-                        parsingPreview ||
-                        !excelFile ||
-                        previewRows.length === 0
-                      }
-                      className="w-full rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 px-4 py-3 text-sm font-bold text-white shadow-[0_6px_20px_rgba(16,185,129,0.35)] transition-all hover:shadow-[0_8px_28px_rgba(16,185,129,0.45)] hover:brightness-105 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 disabled:shadow-none"
-                    >
-                      <div className="flex items-center justify-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5-5m0 0l5 5m-5-5v12" /></svg>
-                        {importing ? "Importing..." : "Import Leads to CRM"}
-                      </div>
-                      {previewRows.length > 0 && !duplicateIssues.length && excelFile ? (
-                        <div className="mt-1 text-xs font-medium text-emerald-100">{readyPreviewRows} leads ready to import</div>
-                      ) : null}
-                    </button>
-                  </div>
-
-                  <div className="flex-1 overflow-y-auto p-4 lg:p-5">
-                  {/* File upload — prominent drag-drop zone */}
-                  <label
-                    className={`group relative flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-4 py-6 text-center transition-all ${
-                      excelFile
-                        ? "border-emerald-300 bg-emerald-50/60"
-                        : "border-rose-300 bg-rose-50/40 hover:border-rose-400 hover:bg-rose-50/80"
-                    }`}
-                  >
-                    <input
-                      type="file"
-                      accept=".xlsx,.xls,.csv"
-                      onChange={(e) => void handleExcelFileChange(e.target.files?.[0] || null)}
-                      className="absolute inset-0 cursor-pointer opacity-0"
-                    />
-                    {excelFile ? (
-                      <>
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                        <div className="mt-2 text-sm font-semibold text-emerald-800 truncate max-w-full">{excelFile.name}</div>
-                        <div className="mt-1 text-xs text-emerald-600">Click or drop to replace file</div>
-                      </>
-                    ) : (
-                      <>
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-rose-400 group-hover:text-rose-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
-                        <div className="mt-2 text-sm font-bold text-rose-700">Click to upload Excel file</div>
-                        <div className="mt-1 text-xs text-rose-500">or drag and drop .xlsx, .xls, .csv</div>
-                      </>
-                    )}
-                  </label>
+                    {excelFile ? excelFile.name : "Click to upload .xlsx, .xls, .csv"}
+                    <input type="file" accept=".xlsx,.xls,.csv" hidden onChange={(e) => void handleExcelFileChange(e.target.files?.[0] || null)} />
+                  </Button>
 
                   {excelFile && !importing && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setExcelFile(null);
-                        setPreviewRows([]);
-                        setDuplicateIssues([]);
-                        setPreviewParseError("");
-                        setPreviewSheetName("");
-                      }}
-                      className="mt-3 w-full rounded-xl border border-rose-300 bg-white px-3 py-2 text-sm font-medium text-rose-700 hover:bg-rose-50 active:bg-rose-100 shadow-sm transition-all"
-                    >
+                    <Button fullWidth variant="outlined" color="error" size="small" sx={{ mt: 1.5 }} onClick={() => { setExcelFile(null); setPreviewRows([]); setDuplicateIssues([]); setPreviewParseError(""); setPreviewSheetName(""); }}>
                       Cancel Upload
-                    </button>
+                    </Button>
                   )}
 
-                  {parsingPreview ? (
-                    <div className="mt-3 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-700">
-                      Parsing and extracting rows...
-                    </div>
-                  ) : null}
+                  {parsingPreview && <LinearProgress sx={{ mt: 2 }} />}
+                  {previewParseError && <Alert severity="error" sx={{ mt: 2 }}>{previewParseError}</Alert>}
 
-                  {previewParseError ? (
-                    <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                      {previewParseError}
-                    </div>
-                  ) : null}
+                  {/* Deadlines */}
+                  <Card variant="outlined" sx={{ mt: 2 }}>
+                    <CardContent sx={{ py: 1.5, "&:last-child": { pb: 1.5 } }}>
+                      <Typography variant="overline" color="text.secondary" sx={{ fontSize: "0.6rem" }}>Upload Deadline</Typography>
+                      <Stack direction="row" spacing={1} mt={1}>
+                        <TextField size="small" type="date" label="Task Start" value={taskStartDate} onChange={(e) => setTaskStartDate(e.target.value)} fullWidth slotProps={{ inputLabel: { shrink: true } }} />
+                        <TextField size="small" type="date" label="Due Date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} fullWidth slotProps={{ inputLabel: { shrink: true } }} />
+                      </Stack>
+                    </CardContent>
+                  </Card>
 
-                  {/* Task Start & Due Date — per-upload deadlines */}
-                  <div className="mt-4 rounded-xl border border-indigo-100 bg-gradient-to-br from-indigo-50/50 to-white px-3 py-3">
-                    <div className="text-xs font-semibold uppercase tracking-wide text-indigo-700">Upload Deadline</div>
-                    <p className="mt-0.5 text-[11px] text-indigo-600/80">Set a start and due date for all leads in this upload batch.</p>
-                    <div className="mt-2 grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="block text-[11px] font-medium text-gray-600">Task Start</label>
-                        <input
-                          type="date"
-                          value={taskStartDate}
-                          onChange={(e) => setTaskStartDate(e.target.value)}
-                          className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-sm shadow-sm focus:border-indigo-300 focus:ring-1 focus:ring-indigo-100 focus:outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-medium text-gray-600">Due Date</label>
-                        <input
-                          type="date"
-                          value={dueDate}
-                          onChange={(e) => setDueDate(e.target.value)}
-                          className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-sm shadow-sm focus:border-indigo-300 focus:ring-1 focus:ring-indigo-100 focus:outline-none"
-                        />
-                      </div>
-                    </div>
-                  </div>
+                  {/* Stats */}
+                  <Grid container spacing={1} sx={{ mt: 1.5 }}>
+                    {([
+                      { label: "Sheet", value: previewSheetName || "-" },
+                      { label: "Rows", value: previewRows.length },
+                      { label: "Ready", value: readyPreviewRows },
+                      { label: "Duplicates", value: rowCountWithDuplicates },
+                    ] as const).map((s) => (
+                      <Grid key={s.label} size={{ xs: 6 }}>
+                        <Card variant="outlined" sx={{ textAlign: "center", py: 0.75 }}>
+                          <Typography variant="overline" sx={{ fontSize: "0.55rem" }}>{s.label}</Typography>
+                          <Typography variant="subtitle2" fontWeight={700} noWrap>{s.value}</Typography>
+                        </Card>
+                      </Grid>
+                    ))}
+                  </Grid>
 
-                  <div className="mt-4 grid grid-cols-2 gap-2">
-                    <div className="rounded-xl border border-sky-100 bg-white px-3 py-2">
-                      <div className="text-[11px] uppercase tracking-wide text-gray-500">Sheet</div>
-                      <div className="text-sm font-semibold text-gray-900 truncate">
-                        {previewSheetName || "-"}
-                      </div>
-                    </div>
-                    <div className="rounded-xl border border-sky-100 bg-white px-3 py-2">
-                      <div className="text-[11px] uppercase tracking-wide text-gray-500">Rows</div>
-                      <div className="text-sm font-semibold text-gray-900">{previewRows.length}</div>
-                    </div>
-                    <div className="rounded-xl border border-emerald-100 bg-white px-3 py-2">
-                      <div className="text-[11px] uppercase tracking-wide text-gray-500">Ready</div>
-                      <div className="text-sm font-semibold text-emerald-700">{readyPreviewRows}</div>
-                    </div>
-                    <div className="rounded-xl border border-amber-100 bg-white px-3 py-2">
-                      <div className="text-[11px] uppercase tracking-wide text-gray-500">Duplicates</div>
-                      <div className="text-sm font-semibold text-amber-700">{rowCountWithDuplicates}</div>
-                    </div>
-                  </div>
+                  {/* Assigned agents */}
+                  <Card variant="outlined" sx={{ mt: 2 }}>
+                    <CardContent sx={{ py: 1.5, "&:last-child": { pb: 1.5 } }}>
+                      <Typography variant="caption" color="text.secondary">Assigned CRM reps for import</Typography>
+                      <Stack direction="row" flexWrap="wrap" useFlexGap spacing={0.5} sx={{ mt: 1 }}>
+                        {selectedAssignees.length > 0 ? selectedAssignees.map((agent) => (
+                          <Chip key={agent._id} label={`${agent.username || agent.email}${agent.crmQuadrant ? ` · Q${agent.crmQuadrant}` : ""}`} size="small" variant="outlined" />
+                        )) : (
+                          <Typography variant="caption" color="text.secondary">Auto-distribute among all active CRM agents</Typography>
+                        )}
+                      </Stack>
+                    </CardContent>
+                  </Card>
 
-
-                  <div className="mt-4 rounded-xl border border-rose-100 bg-white px-3 py-3">
-                    <div className="text-xs text-gray-500">Assigned CRM reps for this import</div>
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      {selectedAssignees.length > 0 ? (
-                        selectedAssignees.map((agent) => (
-                          <span
-                            key={agent._id}
-                            className="rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs text-rose-700"
-                          >
-                            {agent.username || agent.email}
-                            {(agent.crmQuadrant || formatCrmSpecializations(agent.crmSpecializations))
-                              ? ` • ${[agent.crmQuadrant ? `Q ${agent.crmQuadrant}` : "", formatCrmSpecializations(agent.crmSpecializations)]
-                                  .filter(Boolean)
-                                  .join(" • ")}`
-                              : ""}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="text-xs text-gray-600">
-                          Auto-distribute among all active CRM agents
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {duplicateIssues.length > 0 ? (
-                    <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-3">
-                      <div className="text-sm font-semibold text-amber-800">Duplicate entries detected</div>
-                      <p className="mt-1 text-xs text-amber-700">
-                        Remove duplicate list items from the file before importing.
-                      </p>
-                      <ul className="mt-2 max-h-32 space-y-1 overflow-auto text-xs text-amber-800">
+                  {duplicateIssues.length > 0 && (
+                    <Alert severity="warning" sx={{ mt: 2 }}>
+                      <Typography variant="subtitle2">Duplicate entries detected</Typography>
+                      <Typography variant="caption">Remove duplicates from file before importing.</Typography>
+                      <Box component="ul" sx={{ mt: 1, pl: 2, maxHeight: 120, overflow: "auto" }}>
                         {duplicateIssues.slice(0, 12).map((issue, idx) => (
-                          <li key={`${issue.rowNumber}-${idx}`}>
-                            Row {issue.rowNumber}: {issue.reason}
-                          </li>
+                          <Typography component="li" variant="caption" key={`${issue.rowNumber}-${idx}`}>Row {issue.rowNumber}: {issue.reason}</Typography>
                         ))}
-                        {duplicateIssues.length > 12 ? (
-                          <li>+{duplicateIssues.length - 12} more duplicate alerts</li>
-                        ) : null}
-                      </ul>
-                    </div>
-                  ) : null}
-                  </div>
-                </div>
+                        {duplicateIssues.length > 12 && <Typography component="li" variant="caption">+{duplicateIssues.length - 12} more</Typography>}
+                      </Box>
+                    </Alert>
+                  )}
+                </Box>
+              </Grid>
 
-                <div className="min-h-0 overflow-hidden p-4 lg:p-5">
-                  <div className="h-full overflow-auto">
-                    <div className="sticky top-0 z-10 rounded-t-2xl border border-rose-100 bg-gradient-to-r from-rose-50 to-sky-50 px-4 py-3">
-                      <div className="text-sm font-semibold text-gray-900">Extracted Lead Details</div>
-                      <div className="text-xs text-gray-600">
-                        {previewRows.length} lead{previewRows.length !== 1 ? "s" : ""} parsed &middot; {readyPreviewRows} ready &middot; {rowCountWithDuplicates} duplicate{rowCountWithDuplicates !== 1 ? "s" : ""}
-                      </div>
-                    </div>
+              {/* Right — preview cards */}
+              <Grid size={{ xs: 12, lg: 8 }} sx={{ overflow: "auto", p: 2 }}>
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="subtitle2" fontWeight={700}>Extracted Lead Details</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {previewRows.length} lead{previewRows.length !== 1 ? "s" : ""} parsed · {readyPreviewRows} ready · {rowCountWithDuplicates} duplicate{rowCountWithDuplicates !== 1 ? "s" : ""}
+                  </Typography>
+                </Box>
 
-                    {previewRows.length === 0 ? (
-                      <div className="rounded-b-2xl border border-t-0 border-rose-100 bg-white px-4 py-14 text-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-12 w-12 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                        <div className="mt-3 text-sm font-medium text-gray-500">Upload an Excel file to preview leads</div>
-                        <div className="mt-1 text-xs text-gray-400">Supported: .xlsx, .xls, .csv</div>
-                      </div>
+                {previewRows.length === 0 ? (
+                  <Box sx={{ textAlign: "center", py: 8, color: "text.secondary" }}>
+                    <CloudUploadRoundedIcon sx={{ fontSize: 48, opacity: 0.3 }} />
+                    <Typography variant="body2" sx={{ mt: 1.5 }}>Upload an Excel file to preview leads</Typography>
+                    <Typography variant="caption">Supported: .xlsx, .xls, .csv</Typography>
+                  </Box>
+                ) : (
+                  <Grid container spacing={1.5}>
+                    {previewRows.map((row) => {
+                      const issues = duplicateIssuesByRow.get(row.rowNumber) || [];
+                      const hasIssue = issues.length > 0;
+                      return (
+                        <Grid key={`${row.rowNumber}-${row.duplicateKey}`} size={{ xs: 12, sm: 6, xl: 4 }}>
+                          <Card variant="outlined" sx={{ borderColor: hasIssue ? "warning.main" : "divider" }}>
+                            <CardContent sx={{ py: 1.5, "&:last-child": { pb: 1.5 } }}>
+                              <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+                                <Box sx={{ minWidth: 0, flex: 1 }}>
+                                  <Typography variant="body2" fontWeight={700} noWrap>{row.clientName || "Unnamed"}</Typography>
+                                  <Typography variant="caption" color="text.secondary" noWrap>{row.title}{row.title && row.companyName ? " · " : ""}{row.companyName}</Typography>
+                                </Box>
+                                <Stack alignItems="flex-end" spacing={0.25}>
+                                  <Chip label={hasIssue ? "Duplicate" : "Ready"} size="small" color={hasIssue ? "warning" : "success"} variant="outlined" sx={{ height: 20, fontSize: "0.65rem" }} />
+                                  <Typography variant="caption" color="text.secondary">#{row.rowNumber}</Typography>
+                                </Stack>
+                              </Stack>
+                              <Stack spacing={0.5} sx={{ mt: 1 }}>
+                                {row.email && <Typography variant="caption" noWrap>{row.email}</Typography>}
+                                {row.phone && <Typography variant="caption" noWrap>{row.phone}</Typography>}
+                                {row.website && <Typography variant="caption" noWrap>{row.website}</Typography>}
+                              </Stack>
+                              <Stack direction="row" flexWrap="wrap" useFlexGap spacing={0.5} sx={{ mt: 1 }}>
+                                {row.location && <Chip label={row.location} size="small" variant="outlined" sx={{ height: 20, fontSize: "0.6rem" }} />}
+                                {row.industry && <Chip label={row.industry} size="small" variant="outlined" sx={{ height: 20, fontSize: "0.6rem" }} />}
+                                {row.lists.map((list, li) => <Chip key={li} label={list} size="small" variant="outlined" sx={{ height: 20, fontSize: "0.6rem" }} />)}
+                              </Stack>
+                              {row.notes && <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }} noWrap>{row.notes}</Typography>}
+                              {hasIssue && (
+                                <Alert severity="warning" sx={{ mt: 1, py: 0, "& .MuiAlert-message": { py: 0.5 } }}>
+                                  {issues.map((reason, idx) => <Typography variant="caption" display="block" key={`${row.rowNumber}-${idx}`}>{reason}</Typography>)}
+                                </Alert>
+                              )}
+                            </CardContent>
+                          </Card>
+                        </Grid>
+                      );
+                    })}
+                  </Grid>
+                )}
+              </Grid>
+            </Grid>
+          </DialogContent>
+        </Dialog>
+
+        {/* ── Lead Details Dialog ── */}
+        <Dialog open={showLeadDetailsModal} onClose={closeLeadDetailsModal} maxWidth="md" fullWidth scroll="paper">
+          <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", pb: 1 }}>
+            <Box>
+              <Typography variant="h6" fontWeight={800}>Lead Conversation & Files</Typography>
+              <Typography variant="body2" color="text.secondary">Review CRM history, play recordings, and reply to the assigned rep.</Typography>
+            </Box>
+            <IconButton size="small" onClick={closeLeadDetailsModal} disabled={submittingAdminReply}><CloseRoundedIcon /></IconButton>
+          </DialogTitle>
+          <DialogContent dividers>
+            {leadDetailsLoadingId ? (
+              <LinearProgress />
+            ) : leadDetailsError ? (
+              <Alert severity="error">{leadDetailsError}</Alert>
+            ) : !activeLeadDetails ? (
+              <Alert severity="info">Lead details are unavailable.</Alert>
+            ) : (
+              <Stack spacing={2.5}>
+                {/* Lead info card */}
+                <Card variant="outlined">
+                  <CardContent>
+                    <Stack direction="row" justifyContent="space-between" alignItems="flex-start" flexWrap="wrap" spacing={1}>
+                      <Box>
+                        <Typography variant="subtitle1" fontWeight={700}>{activeLeadDetails.clientName}</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {activeLeadDetails.companyName || "No company"} · {activeLeadDetails.email || "No email"}
+                        </Typography>
+                      </Box>
+                      <Chip label={statusLabel(activeLeadDetails.status)} variant="outlined" size="small" />
+                    </Stack>
+                    <Grid container spacing={1} sx={{ mt: 1.5 }}>
+                      <Grid size={{ xs: 6 }}><Typography variant="caption"><strong>Phone:</strong> {activeLeadDetails.phoneFormatted || activeLeadDetails.phoneRaw || "-"}</Typography></Grid>
+                      <Grid size={{ xs: 6 }}><Typography variant="caption"><strong>Due:</strong> {toIsoDateValue(activeLeadDetails.dueDate) || "-"}</Typography></Grid>
+                      <Grid size={{ xs: 6 }}><Typography variant="caption"><strong>Lists:</strong> {activeLeadDetails.listItems?.join(", ") || "-"}</Typography></Grid>
+                      <Grid size={{ xs: 6 }}><Typography variant="caption"><strong>Updated:</strong> {toDateTimeValue(activeLeadDetails.updatedAt)}</Typography></Grid>
+                    </Grid>
+                  </CardContent>
+                </Card>
+
+                {/* Reply card */}
+                <Card variant="outlined">
+                  <CardContent>
+                    <Typography variant="subtitle2" fontWeight={700}>Reply to CRM agent</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Add a clear instruction. It appears in the mobile CRM task timeline.
+                    </Typography>
+                    <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} sx={{ mt: 1.5 }}>
+                      <FormControl size="small" sx={{ minWidth: 160 }}>
+                        <InputLabel>Status</InputLabel>
+                        <Select value={adminReplyStatus} label="Status" onChange={(e) => setAdminReplyStatus(e.target.value)}>
+                          {CRM_STATUSES.map((status) => <MenuItem key={status} value={status}>{statusLabel(status)}</MenuItem>)}
+                        </Select>
+                      </FormControl>
+                      <TextField
+                        size="small"
+                        fullWidth
+                        multiline
+                        rows={3}
+                        placeholder="Add admin reply visible to CRM rep…"
+                        value={adminReply}
+                        onChange={(e) => setAdminReply(e.target.value)}
+                      />
+                    </Stack>
+                    <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 1.5 }}>
+                      <Button
+                        variant="contained"
+                        startIcon={<SendRoundedIcon />}
+                        onClick={() => void submitAdminLeadReply()}
+                        disabled={submittingAdminReply || !adminReply.trim()}
+                      >
+                        {submittingAdminReply ? "Sending…" : "Send Reply"}
+                      </Button>
+                    </Box>
+                  </CardContent>
+                </Card>
+
+                {/* Activity timeline */}
+                <Card variant="outlined">
+                  <CardContent>
+                    <Typography variant="subtitle2" fontWeight={700}>Activity Timeline</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Every comment, attachment, and voice note between admin and CRM rep.
+                    </Typography>
+
+                    {activeLeadUpdates.length === 0 ? (
+                      <Alert severity="info" sx={{ mt: 2 }}>No updates yet on this lead.</Alert>
                     ) : (
-                      <div className="grid grid-cols-1 gap-3 pt-3 sm:grid-cols-2 xl:grid-cols-3">
-                        {previewRows.map((row) => {
-                          const issues = duplicateIssuesByRow.get(row.rowNumber) || [];
-                          const hasIssue = issues.length > 0;
+                      <Stack spacing={1.5} sx={{ mt: 2 }}>
+                        {activeLeadUpdates.map((update, idx) => {
+                          const updateId = normalizeUpdateId(update._id);
                           return (
-                            <div
-                              key={`${row.rowNumber}-${row.duplicateKey}`}
-                              className={`group relative flex flex-col rounded-2xl border p-4 shadow-[0_2px_10px_rgba(15,23,42,0.06)] transition-all hover:shadow-[0_4px_16px_rgba(15,23,42,0.10)] ${
-                                hasIssue
-                                  ? "border-amber-200 bg-gradient-to-br from-amber-50/80 to-white"
-                                  : "border-slate-200/80 bg-gradient-to-br from-white to-sky-50/30"
-                              }`}
-                            >
-                              {/* Header */}
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex items-center gap-2">
-                                    <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-sky-500 to-indigo-500 text-[11px] font-bold text-white shadow-sm">
-                                      {(row.clientName || "?")[0].toUpperCase()}
-                                    </div>
-                                    <div className="min-w-0">
-                                      <div className="truncate text-sm font-semibold text-gray-900">{row.clientName || "Unnamed"}</div>
-                                      <div className="truncate text-[11px] text-gray-500">{row.title}{row.title && row.companyName ? " · " : ""}{row.companyName}</div>
-                                    </div>
-                                  </div>
-                                </div>
-                                <div className="flex flex-shrink-0 flex-col items-end gap-1">
-                                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                                    hasIssue
-                                      ? "border border-amber-300 bg-amber-100 text-amber-800"
-                                      : "border border-emerald-200 bg-emerald-50 text-emerald-700"
-                                  }`}>
-                                    {hasIssue ? "Duplicate" : "Ready"}
-                                  </span>
-                                  <span className="text-[10px] text-gray-400">#{row.rowNumber}</span>
-                                </div>
-                              </div>
+                            <Card key={updateId || `${idx}-${update.createdAt || "na"}`} variant="outlined">
+                              <CardContent sx={{ py: 1.5, "&:last-child": { pb: 1.5 } }}>
+                                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                                  <Typography variant="caption" fontWeight={700}>{leadUpdateAuthorLabel(update)}</Typography>
+                                  <Typography variant="caption" color="text.secondary">{toDateTimeValue(update.createdAt)}</Typography>
+                                </Stack>
+                                <Typography variant="caption" color="text.secondary">Status: {statusLabel(update.status || activeLeadDetails.status)}</Typography>
 
-                              {/* Contact info */}
-                              <div className="mt-3 space-y-1.5">
-                                {row.email ? (
-                                  <div className="flex items-center gap-2 text-xs">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 flex-shrink-0 text-sky-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
-                                    <span className="truncate text-gray-700">{row.email}</span>
-                                  </div>
-                                ) : null}
-                                {row.phone ? (
-                                  <div className="flex items-center gap-2 text-xs">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 flex-shrink-0 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
-                                    <span className="text-gray-700">{row.phone}</span>
-                                  </div>
-                                ) : null}
-                                {row.website ? (
-                                  <div className="flex items-center gap-2 text-xs">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 flex-shrink-0 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>
-                                    <span className="truncate text-gray-700">{row.website}</span>
-                                  </div>
-                                ) : null}
-                              </div>
+                                <Stack direction="row" spacing={0.5} sx={{ mt: 0.5 }}>
+                                  {update.editedAt && !update.isDeleted && <Chip label="Edited" size="small" color="info" variant="outlined" sx={{ height: 18, fontSize: "0.6rem" }} />}
+                                  {update.isDeleted && <Chip label="Deleted" size="small" color="error" variant="outlined" sx={{ height: 18, fontSize: "0.6rem" }} />}
+                                </Stack>
 
-                              {/* Tags row */}
-                              <div className="mt-3 flex flex-wrap gap-1.5">
-                                {row.location ? (
-                                  <span className="inline-flex items-center gap-1 rounded-full border border-violet-100 bg-violet-50 px-2 py-0.5 text-[10px] font-medium text-violet-700">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                                    {row.location}
-                                  </span>
-                                ) : null}
-                                {row.industry ? (
-                                  <span className="inline-flex items-center gap-1 rounded-full border border-amber-100 bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
-                                    {row.industry}
-                                  </span>
-                                ) : null}
-                                {row.socials ? (
-                                  <span className="inline-flex items-center gap-1 rounded-full border border-pink-100 bg-pink-50 px-2 py-0.5 text-[10px] font-medium text-pink-700">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
-                                    {row.socials}
-                                  </span>
-                                ) : null}
-                                {row.lists.length > 0 ? row.lists.map((list, li) => (
-                                  <span key={li} className="inline-flex rounded-full border border-sky-100 bg-sky-50 px-2 py-0.5 text-[10px] font-medium text-sky-700">
-                                    {list}
-                                  </span>
-                                )) : null}
-                              </div>
+                                {update.isDeleted && (
+                                  <Alert severity="error" sx={{ mt: 1, py: 0 }}>This update was deleted.</Alert>
+                                )}
 
-                              {/* Notes */}
-                              {row.notes ? (
-                                <div className="mt-2 rounded-lg bg-slate-50 px-2.5 py-1.5 text-[11px] leading-4 text-gray-600">
-                                  {row.notes}
-                                </div>
-                              ) : null}
+                                {!update.isDeleted && editingUpdateId === updateId && (
+                                  <Stack spacing={1} sx={{ mt: 1 }}>
+                                    <TextField size="small" multiline rows={3} value={editingComment} onChange={(e) => setEditingComment(e.target.value)} placeholder="Edit update message" fullWidth />
+                                    <FormControl size="small" fullWidth>
+                                      <Select value={editingStatus} onChange={(e) => setEditingStatus(e.target.value)}>
+                                        {CRM_STATUSES.map((status) => <MenuItem key={`${updateId}-${status}`} value={status}>{statusLabel(status)}</MenuItem>)}
+                                      </Select>
+                                    </FormControl>
+                                    <Stack direction="row" spacing={1} justifyContent="flex-end">
+                                      <Button size="small" variant="outlined" onClick={cancelEditLeadUpdate} disabled={timelineBusyKey === `edit:${updateId}`}>Cancel</Button>
+                                      <Button size="small" variant="contained" onClick={() => void saveEditedLeadUpdate(update)} disabled={timelineBusyKey === `edit:${updateId}`}>
+                                        {timelineBusyKey === `edit:${updateId}` ? "Saving…" : "Save"}
+                                      </Button>
+                                    </Stack>
+                                  </Stack>
+                                )}
 
-                              {/* Duplicate warnings */}
-                              {hasIssue ? (
-                                <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5">
-                                  {issues.map((reason, idx) => (
-                                    <div key={`${row.rowNumber}-${idx}`} className="text-[11px] text-amber-800">
-                                      ⚠ {reason}
-                                    </div>
-                                  ))}
-                                </div>
-                              ) : null}
-                            </div>
+                                {!update.isDeleted && update.comment && (
+                                  <Typography variant="body2" sx={{ mt: 1, p: 1, borderRadius: 1, bgcolor: "action.hover" }}>{update.comment}</Typography>
+                                )}
+
+                                {!update.isDeleted && editingUpdateId !== updateId && (
+                                  <Stack direction="row" spacing={0.5} sx={{ mt: 1 }}>
+                                    <Button size="small" variant="outlined" startIcon={<EditRoundedIcon sx={{ fontSize: 14 }} />} onClick={() => beginEditLeadUpdate(update)} disabled={Boolean(timelineBusyKey) || !updateId}>Edit</Button>
+                                    <Button size="small" variant="outlined" color="error" startIcon={<DeleteRoundedIcon sx={{ fontSize: 14 }} />} onClick={() => void deleteLeadUpdate(update)} disabled={timelineBusyKey === `delete:${updateId}` || !updateId}>
+                                      {timelineBusyKey === `delete:${updateId}` ? "…" : "Delete"}
+                                    </Button>
+                                  </Stack>
+                                )}
+
+                                {!update.isDeleted && update.attachmentUrls?.length ? (
+                                  <Box sx={{ mt: 1.5 }}>
+                                    <Typography variant="caption" fontWeight={600}><AttachFileRoundedIcon sx={{ fontSize: 14, mr: 0.5, verticalAlign: "text-bottom" }} />Attachments</Typography>
+                                    <Stack direction="row" flexWrap="wrap" useFlexGap spacing={1} sx={{ mt: 0.5 }}>
+                                      {update.attachmentUrls.map((url, fileIdx) => (
+                                        <Card key={`${url}-${fileIdx}`} variant="outlined" sx={{ p: 1 }}>
+                                          {isLikelyImageUrl(url) ? (
+                                            <a href={url} target="_blank" rel="noreferrer">
+                                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                                              <img src={url} alt={`Attachment ${fileIdx + 1}`} style={{ height: 80, width: 120, objectFit: "cover", borderRadius: 4 }} />
+                                            </a>
+                                          ) : (
+                                            <Button size="small" href={url} target="_blank" rel="noreferrer">File {fileIdx + 1}</Button>
+                                          )}
+                                          <Button size="small" color="error" fullWidth sx={{ mt: 0.5, fontSize: "0.65rem" }} onClick={() => void deleteLeadUpdateAttachment(update, url)} disabled={timelineBusyKey === `attachment:${updateId}:${url}` || !updateId}>
+                                            {timelineBusyKey === `attachment:${updateId}:${url}` ? "…" : "Remove"}
+                                          </Button>
+                                        </Card>
+                                      ))}
+                                    </Stack>
+                                  </Box>
+                                ) : null}
+
+                                {!update.isDeleted && update.recordingUrl && (
+                                  <Box sx={{ mt: 1.5 }}>
+                                    <Typography variant="caption" fontWeight={600}><MicRoundedIcon sx={{ fontSize: 14, mr: 0.5, verticalAlign: "text-bottom" }} />Voice Recording</Typography>
+                                    <audio controls src={update.recordingUrl} style={{ width: "100%", marginTop: 4 }} preload="none" />
+                                    <Button size="small" color="error" sx={{ mt: 0.5 }} onClick={() => void deleteLeadUpdateRecording(update)} disabled={timelineBusyKey === `recording:${updateId}` || !updateId}>
+                                      {timelineBusyKey === `recording:${updateId}` ? "Deleting…" : "Delete audio"}
+                                    </Button>
+                                  </Box>
+                                )}
+                              </CardContent>
+                            </Card>
                           );
                         })}
-                      </div>
+                      </Stack>
                     )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : null}
+                  </CardContent>
+                </Card>
+              </Stack>
+            )}
+          </DialogContent>
+        </Dialog>
 
-        {showLeadDetailsModal ? (
-          <div className="fixed inset-0 z-[96] p-3 md:p-6">
-            <div
-              className="absolute inset-0 bg-slate-900/55 backdrop-blur-[1px]"
-              onClick={closeLeadDetailsModal}
-            />
+      </Stack>
 
-            <div className="relative mx-auto flex h-[92vh] max-w-4xl flex-col overflow-hidden rounded-3xl border border-sky-200 bg-gradient-to-br from-white via-sky-50/40 to-rose-50 shadow-2xl">
-              <div className="flex items-start justify-between border-b border-sky-100 px-5 py-4">
-                <div>
-                  <h3 className="text-xl font-semibold text-gray-900">Lead Conversation & Files</h3>
-                  <p className="text-sm text-gray-600">
-                    Review CRM history, play recordings, and reply back to the assigned rep.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={closeLeadDetailsModal}
-                  disabled={submittingAdminReply}
-                  className="rounded-xl border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60"
-                >
-                  Close
-                </button>
-              </div>
-
-              <div className="min-h-0 flex-1 overflow-auto px-5 py-4">
-                {leadDetailsLoadingId ? (
-                  <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800">
-                    Loading lead details...
-                  </div>
-                ) : leadDetailsError ? (
-                  <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                    {leadDetailsError}
-                  </div>
-                ) : !activeLeadDetails ? (
-                  <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600">
-                    Lead details are unavailable.
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="rounded-2xl border border-sky-100 bg-white p-4">
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                          <div className="text-lg font-semibold text-gray-900">{activeLeadDetails.clientName}</div>
-                          <div className="text-xs text-gray-600">
-                            {activeLeadDetails.companyName || "No company"} • {activeLeadDetails.email || "No email"}
-                          </div>
-                        </div>
-                        <span className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-medium text-sky-700">
-                          {statusLabel(activeLeadDetails.status)}
-                        </span>
-                      </div>
-
-                      <div className="mt-3 grid grid-cols-1 gap-2 text-xs text-gray-700 md:grid-cols-2">
-                        <div><span className="font-medium">Phone:</span> {activeLeadDetails.phoneFormatted || activeLeadDetails.phoneRaw || "-"}</div>
-                        <div><span className="font-medium">Due:</span> {toIsoDateValue(activeLeadDetails.dueDate) || "-"}</div>
-                        <div><span className="font-medium">Lists:</span> {activeLeadDetails.listItems?.join(", ") || "-"}</div>
-                        <div><span className="font-medium">Updated:</span> {toDateTimeValue(activeLeadDetails.updatedAt)}</div>
-                      </div>
-                    </div>
-
-                    <div className="rounded-2xl border border-rose-100 bg-white p-4">
-                      <div className="text-sm font-semibold text-gray-900">Reply to CRM agent</div>
-                      <p className="mt-1 text-xs text-gray-600">
-                        Add a clear instruction or feedback. It appears in the mobile CRM task activity timeline.
-                      </p>
-
-                      <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-[200px_minmax(0,1fr)]">
-                        <select
-                          value={adminReplyStatus}
-                          onChange={(e) => setAdminReplyStatus(e.target.value)}
-                          className="rounded-xl border border-gray-300 px-3 py-2 text-sm"
-                        >
-                          {CRM_STATUSES.map((status) => (
-                            <option key={status} value={status}>{statusLabel(status)}</option>
-                          ))}
-                        </select>
-                        <textarea
-                          value={adminReply}
-                          onChange={(e) => setAdminReply(e.target.value)}
-                          rows={3}
-                          placeholder="Add admin reply visible to CRM rep..."
-                          className="rounded-xl border border-gray-300 px-3 py-2 text-sm"
-                        />
-                      </div>
-
-                      <div className="mt-2 flex justify-end">
-                        <button
-                          type="button"
-                          onClick={() => void submitAdminLeadReply()}
-                          disabled={submittingAdminReply || !adminReply.trim()}
-                          className="inline-flex items-center rounded-xl bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700 disabled:opacity-60"
-                        >
-                          {submittingAdminReply ? "Sending..." : "Send Reply"}
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="rounded-2xl border border-sky-100 bg-white p-4">
-                      <div className="text-sm font-semibold text-gray-900">Activity Timeline</div>
-                      <p className="mt-1 text-xs text-gray-600">
-                        Every comment, attachment, and voice note shared between admin and CRM rep.
-                      </p>
-
-                      {activeLeadUpdates.length === 0 ? (
-                        <div className="mt-3 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600">
-                          No updates yet on this lead.
-                        </div>
-                      ) : (
-                        <div className="mt-3 space-y-3">
-                          {activeLeadUpdates.map((update, idx) => {
-                            const updateId = normalizeUpdateId(update._id);
-                            return (
-                              <div key={updateId || `${idx}-${update.createdAt || "na"}`} className="rounded-xl border border-sky-100 bg-sky-50/40 px-3 py-3">
-                              <div className="flex flex-wrap items-center justify-between gap-2">
-                                <div className="text-xs font-medium text-sky-800">{leadUpdateAuthorLabel(update)}</div>
-                                <div className="text-[11px] text-gray-500">{toDateTimeValue(update.createdAt)}</div>
-                              </div>
-                              <div className="mt-1 text-[11px] text-gray-500">Status: {statusLabel(update.status || activeLeadDetails.status)}</div>
-
-                              <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                                {update.editedAt && !update.isDeleted ? (
-                                  <span className="inline-flex rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
-                                    Edited
-                                  </span>
-                                ) : null}
-                                {update.isDeleted ? (
-                                  <span className="inline-flex rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-700">
-                                    Deleted
-                                  </span>
-                                ) : null}
-                              </div>
-
-                              {update.isDeleted ? (
-                                <div className="mt-2 rounded-lg border border-red-200 bg-red-50 px-2.5 py-2 text-sm italic text-red-700">
-                                  This update was deleted.
-                                </div>
-                              ) : null}
-
-                              {!update.isDeleted && editingUpdateId === updateId ? (
-                                <div className="mt-2 space-y-2 rounded-lg border border-sky-200 bg-white px-2.5 py-2">
-                                  <textarea
-                                    value={editingComment}
-                                    onChange={(e) => setEditingComment(e.target.value)}
-                                    rows={3}
-                                    placeholder="Edit update message"
-                                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                                  />
-
-                                  <select
-                                    value={editingStatus}
-                                    onChange={(e) => setEditingStatus(e.target.value)}
-                                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                                  >
-                                    {CRM_STATUSES.map((status) => (
-                                      <option key={`${updateId}-${status}`} value={status}>
-                                        {statusLabel(status)}
-                                      </option>
-                                    ))}
-                                  </select>
-
-                                  <div className="flex items-center justify-end gap-2">
-                                    <button
-                                      type="button"
-                                      onClick={cancelEditLeadUpdate}
-                                      disabled={timelineBusyKey === `edit:${updateId}`}
-                                      className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-100 disabled:opacity-60"
-                                    >
-                                      Cancel
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => void saveEditedLeadUpdate(update)}
-                                      disabled={timelineBusyKey === `edit:${updateId}`}
-                                      className="rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-700 disabled:opacity-60"
-                                    >
-                                      {timelineBusyKey === `edit:${updateId}` ? "Saving..." : "Save"}
-                                    </button>
-                                  </div>
-                                </div>
-                              ) : null}
-
-                              {!update.isDeleted && update.comment ? (
-                                <div className="mt-2 rounded-lg border border-white/80 bg-white px-2.5 py-2 text-sm text-gray-800">
-                                  {update.comment}
-                                </div>
-                              ) : null}
-
-                              {!update.isDeleted && editingUpdateId !== updateId ? (
-                                <div className="mt-2 flex flex-wrap items-center gap-2">
-                                  <button
-                                    type="button"
-                                    onClick={() => beginEditLeadUpdate(update)}
-                                    disabled={Boolean(timelineBusyKey) || !updateId}
-                                    className="rounded-lg border border-sky-300 bg-white px-3 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-50 disabled:opacity-60"
-                                  >
-                                    Edit
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => void deleteLeadUpdate(update)}
-                                    disabled={timelineBusyKey === `delete:${updateId}` || !updateId}
-                                    className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-60"
-                                  >
-                                    {timelineBusyKey === `delete:${updateId}` ? "Deleting..." : "Delete"}
-                                  </button>
-                                </div>
-                              ) : null}
-
-                              {!update.isDeleted && update.attachmentUrls?.length ? (
-                                <div className="mt-2 space-y-1">
-                                  <div className="text-xs font-medium text-gray-700">Attachments</div>
-                                  <div className="flex flex-wrap gap-2">
-                                    {update.attachmentUrls.map((url, fileIdx) => (
-                                      <div key={`${url}-${fileIdx}`} className="rounded-lg border border-sky-100 bg-white p-2">
-                                        {isLikelyImageUrl(url) ? (
-                                          <a href={url} target="_blank" rel="noreferrer" className="block">
-                                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                                            <img
-                                              src={url}
-                                              alt={`Attachment ${fileIdx + 1}`}
-                                              className="h-28 w-44 max-w-full rounded-md border border-sky-100 object-cover"
-                                            />
-                                          </a>
-                                        ) : (
-                                          <a
-                                            href={url}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            className="inline-flex items-center rounded-full border border-sky-200 bg-white px-2.5 py-1 text-xs text-sky-700 hover:bg-sky-50"
-                                          >
-                                            File {fileIdx + 1}
-                                          </a>
-                                        )}
-                                        <div className="mt-2">
-                                          <button
-                                            type="button"
-                                            onClick={() => void deleteLeadUpdateAttachment(update, url)}
-                                            disabled={timelineBusyKey === `attachment:${updateId}:${url}` || !updateId}
-                                            className="rounded-md bg-red-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-red-700 disabled:opacity-60"
-                                          >
-                                            {timelineBusyKey === `attachment:${updateId}:${url}` ? "Removing..." : "Remove"}
-                                          </button>
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              ) : null}
-
-                              {!update.isDeleted && update.recordingUrl ? (
-                                <div className="mt-2">
-                                  <div className="mb-1 text-xs font-medium text-gray-700">Voice Recording</div>
-                                  <audio controls src={update.recordingUrl} className="w-full" preload="none" />
-                                  <button
-                                    type="button"
-                                    onClick={() => void deleteLeadUpdateRecording(update)}
-                                    disabled={timelineBusyKey === `recording:${updateId}` || !updateId}
-                                    className="mt-2 rounded-md bg-red-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-red-700 disabled:opacity-60"
-                                  >
-                                    {timelineBusyKey === `recording:${updateId}` ? "Deleting..." : "Delete audio"}
-                                  </button>
-                                </div>
-                              ) : null}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        ) : null}
-      </main>
-
-      <div className="fixed bottom-4 right-4 z-[90] space-y-2">
-        {toasts.map((t) => (
-          <div
-            key={t.id}
-            className={`rounded-xl border px-4 py-3 shadow-md backdrop-blur ${
-              t.type === "success"
-                ? "bg-emerald-50/95 text-emerald-800 border-emerald-200"
-                : t.type === "error"
-                ? "bg-red-50/95 text-red-800 border-red-200"
-                : "bg-sky-50/95 text-sky-800 border-sky-200"
-            }`}
-          >
+      {/* ── Toast notifications ── */}
+      {toasts.map((t) => (
+        <Snackbar key={t.id} open anchorOrigin={{ vertical: "bottom", horizontal: "right" }} sx={{ position: "fixed" }}>
+          <Alert severity={t.type === "success" ? "success" : t.type === "error" ? "error" : "info"} variant="filled" sx={{ width: "100%" }}>
             {t.message}
-          </div>
-        ))}
-      </div>
-    </div>
+          </Alert>
+        </Snackbar>
+      ))}
+    </Box>
   );
 }

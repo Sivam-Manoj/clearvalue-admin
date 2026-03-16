@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import Image from "next/image";
 
 // Cloudinary cloud name for URL generation
 const CLOUDINARY_CLOUD =
@@ -608,9 +609,9 @@ export default function ReportImages({
   };
 
   return (
-    <div className="h-screen flex flex-col bg-gradient-to-br from-rose-50 via-white to-rose-100 overflow-hidden">
+    <div className="h-screen flex flex-col overflow-hidden">
       {/* Fixed Header */}
-      <header className="flex-shrink-0 px-4 py-4 border-b border-rose-100 bg-white/80 backdrop-blur-sm">
+      <header className="flex-shrink-0 px-4 py-4 admin-glass-surface border-b-0">
         <div className="max-w-7xl mx-auto flex items-center gap-4">
           <button
             onClick={onBack}
@@ -644,8 +645,8 @@ export default function ReportImages({
       {/* Main Content - Flex Row */}
       <div className="flex-1 flex overflow-hidden">
         {/* Fixed Left Sidebar */}
-        <aside className="hidden lg:flex lg:flex-col w-80 xl:w-96 flex-shrink-0 border-r border-rose-100 bg-white/60 backdrop-blur-sm overflow-y-auto p-4 space-y-4">
-          <section className="rounded-2xl border border-rose-200 bg-white/80 backdrop-blur shadow-lg p-4 space-y-4">
+        <aside className="hidden lg:flex lg:flex-col w-80 xl:w-96 flex-shrink-0 border-r border-[var(--admin-border)] bg-[var(--admin-bg-elevated)] overflow-y-auto p-4 space-y-4">
+          <section className="admin-glass-surface rounded-2xl p-4 space-y-4">
             <div className="flex items-center gap-2">
               <h2 className="font-semibold text-gray-900">Compression</h2>
               <span className="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded-full">
@@ -1191,11 +1192,13 @@ export default function ReportImages({
                   onClick={() => toggleImage(url)}
                 >
                   <div className="aspect-[4/3] relative bg-gray-100">
-                    <img
+                    <Image
                       src={displayUrl}
                       alt={`Image ${index + 1}`}
-                      className="w-full h-full object-cover"
-                      loading="lazy"
+                      fill
+                      className="object-cover"
+                      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
+                      unoptimized
                     />
 
                     {/* Enhancement processing overlay */}
@@ -1390,11 +1393,14 @@ export default function ReportImages({
                 <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-rose-500" />
               </div>
             ) : previewUrl ? (
-              <img
+              <Image
                 src={previewUrl}
                 alt="Preview"
+                width={1200}
+                height={900}
                 className="max-w-full max-h-[85vh] object-contain"
                 onLoad={() => setPreviewLoading(false)}
+                unoptimized
               />
             ) : null}
             <div className="absolute bottom-4 left-4 right-4 flex justify-between items-center">
