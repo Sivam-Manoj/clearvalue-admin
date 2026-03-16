@@ -10,8 +10,8 @@ import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
 import ManageAccountsRoundedIcon from "@mui/icons-material/ManageAccountsRounded";
 import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
 import SupportAgentRoundedIcon from "@mui/icons-material/SupportAgentRounded";
+import Image from "next/image";
 import {
-  Avatar,
   Box,
   Button,
   Chip,
@@ -160,28 +160,14 @@ export default function AdminNavbarV2({ children }: { children?: ReactNode }) {
           "&:hover": { bgcolor: "action.hover" },
         }}
       >
-        <Avatar
-          variant="rounded"
-          sx={{
-            width: 44,
-            height: 44,
-            fontWeight: 800,
-            fontSize: "1rem",
-            background: "linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)",
-            boxShadow: "0 8px 24px rgba(37,99,235,0.32)",
-            borderRadius: 3,
-          }}
-        >
-          CV
-        </Avatar>
-        <Box sx={{ minWidth: 0 }}>
-          <Typography variant="caption" sx={{ display: "block", color: "text.secondary", lineHeight: 1.2, fontSize: "0.68rem" }}>
-            Asset Insight
-          </Typography>
-          <Typography variant="subtitle2" sx={{ fontWeight: 800, whiteSpace: "nowrap", lineHeight: 1.3 }}>
-            Admin Console
-          </Typography>
-        </Box>
+        <Image
+          src="/logo.png"
+          alt="Logo"
+          width={140}
+          height={60}
+          style={{ objectFit: "contain" }}
+          priority
+        />
       </Box>
 
       <Divider sx={{ mx: 1, mb: 1 }} />
@@ -327,26 +313,16 @@ export default function AdminNavbarV2({ children }: { children?: ReactNode }) {
         >
           <Toolbar sx={{ minHeight: 64, px: 2, justifyContent: "space-between" }}>
             <Stack direction="row" alignItems="center" spacing={1.5}>
-              <Avatar
-                component={Link}
-                href={homeHref}
-                variant="rounded"
-                sx={{
-                  width: 36,
-                  height: 36,
-                  fontWeight: 800,
-                  fontSize: "0.85rem",
-                  background: "linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)",
-                  boxShadow: "0 6px 18px rgba(37,99,235,0.30)",
-                  borderRadius: 2,
-                  textDecoration: "none",
-                }}
-              >
-                CV
-              </Avatar>
-              <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>
-                Admin
-              </Typography>
+              <Link href={homeHref} style={{ display: "flex", alignItems: "center" }}>
+                <Image
+                  src="/logo.png"
+                  alt="Logo"
+                  width={100}
+                  height={40}
+                  style={{ objectFit: "contain" }}
+                  priority
+                />
+              </Link>
             </Stack>
             <Stack direction="row" alignItems="center" spacing={0.5}>
               <ThemeModeToggle />
