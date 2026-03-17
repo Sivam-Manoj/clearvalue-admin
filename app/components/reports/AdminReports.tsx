@@ -316,10 +316,14 @@ export default function AdminReports() {
                 size="small"
                 variant="contained"
                 color="primary"
-                href={link.href || undefined}
-                target={link.href ? "_blank" : undefined}
-                rel={link.href ? "noopener noreferrer" : undefined}
                 disabled={!link.href}
+                {...(link.href
+                  ? {
+                      href: link.href,
+                      target: "_blank",
+                      rel: "noopener noreferrer",
+                    }
+                  : {})}
               >
                 {link.label}
               </Button>
@@ -560,10 +564,14 @@ export default function AdminReports() {
                                   size="small"
                                   variant="contained"
                                   color="primary"
-                                  href={link.href || undefined}
-                                  target={link.href ? "_blank" : undefined}
-                                  rel={link.href ? "noopener noreferrer" : undefined}
                                   disabled={!link.href}
+                                  {...(link.href
+                                    ? {
+                                        href: link.href,
+                                        target: "_blank",
+                                        rel: "noopener noreferrer",
+                                      }
+                                    : {})}
                                 >
                                   {link.label}
                                 </Button>
