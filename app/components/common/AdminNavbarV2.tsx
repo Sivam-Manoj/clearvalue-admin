@@ -4,11 +4,13 @@ import AssessmentRoundedIcon from "@mui/icons-material/AssessmentRounded";
 import ChevronLeftRoundedIcon from "@mui/icons-material/ChevronLeftRounded";
 import ChevronRightRoundedIcon from "@mui/icons-material/ChevronRightRounded";
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
+import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import DashboardRoundedIcon from "@mui/icons-material/DashboardRounded";
 import GroupsRoundedIcon from "@mui/icons-material/GroupsRounded";
 import ImageRoundedIcon from "@mui/icons-material/ImageRounded";
 import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
 import ManageAccountsRoundedIcon from "@mui/icons-material/ManageAccountsRounded";
+import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
 import SupportAgentRoundedIcon from "@mui/icons-material/SupportAgentRounded";
 import Image from "next/image";
 import {
@@ -16,6 +18,7 @@ import {
   Button,
   Chip,
   Divider,
+  Drawer,
   IconButton,
   List,
   ListItemButton,
@@ -33,7 +36,8 @@ import ThemeModeToggle from "@/app/components/common/ThemeModeToggle";
 
 const SIDEBAR_WIDTH = 272;
 const SIDEBAR_COLLAPSED_WIDTH = 92;
-const MOBILE_TOPBAR_HEIGHT = 118;
+const MOBILE_DRAWER_WIDTH = 280;
+const MOBILE_TOPBAR_HEIGHT = 64;
 
 type NavItem = {
   href: string;
@@ -49,6 +53,7 @@ export default function AdminNavbarV2({ children }: { children?: ReactNode }) {
   const [role, setRole] = useState<string | null>(null);
   const [loggingOut, setLoggingOut] = useState(false);
   const [desktopCollapsed, setDesktopCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -131,7 +136,35 @@ export default function AdminNavbarV2({ children }: { children?: ReactNode }) {
 
   const desktopNavWidth = desktopCollapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_WIDTH;
 
-  const sidebarContent = (
+  // Close mobile drawer on route change
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
+
+  const navItemsSx = (active: boolean, collapsed: boolean) => ({
+    borderRadius: 2.5,
+    mb: 0.75,
+    px: collapsed ? 1 : 1.5,
+    py: 1,
+    minHeight: 44,
+    justifyContent: collapsed ? "center" : "flex-start",
+    transition: "all 180ms ease",
+    border: "1px solid",
+    borderColor: active ? "primary.main" : "transparent",
+    bgcolor: active ? "action.selected" : "transparent",
+    boxShadow: active
+      ? "0 4px 16px rgba(37,99,235,0.15), inset 0 1px 0 rgba(255,255,255,0.1)"
+      : "none",
+    "&:hover": {
+      bgcolor: active ? "action.selected" : "action.hover",
+      transform: "translateX(2px)",
+      boxShadow: active
+        ? "0 6px 20px rgba(37,99,235,0.20)"
+        : "0 2px 8px rgba(0,0,0,0.06)",
+    },
+  });
+
+  const sidebarContent = (collapsed: boolean) => (
     <Box
       sx={{
         display: "flex",
@@ -146,9 +179,9 @@ export default function AdminNavbarV2({ children }: { children?: ReactNode }) {
         sx={{
           display: "flex",
           alignItems: "center",
-          justifyContent: desktopCollapsed ? "center" : "space-between",
+          justifyContent: collapsed ? "center" : "space-between",
           gap: 1,
-          px: desktopCollapsed ? 0.5 : 1.5,
+          px: collapsed ? 0.5 : 1.5,
           py: 1.5,
           mb: 1,
         }}
@@ -159,7 +192,7 @@ export default function AdminNavbarV2({ children }: { children?: ReactNode }) {
           sx={{
             display: "flex",
             alignItems: "center",
-            justifyContent: desktopCollapsed ? "center" : "flex-start",
+            justifyContent: collapsed ? "center" : "flex-start",
             flexGrow: 1,
             minWidth: 0,
             borderRadius: 3,
@@ -171,25 +204,41 @@ export default function AdminNavbarV2({ children }: { children?: ReactNode }) {
           <Image
             src="/logo.png"
             alt="Logo"
-            width={desktopCollapsed ? 52 : 140}
-            height={desktopCollapsed ? 52 : 60}
+            width={collapsed ? 52 : 140}
+            height={collapsed ? 52 : 60}
             style={{ objectFit: "contain" }}
             priority
           />
         </Box>
-        <IconButton
-          onClick={() => setDesktopCollapsed((prev) => !prev)}
-          size="small"
-          sx={{
-            border: "1px solid",
-            borderColor: "divider",
-            bgcolor: "background.paper",
-            boxShadow: "0 4px 14px rgba(0,0,0,0.08)",
-            ml: desktopCollapsed ? 0 : 1,
-          }}
-        >
-          {desktopCollapsed ? <ChevronRightRoundedIcon fontSize="small" /> : <ChevronLeftRoundedIcon fontSize="small" />}
-        </IconButton>
+        {isDesktop && (
+          <IconButton
+            onClick={() => setDesktopCollapsed((prev) => !prev)}
+            size="small"
+            sx={{
+              border: "1px solid",
+              borderColor: "divider",
+              bgcolor: "background.paper",
+              boxShadow: "0 4px 14px rgba(0,0,0,0.08)",
+              ml: collapsed ? 0 : 1,
+            }}
+          >
+            {collapsed ? <ChevronRightRoundedIcon fontSize="small" /> : <ChevronLeftRoundedIcon fontSize="small" />}
+          </IconButton>
+        )}
+        {!isDesktop && (
+          <IconButton
+            onClick={() => setMobileOpen(false)}
+            size="small"
+            sx={{
+              border: "1px solid",
+              borderColor: "divider",
+              bgcolor: "background.paper",
+              boxShadow: "0 4px 14px rgba(0,0,0,0.08)",
+            }}
+          >
+            <CloseRoundedIcon fontSize="small" />
+          </IconButton>
+        )}
       </Box>
 
       <Divider sx={{ mx: 1, mb: 1 }} />
@@ -204,39 +253,18 @@ export default function AdminNavbarV2({ children }: { children?: ReactNode }) {
               component={Link}
               href={item.href}
               selected={active}
-              sx={{
-                borderRadius: 2.5,
-                mb: 0.75,
-                px: desktopCollapsed ? 1 : 1.5,
-                py: 1,
-                minHeight: 44,
-                justifyContent: desktopCollapsed ? "center" : "flex-start",
-                transition: "all 180ms ease",
-                border: "1px solid",
-                borderColor: active ? "primary.main" : "transparent",
-                bgcolor: active ? "action.selected" : "transparent",
-                boxShadow: active
-                  ? "0 4px 16px rgba(37,99,235,0.15), inset 0 1px 0 rgba(255,255,255,0.1)"
-                  : "none",
-                "&:hover": {
-                  bgcolor: active ? "action.selected" : "action.hover",
-                  transform: "translateX(2px)",
-                  boxShadow: active
-                    ? "0 6px 20px rgba(37,99,235,0.20)"
-                    : "0 2px 8px rgba(0,0,0,0.06)",
-                },
-              }}
+              sx={navItemsSx(active, collapsed)}
             >
               <ListItemIcon
                 sx={{
-                  minWidth: desktopCollapsed ? 0 : 36,
-                  mr: desktopCollapsed ? 0 : 0.5,
+                  minWidth: collapsed ? 0 : 36,
+                  mr: collapsed ? 0 : 0.5,
                   color: active ? "primary.main" : "text.secondary",
                 }}
               >
                 {item.icon}
               </ListItemIcon>
-              {!desktopCollapsed && (
+              {!collapsed && (
                 <ListItemText
                   primary={item.label}
                   primaryTypographyProps={{
@@ -255,7 +283,7 @@ export default function AdminNavbarV2({ children }: { children?: ReactNode }) {
 
       {/* Footer controls */}
       <Stack spacing={1} sx={{ px: 1 }}>
-        {!desktopCollapsed && (
+        {!collapsed && (
           <Chip
             label={roleLabel}
             color="primary"
@@ -265,10 +293,10 @@ export default function AdminNavbarV2({ children }: { children?: ReactNode }) {
           />
         )}
         <Stack
-          direction={desktopCollapsed ? "column" : "row"}
+          direction={collapsed ? "column" : "row"}
           alignItems="center"
           justifyContent="space-between"
-          spacing={desktopCollapsed ? 1 : 0}
+          spacing={collapsed ? 1 : 0}
         >
           <ThemeModeToggle />
           <Button
@@ -276,21 +304,31 @@ export default function AdminNavbarV2({ children }: { children?: ReactNode }) {
             disabled={loggingOut}
             color="inherit"
             size="small"
-            startIcon={desktopCollapsed ? undefined : <LogoutRoundedIcon sx={{ fontSize: 18 }} />}
+            startIcon={collapsed ? undefined : <LogoutRoundedIcon sx={{ fontSize: 18 }} />}
             sx={{
               fontSize: "0.78rem",
               color: "text.secondary",
-              minWidth: desktopCollapsed ? 40 : undefined,
-              px: desktopCollapsed ? 1 : 1.5,
+              minWidth: collapsed ? 40 : undefined,
+              px: collapsed ? 1 : 1.5,
               "&:hover": { color: "error.main" },
             }}
           >
-            {desktopCollapsed ? <LogoutRoundedIcon sx={{ fontSize: 18 }} /> : loggingOut ? "Logging out…" : "Logout"}
+            {collapsed ? <LogoutRoundedIcon sx={{ fontSize: 18 }} /> : loggingOut ? "Logging out…" : "Logout"}
           </Button>
         </Stack>
       </Stack>
     </Box>
   );
+
+  const sidebarBg = (t: typeof theme) =>
+    t.palette.mode === "dark"
+      ? "linear-gradient(195deg, rgba(15,27,45,0.97), rgba(9,17,31,0.98))"
+      : "linear-gradient(195deg, rgba(255,255,255,0.98), rgba(246,249,255,0.97))";
+
+  const sidebarShadow = (t: typeof theme) =>
+    t.palette.mode === "dark"
+      ? "4px 0 24px rgba(0,0,0,0.35)"
+      : "4px 0 24px rgba(37,99,235,0.08)";
 
   return (
     <Box sx={{ display: "flex", minHeight: "100vh" }}>
@@ -308,24 +346,18 @@ export default function AdminNavbarV2({ children }: { children?: ReactNode }) {
             zIndex: (t) => t.zIndex.drawer,
             borderRight: "1px solid",
             borderColor: "divider",
-            backgroundImage: (t) =>
-              t.palette.mode === "dark"
-                ? "linear-gradient(195deg, rgba(15,27,45,0.97), rgba(9,17,31,0.98))"
-                : "linear-gradient(195deg, rgba(255,255,255,0.98), rgba(246,249,255,0.97))",
+            backgroundImage: (t) => sidebarBg(t),
             backdropFilter: "blur(20px)",
-            boxShadow: (t) =>
-              t.palette.mode === "dark"
-                ? "4px 0 24px rgba(0,0,0,0.35)"
-                : "4px 0 24px rgba(37,99,235,0.08)",
+            boxShadow: (t) => sidebarShadow(t),
             transition: "width 220ms ease, box-shadow 220ms ease",
             overflowX: "hidden",
           }}
         >
-          {sidebarContent}
+          {sidebarContent(desktopCollapsed)}
         </Box>
       )}
 
-      {/* ── Mobile top bar ── */}
+      {/* ── Mobile top bar (hamburger) ── */}
       {!isDesktop && (
         <Box
           component="header"
@@ -348,14 +380,28 @@ export default function AdminNavbarV2({ children }: { children?: ReactNode }) {
                 : "0 4px 20px rgba(37,99,235,0.10)",
           }}
         >
-          <Toolbar sx={{ minHeight: 64, px: 2, justifyContent: "space-between", gap: 1.5 }}>
-            <Stack direction="row" alignItems="center" spacing={1.5}>
+          <Toolbar sx={{ minHeight: MOBILE_TOPBAR_HEIGHT, px: 1.5, justifyContent: "space-between", gap: 1 }}>
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <IconButton
+                onClick={() => setMobileOpen(true)}
+                size="medium"
+                sx={{
+                  border: "1px solid",
+                  borderColor: "divider",
+                  bgcolor: "background.paper",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                  "&:hover": { bgcolor: "action.hover" },
+                }}
+                aria-label="Open navigation menu"
+              >
+                <MenuRoundedIcon />
+              </IconButton>
               <Link href={homeHref} style={{ display: "flex", alignItems: "center" }}>
                 <Image
                   src="/logo.png"
                   alt="Logo"
-                  width={100}
-                  height={40}
+                  width={90}
+                  height={36}
                   style={{ objectFit: "contain" }}
                   priority
                 />
@@ -372,58 +418,29 @@ export default function AdminNavbarV2({ children }: { children?: ReactNode }) {
               <ThemeModeToggle />
             </Stack>
           </Toolbar>
-          <Box
-            sx={{
-              px: 1,
-              pb: 1.25,
-              display: "flex",
-              alignItems: "center",
-              gap: 1,
-              overflowX: "auto",
-              scrollbarWidth: "none",
-              "&::-webkit-scrollbar": { display: "none" },
-            }}
-          >
-            {items.map((item) => {
-              const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
-              return (
-                <Button
-                  key={item.href}
-                  component={Link}
-                  href={item.href}
-                  startIcon={item.icon}
-                  variant={active ? "contained" : "outlined"}
-                  color={active ? "primary" : "inherit"}
-                  sx={{
-                    flexShrink: 0,
-                    borderRadius: 999,
-                    px: 1.75,
-                    whiteSpace: "nowrap",
-                    minWidth: "fit-content",
-                    boxShadow: active ? "0 8px 18px rgba(37,99,235,0.18)" : "none",
-                  }}
-                >
-                  {item.label}
-                </Button>
-              );
-            })}
-            <Button
-              onClick={onLogout}
-              disabled={loggingOut}
-              startIcon={<LogoutRoundedIcon sx={{ fontSize: 18 }} />}
-              color="inherit"
-              variant="outlined"
-              sx={{
-                flexShrink: 0,
-                borderRadius: 999,
-                px: 1.75,
-                whiteSpace: "nowrap",
-              }}
-            >
-              {loggingOut ? "Logging out…" : "Logout"}
-            </Button>
-          </Box>
         </Box>
+      )}
+
+      {/* ── Mobile slide-out drawer ── */}
+      {!isDesktop && (
+        <Drawer
+          anchor="left"
+          open={mobileOpen}
+          onClose={() => setMobileOpen(false)}
+          ModalProps={{ keepMounted: true }}
+          PaperProps={{
+            sx: {
+              width: MOBILE_DRAWER_WIDTH,
+              backgroundImage: (t) => sidebarBg(t),
+              backdropFilter: "blur(20px)",
+              boxShadow: (t) => sidebarShadow(t),
+              borderRight: "1px solid",
+              borderColor: "divider",
+            },
+          }}
+        >
+          {sidebarContent(false)}
+        </Drawer>
       )}
 
       {/* ── Main content area ── */}

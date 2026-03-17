@@ -57,6 +57,8 @@ import {
   TableRow,
   TextField,
   Typography,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 
 ChartJS.register(ArcElement, CategoryScale, LinearScale, BarElement, PointElement, LineElement, Tooltip, Legend);
@@ -230,6 +232,18 @@ function formatCrmSpecializations(values?: string[]): string {
     .map((value) => CRM_SPECIALIZATION_LABELS[value] || value)
     .filter(Boolean)
     .join(", ");
+}
+
+function parseCrmQuadrants(value?: string): string[] {
+  return String(value || "")
+    .split(",")
+    .map((item) => item.trim().toUpperCase())
+    .filter(Boolean);
+}
+
+function formatCrmQuadrants(value?: string): string {
+  const quadrants = parseCrmQuadrants(value);
+  return quadrants.join(", ");
 }
 
 function toIsoDateValue(value?: string): string {
@@ -445,6 +459,8 @@ function normalizePhoneForKey(value: string): string {
 }
 
 function statusLabel(value: string): string {
+  if (value === "completed") return "Archived";
+  if (value === "archived") return "Archived";
   return value.replace(/_/g, " ").replace(/\b\w/g, (x) => x.toUpperCase());
 }
 
@@ -610,6 +626,8 @@ function buildPreviewRows(rows: ExcelRow[]): {
 }
 
 export default function AdminCrmManagement() {
+  const crmTheme = useTheme();
+  const matchesMd = useMediaQuery(crmTheme.breakpoints.up("md"));
   const [toasts, setToasts] = useState<{ id: number; type: "success" | "error" | "info"; message: string }[]>([]);
   function pushToast(message: string, type: "success" | "error" | "info" = "info") {
     const id = Date.now() + Math.random();
@@ -1220,7 +1238,7 @@ export default function AdminCrmManagement() {
         {
           label: "Leads",
           data: counts,
-          backgroundColor: ["#64748B", "#0EA5E9", "#16A34A", "#F59E0B", "#EF4444"],
+          backgroundColor: ["#64748B", "#0EA5E9", "#16A34A", "#F59E0B", "#EF4444", "#4F46E5"],
           borderRadius: 6,
         },
       ],
@@ -1343,8 +1361,9 @@ export default function AdminCrmManagement() {
           "rgba(22,163,74,0.8)",
           "rgba(245,158,11,0.8)",
           "rgba(239,68,68,0.8)",
+          "rgba(79,70,229,0.8)",
         ],
-        borderColor: ["#64748B", "#0EA5E9", "#16A34A", "#F59E0B", "#EF4444"],
+        borderColor: ["#64748B", "#0EA5E9", "#16A34A", "#F59E0B", "#EF4444", "#4F46E5"],
         borderWidth: 1.5,
       }],
     };
@@ -1516,7 +1535,7 @@ export default function AdminCrmManagement() {
                 <Typography variant="subtitle1" fontWeight={700}>Lead Activity</Typography>
                 <Typography variant="body2" color="text.secondary">Latest CRM tasks across all assigned agents.</Typography>
               </Box>
-              <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ minWidth: { md: 500 } }}>
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ width: "100%", maxWidth: { md: 500 } }}>
                 <TextField
                   size="small"
                   placeholder="Search lead, email, phone"
@@ -1529,7 +1548,8 @@ export default function AdminCrmManagement() {
                   <InputLabel>Status</InputLabel>
                   <Select value={leadStatus} label="Status" onChange={(e) => setLeadStatus(e.target.value)}>
                     <MenuItem value="">All</MenuItem>
-                    {CRM_STATUSES.map((s) => <MenuItem key={s} value={s}>{statusLabel(s)}</MenuItem>)}
+                    <MenuItem value="archived">Archived</MenuItem>
+                    {CRM_STATUSES.filter((s) => s !== "completed").map((s) => <MenuItem key={s} value={s}>{statusLabel(s)}</MenuItem>)}
                   </Select>
                 </FormControl>
                 <FormControl size="small" sx={{ minWidth: 140 }}>
@@ -1753,7 +1773,7 @@ export default function AdminCrmManagement() {
         </Card>
 
         {/* ── CRM Team Manager Dialog ── */}
-        <Dialog open={showCrmOpsModal} onClose={() => setShowCrmOpsModal(false)} maxWidth="xl" fullWidth scroll="paper">
+        <Dialog open={showCrmOpsModal} onClose={() => setShowCrmOpsModal(false)} maxWidth="xl" fullWidth fullScreen={!matchesMd} scroll="paper">
           <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", pb: 1 }}>
             <Box>
               <Typography variant="h6" fontWeight={800}>CRM Team Manager</Typography>
@@ -1834,7 +1854,7 @@ export default function AdminCrmManagement() {
                             <Typography variant="caption" color="text.secondary">{u.username || "-"} {u.companyName ? `· ${u.companyName}` : ""}</Typography>
                             {(u.crmQuadrant || formatCrmSpecializations(u.crmSpecializations)) ? (
                               <Typography variant="caption" display="block" color="info.main">
-                                {[u.crmQuadrant ? `Quadrant ${u.crmQuadrant}` : "", formatCrmSpecializations(u.crmSpecializations)].filter(Boolean).join(" · ")}
+                                {[formatCrmQuadrants(u.crmQuadrant) ? `Quadrant ${formatCrmQuadrants(u.crmQuadrant)}` : "", formatCrmSpecializations(u.crmSpecializations)].filter(Boolean).join(" · ")}
                               </Typography>
                             ) : null}
                           </TableCell>
@@ -1893,7 +1913,7 @@ export default function AdminCrmManagement() {
         </Dialog>
 
         {/* ── Import Preview Dialog ── */}
-        <Dialog open={showImportModal} onClose={() => !importing && setShowImportModal(false)} maxWidth="xl" fullWidth scroll="paper">
+        <Dialog open={showImportModal} onClose={() => !importing && setShowImportModal(false)} maxWidth="xl" fullWidth fullScreen={!matchesMd} scroll="paper">
           <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", pb: 1 }}>
             <Box>
               <Typography variant="h6" fontWeight={800}>CRM Excel Upload Preview</Typography>
@@ -1981,7 +2001,7 @@ export default function AdminCrmManagement() {
                       <Typography variant="caption" color="text.secondary">Assigned CRM reps for import</Typography>
                       <Stack direction="row" flexWrap="wrap" useFlexGap spacing={0.5} sx={{ mt: 1 }}>
                         {selectedAssignees.length > 0 ? selectedAssignees.map((agent) => (
-                          <Chip key={agent._id} label={`${agent.username || agent.email}${agent.crmQuadrant ? ` · Q${agent.crmQuadrant}` : ""}`} size="small" variant="outlined" />
+                          <Chip key={agent._id} label={`${agent.username || agent.email}${formatCrmQuadrants(agent.crmQuadrant) ? ` · Q${formatCrmQuadrants(agent.crmQuadrant)}` : ""}`} size="small" variant="outlined" />
                         )) : (
                           <Typography variant="caption" color="text.secondary">Auto-distribute among all active CRM agents</Typography>
                         )}
@@ -2067,7 +2087,7 @@ export default function AdminCrmManagement() {
         </Dialog>
 
         {/* ── Lead Details Dialog ── */}
-        <Dialog open={showLeadDetailsModal} onClose={closeLeadDetailsModal} maxWidth="md" fullWidth scroll="paper">
+        <Dialog open={showLeadDetailsModal} onClose={closeLeadDetailsModal} maxWidth="md" fullWidth fullScreen={!matchesMd} scroll="paper">
           <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", pb: 1 }}>
             <Box>
               <Typography variant="h6" fontWeight={800}>Lead Conversation & Files</Typography>

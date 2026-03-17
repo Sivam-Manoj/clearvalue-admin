@@ -56,6 +56,18 @@ const CRM_SPECIALIZATION_LABELS: Record<string, string> = {
   others: "Others",
 };
 
+function parseCrmQuadrants(value?: string): string[] {
+  return String(value || "")
+    .split(",")
+    .map((item) => item.trim().toUpperCase())
+    .filter(Boolean);
+}
+
+function formatCrmQuadrants(value?: string): string {
+  const quadrants = parseCrmQuadrants(value);
+  return quadrants.length ? quadrants.join(", ") : "-";
+}
+
 function formatCrmSpecializations(values?: string[]): string {
   if (!Array.isArray(values) || values.length === 0) return "-";
   return values
@@ -102,7 +114,7 @@ export default function AdminUsers() {
 
   // CRM profile edit
   const [crmEditUser, setCrmEditUser] = useState<UserItem | null>(null);
-  const [crmEditQuadrant, setCrmEditQuadrant] = useState("");
+  const [crmEditQuadrants, setCrmEditQuadrants] = useState<string[]>([]);
   const [crmEditSpecs, setCrmEditSpecs] = useState<string[]>([]);
   const [crmEditSaving, setCrmEditSaving] = useState(false);
 
@@ -112,7 +124,7 @@ export default function AdminUsers() {
 
   function openCrmEdit(u: UserItem) {
     setCrmEditUser(u);
-    setCrmEditQuadrant(u.crmQuadrant || "");
+    setCrmEditQuadrants(parseCrmQuadrants(u.crmQuadrant));
     setCrmEditSpecs(Array.isArray(u.crmSpecializations) ? [...u.crmSpecializations] : []);
   }
 
@@ -123,7 +135,7 @@ export default function AdminUsers() {
       const res = await fetch(`/api/admin/crm/users/${crmEditUser._id}/crm-profile`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ crmQuadrant: crmEditQuadrant, crmSpecializations: crmEditSpecs }),
+        body: JSON.stringify({ crmQuadrant: crmEditQuadrants, crmSpecializations: crmEditSpecs }),
       });
       const j = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(j?.message || "Failed to update CRM profile");
@@ -140,6 +152,12 @@ export default function AdminUsers() {
   function toggleCrmEditSpec(value: string) {
     setCrmEditSpecs((prev) =>
       prev.includes(value) ? prev.filter((s) => s !== value) : [...prev, value]
+    );
+  }
+
+  function toggleCrmEditQuadrant(value: string) {
+    setCrmEditQuadrants((prev) =>
+      prev.includes(value) ? prev.filter((item) => item !== value) : [...prev, value]
     );
   }
 
@@ -321,7 +339,7 @@ export default function AdminUsers() {
             </span>
             <div className="mt-2 text-xs leading-5 text-gray-600 break-words">
               {u.isCrmAgent
-                ? [u.crmQuadrant ? `Quadrant ${u.crmQuadrant}` : "", formatCrmSpecializations(u.crmSpecializations)]
+                ? [formatCrmQuadrants(u.crmQuadrant) !== "-" ? `Quadrant ${formatCrmQuadrants(u.crmQuadrant)}` : "", formatCrmSpecializations(u.crmSpecializations)]
                     .filter((value) => value && value !== "-")
                     .join(" • ") || "-"
                 : "No CRM assignment"}
@@ -584,7 +602,7 @@ export default function AdminUsers() {
                         <div className="mt-1 font-medium text-gray-900">{u.isCrmAgent ? "Assigned" : "Not Assigned"}</div>
                         {u.isCrmAgent ? (
                           <div className="mt-1 text-xs leading-5 text-sky-700 break-words">
-                            {[u.crmQuadrant ? `Quadrant ${u.crmQuadrant}` : "", formatCrmSpecializations(u.crmSpecializations)]
+                            {[formatCrmQuadrants(u.crmQuadrant) !== "-" ? `Quadrant ${formatCrmQuadrants(u.crmQuadrant)}` : "", formatCrmSpecializations(u.crmSpecializations)]
                               .filter((value) => value && value !== "-")
                               .join(" • ") || "-"}
                           </div>
@@ -683,15 +701,15 @@ export default function AdminUsers() {
       >
         <div className="space-y-5">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">CRM Quadrant</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">CRM Quadrants</label>
             <div className="flex flex-wrap gap-2">
               {CRM_QUADRANT_OPTIONS.map((q) => (
                 <button
                   key={q}
                   type="button"
-                  onClick={() => setCrmEditQuadrant(crmEditQuadrant === q ? "" : q)}
+                  onClick={() => toggleCrmEditQuadrant(q)}
                   className={`cursor-pointer px-3 py-1.5 rounded-xl border text-sm font-medium transition-all ${
-                    crmEditQuadrant === q
+                    crmEditQuadrants.includes(q)
                       ? "border-rose-400 bg-rose-50 text-rose-700 shadow-sm"
                       : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50"
                   }`}
@@ -700,13 +718,13 @@ export default function AdminUsers() {
                 </button>
               ))}
             </div>
-            {crmEditQuadrant && (
+            {crmEditQuadrants.length > 0 && (
               <button
                 type="button"
-                onClick={() => setCrmEditQuadrant("")}
+                onClick={() => setCrmEditQuadrants([])}
                 className="cursor-pointer mt-2 text-xs text-rose-600 hover:underline"
               >
-                Clear quadrant
+                Clear quadrants
               </button>
             )}
           </div>

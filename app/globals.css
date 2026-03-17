@@ -61,8 +61,14 @@ body {
 }
 
 .admin-page-shell {
-  min-height: calc(100vh - 82px);
-  padding: 1.5rem;
+  min-height: calc(100vh - 64px);
+  padding: 1rem;
+}
+
+@media (min-width: 640px) {
+  .admin-page-shell {
+    padding: 1.5rem;
+  }
 }
 
 .admin-glass-surface {

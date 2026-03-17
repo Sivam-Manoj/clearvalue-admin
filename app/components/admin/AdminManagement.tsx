@@ -195,7 +195,7 @@ export default function AdminManagement() {
   return (
     <div className="admin-page-shell">
       <header className="sticky top-0 z-10 admin-glass-surface rounded-3xl">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-3 sm:px-4 py-3 flex items-center justify-between gap-2">
           <div className="flex items-center gap-3">
             <div className="h-9 w-9 rounded-xl bg-rose-500 shadow-md shadow-rose-200 ring-1 ring-rose-300 flex items-center justify-center text-white font-bold">
               CV
@@ -209,9 +209,10 @@ export default function AdminManagement() {
           </div>
           <Link
             href="/dashboard"
-            className="px-4 py-2 rounded-lg border border-rose-300 text-rose-700 bg-white hover:bg-rose-50 active:bg-rose-100 shadow-sm hover:shadow transition-all"
+            className="shrink-0 px-3 sm:px-4 py-2 rounded-lg border border-rose-300 text-rose-700 bg-white hover:bg-rose-50 active:bg-rose-100 shadow-sm hover:shadow transition-all text-sm sm:text-base"
           >
-            Back to Dashboard
+            <span className="hidden sm:inline">Back to Dashboard</span>
+            <span className="sm:hidden">Dashboard</span>
           </Link>
         </div>
       </header>
@@ -229,20 +230,20 @@ export default function AdminManagement() {
                 these actions.
               </p>
             </div>
-            <div className="flex items-center gap-4">
-              <div className="rounded-xl border border-rose-200 bg-white/70 px-4 py-2 shadow-sm">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="rounded-xl border border-rose-200 bg-white/70 px-3 sm:px-4 py-2 shadow-sm">
                 <div className="text-xs text-gray-600">Total</div>
                 <div className="text-lg font-semibold text-gray-900">
                   {admins.length}
                 </div>
               </div>
-              <div className="rounded-xl border border-rose-200 bg-white/70 px-4 py-2 shadow-sm">
+              <div className="rounded-xl border border-rose-200 bg-white/70 px-3 sm:px-4 py-2 shadow-sm">
                 <div className="text-xs text-gray-600">Superadmins</div>
                 <div className="text-lg font-semibold text-gray-900">
                   {admins.filter((a) => a.role === "superadmin").length}
                 </div>
               </div>
-              <div className="rounded-xl border border-rose-200 bg-white/70 px-4 py-2 shadow-sm hidden sm:block">
+              <div className="rounded-xl border border-rose-200 bg-white/70 px-3 sm:px-4 py-2 shadow-sm">
                 <div className="text-xs text-gray-600">Blocked</div>
                 <div className="text-lg font-semibold text-gray-900">
                   {admins.filter((a) => a.isBlocked).length}
@@ -328,7 +329,7 @@ export default function AdminManagement() {
               <label className="block text-sm font-medium text-gray-700">
                 Sort
               </label>
-              <div className="mt-1 flex gap-2">
+              <div className="mt-1 flex flex-wrap gap-2">
                 <button
                   onClick={() => setSort("role")}
                   className={`cursor-pointer px-3 py-1.5 rounded-xl border shadow-sm ${

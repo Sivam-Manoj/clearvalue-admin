@@ -199,7 +199,7 @@ export default function AdminApprovals() {
   return (
     <div className="admin-page-shell">
       <main className="max-w-6xl mx-auto space-y-8">
-        <section className="admin-glass-surface rounded-3xl p-6">
+        <section className="admin-glass-surface rounded-3xl p-4 md:p-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
               <h1 className="text-xl md:text-2xl font-semibold text-gray-900">Report Approvals</h1>
