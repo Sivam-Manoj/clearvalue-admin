@@ -263,25 +263,33 @@ export default function AdminReports() {
         accessorKey: "title",
         header: "Report",
         cell: ({ row }) => (
-          <Stack spacing={0.25} minWidth={0}>
-            <Typography variant="body2" sx={{ fontWeight: 700, wordBreak: "break-word" }}>
+          <Stack spacing={0.25} minWidth={0} sx={{ maxWidth: 240 }}>
+            <Typography
+              variant="body2"
+              sx={{
+                fontWeight: 700,
+                lineHeight: 1.25,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                display: "-webkit-box",
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: "vertical",
+              }}
+            >
               {row.original.title}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" noWrap>
+              Contract: {row.original.contract_no || "-"}
             </Typography>
           </Stack>
         ),
-      },
-      {
-        id: "contract_no",
-        accessorFn: (row) => row.contract_no || "",
-        header: "Contract No",
-        cell: ({ row }) => row.original.contract_no || "-",
       },
       {
         id: "fairMarketValue",
         accessorFn: (row) => row.fairMarketValue || "",
         header: "FMV",
         cell: ({ row }) => (
-          <Chip size="small" color="success" label={formatFMV(row.original.fairMarketValue)} />
+          <Chip size="small" color="success" label={formatFMV(row.original.fairMarketValue)} sx={{ height: 24, fontWeight: 700, maxWidth: 110 }} />
         ),
       },
       {
@@ -289,27 +297,30 @@ export default function AdminReports() {
         accessorFn: (row) => getReportTypeLabel(row.reportType),
         header: "Type",
         cell: ({ row }) => (
-          <Chip size="small" variant="outlined" color="secondary" label={getReportTypeLabel(row.original.reportType)} />
+          <Chip size="small" variant="outlined" color="secondary" label={getReportTypeLabel(row.original.reportType)} sx={{ height: 24 }} />
         ),
       },
       {
         id: "createdAt",
         accessorFn: (row) => new Date(row.createdAt).getTime(),
-        header: "Created At",
-        cell: ({ row }) => new Date(row.original.createdAt).toLocaleString(),
-      },
-      {
-        id: "userEmail",
-        accessorFn: (row) => row.userEmail || "",
-        header: "Created By",
-        cell: ({ row }) => row.original.userEmail || "-",
+        header: "Created",
+        cell: ({ row }) => (
+          <Stack spacing={0.25} minWidth={0} sx={{ maxWidth: 190 }}>
+            <Typography variant="body2" sx={{ lineHeight: 1.2 }}>
+              {new Date(row.original.createdAt).toLocaleDateString()}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" noWrap>
+              {row.original.userEmail || "-"}
+            </Typography>
+          </Stack>
+        ),
       },
       {
         id: "actions",
         enableSorting: false,
         header: "Actions",
         cell: ({ row }) => (
-          <Stack direction="row" spacing={1} flexWrap="wrap" justifyContent="flex-end">
+          <Stack direction="row" spacing={0.75} flexWrap="wrap" justifyContent="flex-end" useFlexGap>
             {buildDownloadLinks(row.original).map((link) => (
               <Button
                 key={`${row.original.key}-${link.label}`}
@@ -317,6 +328,7 @@ export default function AdminReports() {
                 variant="contained"
                 color="primary"
                 disabled={!link.href}
+                sx={{ minWidth: 0, px: 1.1, py: 0.45, fontSize: "0.7rem", lineHeight: 1.1, borderRadius: 1.75 }}
                 {...(link.href
                   ? {
                       href: link.href,
@@ -328,7 +340,13 @@ export default function AdminReports() {
                 {link.label}
               </Button>
             ))}
-            <Button size="small" variant="outlined" color="error" onClick={() => openDelete(row.original.key)}>
+            <Button
+              size="small"
+              variant="outlined"
+              color="error"
+              sx={{ minWidth: 0, px: 1.1, py: 0.45, fontSize: "0.7rem", lineHeight: 1.1, borderRadius: 1.75 }}
+              onClick={() => openDelete(row.original.key)}
+            >
               Delete
             </Button>
           </Stack>
@@ -477,7 +495,19 @@ export default function AdminReports() {
                 <Chip size="small" color="secondary" variant="outlined" label={`${rows.length} visible`} />
               </Stack>
               <TableContainer className="hidden md:block">
-                <Table size="small" sx={{ minWidth: 980 }}>
+                <Table
+                  size="small"
+                  sx={{
+                    tableLayout: "fixed",
+                    width: "100%",
+                    "& .MuiTableCell-root": {
+                      px: 1.5,
+                      py: 1.25,
+                      fontSize: "0.8rem",
+                      verticalAlign: "middle",
+                    },
+                  }}
+                >
                   <TableHead>
                     {table.getHeaderGroups().map((headerGroup) => (
                       <TableRow key={headerGroup.id}>
@@ -485,7 +515,22 @@ export default function AdminReports() {
                           <TableCell
                             key={header.id}
                             align={header.column.id === "actions" ? "right" : "left"}
-                            sx={{ fontWeight: 700 }}
+                            sx={{
+                              fontWeight: 700,
+                              whiteSpace: "nowrap",
+                              width:
+                                header.column.id === "title"
+                                  ? "34%"
+                                  : header.column.id === "fairMarketValue"
+                                  ? "13%"
+                                  : header.column.id === "reportType"
+                                  ? "11%"
+                                  : header.column.id === "createdAt"
+                                  ? "20%"
+                                  : header.column.id === "actions"
+                                  ? "22%"
+                                  : "auto",
+                            }}
                           >
                             {header.isPlaceholder ? null : header.column.getCanSort() ? (
                               <TableSortLabel
@@ -508,7 +553,11 @@ export default function AdminReports() {
                       rows.map((row) => (
                         <TableRow key={row.id} hover>
                           {row.getVisibleCells().map((cell) => (
-                            <TableCell key={cell.id} align={cell.column.id === "actions" ? "right" : "left"}>
+                            <TableCell
+                              key={cell.id}
+                              align={cell.column.id === "actions" ? "right" : "left"}
+                              sx={{ overflow: "hidden" }}
+                            >
                               {flexRender(cell.column.columnDef.cell, cell.getContext())}
                             </TableCell>
                           ))}
