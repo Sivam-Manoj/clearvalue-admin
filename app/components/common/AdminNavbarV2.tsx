@@ -109,10 +109,10 @@ export default function AdminNavbarV2({ children }: { children?: ReactNode }) {
     if (role === "superadmin" || role === "admin") {
       return [
         { href: "/dashboard", label: "Dashboard", icon: <DashboardRoundedIcon fontSize="small" /> },
-        { href: "/reports", label: "Reports", icon: <AssessmentRoundedIcon fontSize="small" /> },
+        { href: "/reports", label: "Approved Reports", icon: <AssessmentRoundedIcon fontSize="small" /> },
         { href: "/users", label: "Users", icon: <GroupsRoundedIcon fontSize="small" /> },
         { href: "/crm", label: "CRM", icon: <SupportAgentRoundedIcon fontSize="small" /> },
-        { href: "/approvals", label: "Approvals", icon: <CheckCircleRoundedIcon fontSize="small" /> },
+        { href: "/approvals", label: "Pending Approval", icon: <CheckCircleRoundedIcon fontSize="small" /> },
         ...(role === "superadmin"
           ? [{ href: "/admins", label: "Admins", icon: <ManageAccountsRoundedIcon fontSize="small" /> }]
           : []),

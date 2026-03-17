@@ -2,6 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  type ColumnDef,
+  flexRender,
+  getCoreRowModel,
+  getSortedRowModel,
+  type SortingState,
+  useReactTable,
+} from "@tanstack/react-table";
+import {
   blockAdminAPI,
   createAdminAPI,
   deleteAdminAPI,
@@ -10,6 +18,28 @@ import {
 import Link from "next/link";
 import Modal from "@/app/components/common/Modal";
 import ConfirmModal from "@/app/components/common/ConfirmModal";
+import {
+  Alert,
+  Button,
+  Card,
+  CardContent,
+  Chip,
+  FormControl,
+  Grid,
+  InputLabel,
+  MenuItem,
+  Select,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TableSortLabel,
+  TextField,
+  Typography,
+} from "@mui/material";
 
 type AdminUser = {
   _id: string;
@@ -33,8 +63,7 @@ export default function AdminManagement() {
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("");
-  const [sortBy, setSortBy] = useState<"role" | "email" | "createdAt">("role");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [sorting, setSorting] = useState<SortingState>([{ id: "roleRank", desc: false }]);
 
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
@@ -160,37 +189,103 @@ export default function AdminManagement() {
     return list;
   }, [admins, search, roleFilter, statusFilter]);
 
-  const sorted = useMemo(() => {
-    const list = [...filtered];
-    list.sort((a, b) => {
-      const dir = sortDir === "asc" ? 1 : -1;
-      if (sortBy === "role") {
-        // superadmin first
-        const ra = a.role === "superadmin" ? 0 : a.role === "admin" ? 1 : 2;
-        const rb = b.role === "superadmin" ? 0 : b.role === "admin" ? 1 : 2;
-        return (
-          (ra - rb) * dir || (a.email || "").localeCompare(b.email || "") * dir
-        );
-      }
-      if (sortBy === "email") {
-        return (a.email || "").localeCompare(b.email || "") * dir;
-      }
-      // createdAt
-      const da = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const db = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return (da - db) * dir;
-    });
-    return list;
-  }, [filtered, sortBy, sortDir]);
+  const columns = useMemo<ColumnDef<AdminUser>[]>(
+    () => [
+      {
+        id: "email",
+        accessorKey: "email",
+        header: "Email",
+        cell: ({ row }) => (
+          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+            {row.original.email}
+          </Typography>
+        ),
+      },
+      {
+        id: "username",
+        accessorFn: (row) => row.username || "",
+        header: "Username",
+        cell: ({ row }) => row.original.username || "-",
+      },
+      {
+        id: "company",
+        accessorFn: (row) => row.companyName || "",
+        header: "Company",
+        cell: ({ row }) => row.original.companyName || "-",
+      },
+      {
+        id: "roleRank",
+        accessorFn: (row) => (row.role === "superadmin" ? 0 : row.role === "admin" ? 1 : 2),
+        header: "Role",
+        cell: ({ row }) => (
+          <Chip
+            size="small"
+            label={row.original.role}
+            color={row.original.role === "superadmin" ? "warning" : "secondary"}
+            variant="outlined"
+          />
+        ),
+      },
+      {
+        id: "status",
+        accessorFn: (row) => (row.isBlocked ? "blocked" : "active"),
+        header: "Status",
+        cell: ({ row }) => (
+          <Typography variant="body2" color={row.original.isBlocked ? "error.main" : "success.main"}>
+            {row.original.isBlocked ? "Blocked" : "Active"}
+          </Typography>
+        ),
+      },
+      {
+        id: "createdAt",
+        accessorFn: (row) => (row.createdAt ? new Date(row.createdAt).getTime() : 0),
+        header: "Created",
+        cell: ({ row }) => (row.original.createdAt ? new Date(row.original.createdAt).toLocaleString() : "-"),
+      },
+      {
+        id: "actions",
+        enableSorting: false,
+        header: "Actions",
+        cell: ({ row }) => {
+          const u = row.original;
+          return (
+            <Stack direction="row" spacing={1} flexWrap="wrap" justifyContent="flex-end">
+              <Button
+                size="small"
+                variant="outlined"
+                color="secondary"
+                disabled={u.role === "superadmin"}
+                onClick={() => openBlock(u)}
+              >
+                {u.isBlocked ? "Unblock" : "Block"}
+              </Button>
+              <Button
+                size="small"
+                variant="outlined"
+                color="error"
+                disabled={u.role === "superadmin"}
+                onClick={() => openDelete(u)}
+              >
+                Delete
+              </Button>
+            </Stack>
+          );
+        },
+      },
+    ],
+    []
+  );
 
-  function setSort(column: "role" | "email" | "createdAt") {
-    if (sortBy === column) {
-      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    } else {
-      setSortBy(column);
-      setSortDir("asc");
-    }
-  }
+  const table = useReactTable({
+    data: filtered,
+    columns,
+    state: { sorting },
+    onSortingChange: setSorting,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+  });
+
+  const rows = table.getRowModel().rows;
 
   return (
     <div className="admin-page-shell">
@@ -285,255 +380,179 @@ export default function AdminManagement() {
 
         {/* Filters for list */}
         <section className="admin-glass-surface rounded-3xl p-4 md:p-6">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Search
-              </label>
-              <input
+          <Grid container spacing={2}>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <TextField
+                fullWidth
+                size="small"
+                label="Search"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="email, username, or company"
-                className="mt-1 w-full rounded-xl border border-gray-300 hover:border-gray-400 focus:border-rose-400 focus:ring-rose-400 shadow-sm px-3 py-2.5"
               />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Role
-              </label>
-              <select
-                value={roleFilter}
-                onChange={(e) => setRoleFilter(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-gray-300 hover:border-gray-400 focus:border-rose-400 focus:ring-rose-400 shadow-sm px-3 py-2.5"
-              >
-                <option value="">All</option>
-                <option value="superadmin">Superadmin</option>
-                <option value="admin">Admin</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Status
-              </label>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-gray-300 hover:border-gray-400 focus:border-rose-400 focus:ring-rose-400 shadow-sm px-3 py-2.5"
-              >
-                <option value="">All</option>
-                <option value="active">Active</option>
-                <option value="blocked">Blocked</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Sort
-              </label>
-              <div className="mt-1 flex flex-wrap gap-2">
-                <button
-                  onClick={() => setSort("role")}
-                  className={`cursor-pointer px-3 py-1.5 rounded-xl border shadow-sm ${
-                    sortBy === "role"
-                      ? "border-rose-400 text-rose-700 bg-rose-50"
-                      : "border-rose-200 text-gray-700 bg-white hover:bg-rose-50"
-                  }`}
-                >
-                  Role{" "}
-                  {sortBy === "role" ? (sortDir === "asc" ? "↑" : "↓") : ""}
-                </button>
-                <button
-                  onClick={() => setSort("email")}
-                  className={`cursor-pointer px-3 py-1.5 rounded-xl border shadow-sm ${
-                    sortBy === "email"
-                      ? "border-rose-400 text-rose-700 bg-rose-50"
-                      : "border-rose-200 text-gray-700 bg-white hover:bg-rose-50"
-                  }`}
-                >
-                  Email{" "}
-                  {sortBy === "email" ? (sortDir === "asc" ? "↑" : "↓") : ""}
-                </button>
-                <button
-                  onClick={() => setSort("createdAt")}
-                  className={`cursor-pointer px-3 py-1.5 rounded-xl border shadow-sm ${
-                    sortBy === "createdAt"
-                      ? "border-rose-400 text-rose-700 bg-rose-50"
-                      : "border-rose-200 text-gray-700 bg-white hover:bg-rose-50"
-                  }`}
-                >
-                  Created{" "}
-                  {sortBy === "createdAt"
-                    ? sortDir === "asc"
-                      ? "↑"
-                      : "↓"
-                    : ""}
-                </button>
-              </div>
-            </div>
-          </div>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Role</InputLabel>
+                <Select value={roleFilter} label="Role" onChange={(e) => setRoleFilter(e.target.value)}>
+                  <MenuItem value="">All</MenuItem>
+                  <MenuItem value="superadmin">Superadmin</MenuItem>
+                  <MenuItem value="admin">Admin</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Status</InputLabel>
+                <Select value={statusFilter} label="Status" onChange={(e) => setStatusFilter(e.target.value)}>
+                  <MenuItem value="">All</MenuItem>
+                  <MenuItem value="active">Active</MenuItem>
+                  <MenuItem value="blocked">Blocked</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+          </Grid>
+          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 2 }}>
+            Sort by clicking any desktop table header.
+          </Typography>
         </section>
 
         {/* List Admins */}
-        <section className="rounded-2xl border border-rose-200 bg-white/80 backdrop-blur shadow-lg shadow-rose-100 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Admins</h2>
+        <section className="admin-glass-surface rounded-3xl p-4 md:p-6">
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} justifyContent="space-between" sx={{ mb: 2 }}>
+            <Typography variant="h6" fontWeight={700}>Admins</Typography>
+            <Chip size="small" color="secondary" variant="outlined" label={`${rows.length} filtered`} />
+          </Stack>
           {loading ? (
-            <div className="text-gray-500">Loading...</div>
+            <Typography color="text.secondary">Loading...</Typography>
+          ) : error ? (
+            <Alert severity="error">{error}</Alert>
           ) : (
             <>
-              {/* Table on md+ */}
-              <div className="overflow-x-auto hidden md:block">
-                <table className="min-w-full text-left text-sm">
-                  <thead>
-                    <tr className="text-gray-600">
-                      <th className="py-2 pr-4">Email</th>
-                      <th className="py-2 pr-4">Username</th>
-                      <th className="py-2 pr-4">Company</th>
-                      <th className="py-2 pr-4">Role</th>
-                      <th className="py-2 pr-4">Status</th>
-                      <th className="py-2 pr-4">Created</th>
-                      <th className="py-2 pr-4">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sorted.map((u) => (
-                      <tr
-                        key={u._id}
-                        className="border-t border-rose-100/70 hover:bg-rose-50/40"
-                      >
-                        <td className="py-2 pr-4 text-gray-900">{u.email}</td>
-                        <td className="py-2 pr-4 text-gray-700">
-                          {u.username || "-"}
-                        </td>
-                        <td className="py-2 pr-4 text-gray-700">
-                          {u.companyName || "-"}
-                        </td>
-                        <td className="py-2 pr-4">
-                          <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
-                              u.role === "superadmin"
-                                ? "bg-amber-50 text-amber-800 border-amber-200"
-                                : "bg-rose-50 text-rose-800 border-rose-200"
-                            }`}
+              <TableContainer className="hidden md:block">
+                <Table size="small" sx={{ minWidth: 760 }}>
+                  <TableHead>
+                    {table.getHeaderGroups().map((headerGroup) => (
+                      <TableRow key={headerGroup.id}>
+                        {headerGroup.headers.map((header) => (
+                          <TableCell
+                            key={header.id}
+                            align={header.column.id === "actions" ? "right" : "left"}
+                            sx={{ fontWeight: 700 }}
                           >
-                            {u.role}
-                          </span>
-                        </td>
-                        <td className="py-2 pr-4">
-                          {u.isBlocked ? (
-                            <span className="text-red-600">Blocked</span>
-                          ) : (
-                            <span className="text-emerald-700">Active</span>
-                          )}
-                        </td>
-                        <td className="py-2 pr-4 text-gray-700">
-                          {u.createdAt
-                            ? new Date(u.createdAt).toLocaleString()
-                            : "-"}
-                        </td>
-                        <td className="py-2 pr-4 space-x-2">
-                          <button
-                            className="cursor-pointer px-3 py-1.5 rounded-xl border border-rose-300 text-rose-700 bg-white hover:bg-rose-50 active:bg-rose-100 shadow-sm hover:shadow transition-all disabled:opacity-50"
-                            disabled={u.role === "superadmin"}
-                            onClick={() => openBlock(u)}
-                            title={
-                              u.role === "superadmin"
-                                ? "Superadmin cannot be blocked"
-                                : u.isBlocked
-                                ? "Unblock"
-                                : "Block"
-                            }
-                          >
-                            {u.isBlocked ? "Unblock" : "Block"}
-                          </button>
-                          <button
-                            className="cursor-pointer px-3 py-1.5 rounded-xl border border-red-300 text-red-700 bg-white hover:bg-red-50 active:bg-red-100 shadow-sm hover:shadow transition-all disabled:opacity-50"
-                            disabled={u.role === "superadmin"}
-                            onClick={() => openDelete(u)}
-                            title={
-                              u.role === "superadmin"
-                                ? "Superadmin cannot be deleted"
-                                : "Delete admin"
-                            }
-                          >
-                            Delete
-                          </button>
-                        </td>
-                      </tr>
+                            {header.isPlaceholder ? null : header.column.getCanSort() ? (
+                              <TableSortLabel
+                                active={!!header.column.getIsSorted()}
+                                direction={header.column.getIsSorted() === "desc" ? "desc" : "asc"}
+                                onClick={header.column.getToggleSortingHandler()}
+                              >
+                                {flexRender(header.column.columnDef.header, header.getContext())}
+                              </TableSortLabel>
+                            ) : (
+                              flexRender(header.column.columnDef.header, header.getContext())
+                            )}
+                          </TableCell>
+                        ))}
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
-              </div>
+                  </TableHead>
+                  <TableBody>
+                    {rows.length ? (
+                      rows.map((row) => (
+                        <TableRow key={row.id} hover>
+                          {row.getVisibleCells().map((cell) => (
+                            <TableCell key={cell.id} align={cell.column.id === "actions" ? "right" : "left"}>
+                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={columns.length}>
+                          <Typography color="text.secondary">No admins match the current filters.</Typography>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
 
-              {/* Cards on mobile */}
-              <div className="grid grid-cols-1 gap-4 md:hidden">
-                {sorted.map((u) => (
-                  <div
-                    key={u._id}
-                    className="rounded-xl border border-rose-200 bg-white/90 backdrop-blur p-4 shadow-md"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="font-semibold text-gray-900">
-                          {u.email}
-                        </div>
-                        <div className="text-sm text-gray-600">
-                          {u.username || "-"}
-                        </div>
-                      </div>
-                      <span
-                        className={`shrink-0 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
-                          u.role === "superadmin"
-                            ? "bg-amber-50 text-amber-800 border-amber-200"
-                            : "bg-rose-50 text-rose-800 border-rose-200"
-                        }`}
-                      >
-                        {u.role}
-                      </span>
-                    </div>
-                    <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
-                      <div>
-                        <div className="text-gray-500">Company</div>
-                        <div className="font-medium text-gray-900">
-                          {u.companyName || "-"}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-gray-500">Status</div>
-                        <div
-                          className={`font-medium ${
-                            u.isBlocked ? "text-red-600" : "text-emerald-700"
-                          }`}
-                        >
-                          {u.isBlocked ? "Blocked" : "Active"}
-                        </div>
-                      </div>
-                      <div className="col-span-2">
-                        <div className="text-gray-500">Created</div>
-                        <div className="font-medium text-gray-900">
-                          {u.createdAt
-                            ? new Date(u.createdAt).toLocaleString()
-                            : "-"}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="mt-3 flex items-center gap-2">
-                      <button
-                        className="cursor-pointer px-3 py-1.5 rounded-xl border border-rose-300 text-rose-700 bg-white hover:bg-rose-50 active:bg-rose-100 shadow-sm hover:shadow transition-all disabled:opacity-50"
-                        disabled={u.role === "superadmin"}
-                        onClick={() => openBlock(u)}
-                      >
-                        {u.isBlocked ? "Unblock" : "Block"}
-                      </button>
-                      <button
-                        className="cursor-pointer px-3 py-1.5 rounded-xl border border-red-300 text-red-700 bg-white hover:bg-red-50 active:bg-red-100 shadow-sm hover:shadow transition-all disabled:opacity-50"
-                        disabled={u.role === "superadmin"}
-                        onClick={() => openDelete(u)}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <Stack spacing={2} className="md:hidden">
+                {rows.length ? (
+                  rows.map((row) => {
+                    const u = row.original;
+                    return (
+                      <Card key={u._id} variant="outlined">
+                        <CardContent>
+                          <Stack spacing={1.5}>
+                            <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1.5}>
+                              <Stack spacing={0.5} minWidth={0}>
+                                <Typography variant="subtitle2" sx={{ wordBreak: "break-word" }}>
+                                  {u.email}
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                  {u.username || "-"}
+                                </Typography>
+                              </Stack>
+                              <Chip
+                                size="small"
+                                label={u.role}
+                                color={u.role === "superadmin" ? "warning" : "secondary"}
+                                variant="outlined"
+                              />
+                            </Stack>
+                            <Grid container spacing={1.5}>
+                              <Grid size={{ xs: 12, sm: 6 }}>
+                                <Typography variant="caption" color="text.secondary">Company</Typography>
+                                <Typography variant="body2">{u.companyName || "-"}</Typography>
+                              </Grid>
+                              <Grid size={{ xs: 12, sm: 6 }}>
+                                <Typography variant="caption" color="text.secondary">Status</Typography>
+                                <Typography variant="body2" color={u.isBlocked ? "error.main" : "success.main"}>
+                                  {u.isBlocked ? "Blocked" : "Active"}
+                                </Typography>
+                              </Grid>
+                              <Grid size={{ xs: 12 }}>
+                                <Typography variant="caption" color="text.secondary">Created</Typography>
+                                <Typography variant="body2">
+                                  {u.createdAt ? new Date(u.createdAt).toLocaleString() : "-"}
+                                </Typography>
+                              </Grid>
+                            </Grid>
+                            <Stack direction="row" spacing={1} flexWrap="wrap">
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                color="secondary"
+                                disabled={u.role === "superadmin"}
+                                onClick={() => openBlock(u)}
+                              >
+                                {u.isBlocked ? "Unblock" : "Block"}
+                              </Button>
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                color="error"
+                                disabled={u.role === "superadmin"}
+                                onClick={() => openDelete(u)}
+                              >
+                                Delete
+                              </Button>
+                            </Stack>
+                          </Stack>
+                        </CardContent>
+                      </Card>
+                    );
+                  })
+                ) : (
+                  <Card variant="outlined">
+                    <CardContent>
+                      <Typography color="text.secondary">No admins match the current filters.</Typography>
+                    </CardContent>
+                  </Card>
+                )}
+              </Stack>
             </>
           )}
         </section>

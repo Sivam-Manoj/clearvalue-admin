@@ -81,3 +81,58 @@ body {
 .admin-text-muted {
   color: var(--admin-text-muted);
 }
+
+html[data-theme="dark"] .admin-page-shell .text-gray-900,
+html[data-theme="dark"] .admin-page-shell .text-gray-800,
+html[data-theme="dark"] .admin-page-shell .text-gray-700 {
+  color: var(--admin-text) !important;
+}
+
+html[data-theme="dark"] .admin-page-shell .text-gray-600,
+html[data-theme="dark"] .admin-page-shell .text-gray-500,
+html[data-theme="dark"] .admin-page-shell .text-gray-400 {
+  color: var(--admin-text-muted) !important;
+}
+
+html[data-theme="dark"] .admin-page-shell .bg-white,
+html[data-theme="dark"] .admin-page-shell .bg-white\/70,
+html[data-theme="dark"] .admin-page-shell .bg-white\/80,
+html[data-theme="dark"] .admin-page-shell .bg-white\/90,
+html[data-theme="dark"] .admin-page-shell .bg-white\/95,
+html[data-theme="dark"] .admin-page-shell .bg-gray-50,
+html[data-theme="dark"] .admin-page-shell .bg-gray-100,
+html[data-theme="dark"] .admin-page-shell .bg-rose-50,
+html[data-theme="dark"] .admin-page-shell .bg-rose-50\/40,
+html[data-theme="dark"] .admin-page-shell .bg-rose-50\/50 {
+  background-color: rgba(15, 27, 45, 0.88) !important;
+}
+
+html[data-theme="dark"] .admin-page-shell .border-gray-200,
+html[data-theme="dark"] .admin-page-shell .border-gray-300,
+html[data-theme="dark"] .admin-page-shell .border-rose-100,
+html[data-theme="dark"] .admin-page-shell .border-rose-100\/70,
+html[data-theme="dark"] .admin-page-shell .border-rose-200,
+html[data-theme="dark"] .admin-page-shell .border-rose-300,
+html[data-theme="dark"] .admin-page-shell .border-rose-400 {
+  border-color: var(--admin-border) !important;
+}
+
+html[data-theme="dark"] .admin-page-shell .hover\:bg-rose-50:hover,
+html[data-theme="dark"] .admin-page-shell .hover\:bg-rose-50\/40:hover,
+html[data-theme="dark"] .admin-page-shell .hover\:bg-rose-50\/50:hover,
+html[data-theme="dark"] .admin-page-shell .hover\:bg-gray-50:hover,
+html[data-theme="dark"] .admin-page-shell .hover\:bg-sky-50:hover,
+html[data-theme="dark"] .admin-page-shell .hover\:bg-indigo-50:hover,
+html[data-theme="dark"] .admin-page-shell .hover\:bg-red-50:hover,
+html[data-theme="dark"] .admin-page-shell .hover\:bg-amber-50:hover,
+html[data-theme="dark"] .admin-page-shell .hover\:bg-emerald-50:hover {
+  background-color: rgba(30, 41, 59, 0.9) !important;
+}
+
+html[data-theme="dark"] .admin-page-shell .shadow-sm,
+html[data-theme="dark"] .admin-page-shell .shadow-md,
+html[data-theme="dark"] .admin-page-shell .shadow-lg,
+html[data-theme="dark"] .admin-page-shell .shadow-rose-100,
+html[data-theme="dark"] .admin-page-shell .shadow-rose-200 {
+  box-shadow: 0 16px 36px rgba(2, 8, 23, 0.35) !important;
+}

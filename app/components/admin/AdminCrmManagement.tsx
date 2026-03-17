@@ -647,8 +647,10 @@ export default function AdminCrmManagement() {
   const [leadQ, setLeadQ] = useState("");
   const [leadStatus, setLeadStatus] = useState<string>("");
   const [leadAssignedTo, setLeadAssignedTo] = useState<string>("");
-  const [leadMonth, setLeadMonth] = useState<string>("");
+  const [leadMonths, setLeadMonths] = useState<string[]>([]);
   const [leadYear, setLeadYear] = useState<string>("");
+  const [leadFromDate, setLeadFromDate] = useState("");
+  const [leadToDate, setLeadToDate] = useState("");
   const [deletingLeadId, setDeletingLeadId] = useState<string | null>(null);
   const [leadDetailsLoadingId, setLeadDetailsLoadingId] = useState<string | null>(null);
   const [showLeadDetailsModal, setShowLeadDetailsModal] = useState(false);
@@ -692,38 +694,36 @@ export default function AdminCrmManagement() {
   }, [crmFilter, userQ]);
 
   const leadDateRange = useMemo(() => {
-    const year = Number.parseInt(leadYear, 10);
-    const month = Number.parseInt(leadMonth, 10);
-    if (!Number.isFinite(year) || year < 1970 || year > 9999) {
-      return { from: "", to: "" };
+    if (leadFromDate || leadToDate) {
+      return { from: leadFromDate, to: leadToDate };
     }
 
-    if (Number.isFinite(month) && month >= 1 && month <= 12) {
-      const from = new Date(Date.UTC(year, month - 1, 1));
-      const to = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
-      return {
-        from: from.toISOString().slice(0, 10),
-        to: to.toISOString().slice(0, 10),
-      };
+    const year = Number.parseInt(leadYear, 10);
+    if (!Number.isFinite(year) || year < 1970 || year > 9999 || leadMonths.length > 0) {
+      return { from: "", to: "" };
     }
 
     return {
       from: `${year}-01-01`,
       to: `${year}-12-31`,
     };
-  }, [leadMonth, leadYear]);
+  }, [leadFromDate, leadMonths.length, leadToDate, leadYear]);
 
   const leadQuery = useMemo(() => {
     const p = new URLSearchParams();
     if (leadQ.trim()) p.set("q", leadQ.trim());
     if (leadStatus) p.set("status", leadStatus);
     if (leadAssignedTo) p.set("assignedTo", leadAssignedTo);
+    if (!leadFromDate && !leadToDate && leadMonths.length > 0 && leadYear) {
+      p.set("months", leadMonths.join(","));
+      p.set("year", leadYear);
+    }
     if (leadDateRange.from) p.set("from", leadDateRange.from);
     if (leadDateRange.to) p.set("to", leadDateRange.to);
     p.set("page", "1");
     p.set("limit", "100");
     return p.toString();
-  }, [leadAssignedTo, leadDateRange.from, leadDateRange.to, leadQ, leadStatus]);
+  }, [leadAssignedTo, leadDateRange.from, leadDateRange.to, leadFromDate, leadMonths, leadQ, leadStatus, leadToDate, leadYear]);
 
   async function loadUsers() {
     setLoadingUsers(true);
@@ -1413,7 +1413,7 @@ export default function AdminCrmManagement() {
               </Box>
 
               <Grid container spacing={1.5}>
-                <Grid size={{ xs: 12, sm: 4 }}>
+                <Grid size={{ xs: 12, md: 4 }}>
                   <FormControl fullWidth size="small">
                     <InputLabel>Salesperson</InputLabel>
                     <Select value={leadAssignedTo} label="Salesperson" onChange={(e) => setLeadAssignedTo(e.target.value)}>
@@ -1424,18 +1424,32 @@ export default function AdminCrmManagement() {
                     </Select>
                   </FormControl>
                 </Grid>
-                <Grid size={{ xs: 6, sm: 4 }}>
+                <Grid size={{ xs: 12, md: 4 }}>
                   <FormControl fullWidth size="small">
-                    <InputLabel>Month</InputLabel>
-                    <Select value={leadMonth} label="Month" onChange={(e) => setLeadMonth(e.target.value)}>
-                      <MenuItem value="">All</MenuItem>
+                    <InputLabel>Months</InputLabel>
+                    <Select
+                      multiple
+                      value={leadMonths}
+                      label="Months"
+                      onChange={(e) => setLeadMonths(typeof e.target.value === "string" ? e.target.value.split(",") : e.target.value)}
+                      renderValue={(selected) => {
+                        const values = Array.isArray(selected) ? selected : [];
+                        if (!values.length) return "All Months";
+                        return values
+                          .map((value) => MONTH_OPTIONS.find((m) => m.value === value)?.label || value)
+                          .join(", ");
+                      }}
+                    >
                       {MONTH_OPTIONS.map((m) => (
-                        <MenuItem key={m.value} value={m.value}>{m.label}</MenuItem>
+                        <MenuItem key={m.value} value={m.value}>
+                          <Checkbox size="small" checked={leadMonths.includes(m.value)} />
+                          <Typography variant="body2">{m.label}</Typography>
+                        </MenuItem>
                       ))}
                     </Select>
                   </FormControl>
                 </Grid>
-                <Grid size={{ xs: 6, sm: 4 }}>
+                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                   <FormControl fullWidth size="small">
                     <InputLabel>Year</InputLabel>
                     <Select value={leadYear} label="Year" onChange={(e) => setLeadYear(e.target.value)}>
@@ -1445,6 +1459,28 @@ export default function AdminCrmManagement() {
                       ))}
                     </Select>
                   </FormControl>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6, md: 6 }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    type="date"
+                    label="From Date"
+                    value={leadFromDate}
+                    onChange={(e) => setLeadFromDate(e.target.value)}
+                    slotProps={{ inputLabel: { shrink: true } }}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6, md: 6 }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    type="date"
+                    label="To Date"
+                    value={leadToDate}
+                    onChange={(e) => setLeadToDate(e.target.value)}
+                    slotProps={{ inputLabel: { shrink: true } }}
+                  />
                 </Grid>
               </Grid>
 

@@ -1,7 +1,37 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import {
+  type ColumnDef,
+  flexRender,
+  getCoreRowModel,
+  getSortedRowModel,
+  type SortingState,
+  useReactTable,
+} from "@tanstack/react-table";
 import ConfirmModal from "@/app/components/common/ConfirmModal";
+import {
+  Alert,
+  Button,
+  Card,
+  CardContent,
+  Chip,
+  FormControl,
+  Grid,
+  InputLabel,
+  MenuItem,
+  Select,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TableSortLabel,
+  TextField,
+  Typography,
+} from "@mui/material";
 
 type ReportItem = {
   _id: string;
@@ -30,6 +60,67 @@ type ApiResponse = {
   limit: number;
 };
 
+type ReportGroup = {
+  key: string;
+  title: string;
+  contract_no?: string;
+  reportType: string;
+  createdAt: string;
+  fairMarketValue: string;
+  userEmail?: string;
+  variants: { pdf?: ReportItem; docx?: ReportItem; xlsx?: ReportItem; images?: ReportItem };
+  isAssetReport?: boolean;
+  isRealEstateReport?: boolean;
+  isLotListingReport?: boolean;
+  preview_files?: { docx?: string; excel?: string; images?: string };
+};
+
+function formatFMV(value: string) {
+  return value || "N/A";
+}
+
+function getReportTypeLabel(reportType: string) {
+  return reportType === "LotListing" ? "Lot Listing" : reportType;
+}
+
+function buildDownloadLinks(group: ReportGroup) {
+  if (group.isLotListingReport && group.preview_files) {
+    return [
+      { label: "Excel", href: group.preview_files.excel },
+      { label: "Images", href: group.preview_files.images },
+    ];
+  }
+
+  if ((group.isAssetReport || group.isRealEstateReport) && group.preview_files) {
+    return [
+      { label: "DOCX", href: group.preview_files.docx },
+      { label: "Excel", href: group.preview_files.excel },
+      { label: "Images", href: group.preview_files.images },
+    ];
+  }
+
+  return [
+    {
+      label: "DOCX",
+      href: group.variants.docx ? `/api/admin/reports/${group.variants.docx._id}/download` : undefined,
+    },
+    {
+      label: "Excel",
+      href:
+        group.variants.xlsx && group.variants.xlsx.approvalStatus === "approved"
+          ? `/api/admin/reports/${group.variants.xlsx._id}/download`
+          : undefined,
+    },
+    {
+      label: "Images",
+      href:
+        group.variants.images && group.variants.images.approvalStatus === "approved"
+          ? `/api/admin/reports/${group.variants.images._id}/download`
+          : undefined,
+    },
+  ];
+}
+
 export default function AdminReports() {
   // Filters
   const [q, setQ] = useState("");
@@ -39,6 +130,7 @@ export default function AdminReports() {
   const [userEmail, setUserEmail] = useState<string>("");
   const [page, setPage] = useState<number>(1);
   const [limit] = useState<number>(200);
+  const [sorting, setSorting] = useState<SortingState>([{ id: "createdAt", desc: true }]);
 
   // Data
   const [data, setData] = useState<ApiResponse | null>(null);
@@ -48,16 +140,11 @@ export default function AdminReports() {
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  function formatFMV(value: string) {
-    // Value already includes currency code (e.g., "CAD 123,456" or "USD 123,456")
-    // Display as-is without reformatting
-    return value || "N/A";
-  }
-
   const queryString = useMemo(() => {
     const p = new URLSearchParams();
     if (q) p.set("q", q);
     if (reportType) p.set("reportType", reportType);
+    p.set("approvalStatus", "approved");
     if (from) p.set("from", from);
     if (to) p.set("to", to);
     if (userEmail) p.set("userEmail", userEmail.trim());
@@ -131,23 +218,8 @@ export default function AdminReports() {
       : 1;
   }, [data, limit]);
 
-  type Group = {
-    key: string;
-    title: string;
-    contract_no?: string;
-    reportType: string;
-    createdAt: string;
-    fairMarketValue: string;
-    userEmail?: string;
-    variants: { pdf?: ReportItem; docx?: ReportItem; xlsx?: ReportItem; images?: ReportItem };
-    isAssetReport?: boolean;
-    isRealEstateReport?: boolean;
-    isLotListingReport?: boolean;
-    preview_files?: { docx?: string; excel?: string; images?: string };
-  };
-
-  const groups = useMemo<Group[]>(() => {
-    const map = new Map<string, Group>();
+  const groups = useMemo<ReportGroup[]>(() => {
+    const map = new Map<string, ReportGroup>();
     const items = (data?.items || []) as ReportItem[];
     for (const r of items) {
       const key = String((r.report as string | undefined) || r._id);
@@ -184,6 +256,95 @@ export default function AdminReports() {
     );
   }, [data]);
 
+  const columns = useMemo<ColumnDef<ReportGroup>[]>(
+    () => [
+      {
+        id: "title",
+        accessorKey: "title",
+        header: "Report",
+        cell: ({ row }) => (
+          <Stack spacing={0.25} minWidth={0}>
+            <Typography variant="body2" sx={{ fontWeight: 700, wordBreak: "break-word" }}>
+              {row.original.title}
+            </Typography>
+          </Stack>
+        ),
+      },
+      {
+        id: "contract_no",
+        accessorFn: (row) => row.contract_no || "",
+        header: "Contract No",
+        cell: ({ row }) => row.original.contract_no || "-",
+      },
+      {
+        id: "fairMarketValue",
+        accessorFn: (row) => row.fairMarketValue || "",
+        header: "FMV",
+        cell: ({ row }) => (
+          <Chip size="small" color="success" label={formatFMV(row.original.fairMarketValue)} />
+        ),
+      },
+      {
+        id: "reportType",
+        accessorFn: (row) => getReportTypeLabel(row.reportType),
+        header: "Type",
+        cell: ({ row }) => (
+          <Chip size="small" variant="outlined" color="secondary" label={getReportTypeLabel(row.original.reportType)} />
+        ),
+      },
+      {
+        id: "createdAt",
+        accessorFn: (row) => new Date(row.createdAt).getTime(),
+        header: "Created At",
+        cell: ({ row }) => new Date(row.original.createdAt).toLocaleString(),
+      },
+      {
+        id: "userEmail",
+        accessorFn: (row) => row.userEmail || "",
+        header: "Created By",
+        cell: ({ row }) => row.original.userEmail || "-",
+      },
+      {
+        id: "actions",
+        enableSorting: false,
+        header: "Actions",
+        cell: ({ row }) => (
+          <Stack direction="row" spacing={1} flexWrap="wrap" justifyContent="flex-end">
+            {buildDownloadLinks(row.original).map((link) => (
+              <Button
+                key={`${row.original.key}-${link.label}`}
+                size="small"
+                variant="contained"
+                color="primary"
+                href={link.href || undefined}
+                target={link.href ? "_blank" : undefined}
+                rel={link.href ? "noopener noreferrer" : undefined}
+                disabled={!link.href}
+              >
+                {link.label}
+              </Button>
+            ))}
+            <Button size="small" variant="outlined" color="error" onClick={() => openDelete(row.original.key)}>
+              Delete
+            </Button>
+          </Stack>
+        ),
+      },
+    ],
+    []
+  );
+
+  const table = useReactTable({
+    data: groups,
+    columns,
+    state: { sorting },
+    onSortingChange: setSorting,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+  });
+
+  const rows = table.getRowModel().rows;
+
   return (
     <div className="admin-page-shell">
       <main className="max-w-6xl mx-auto space-y-6">
@@ -192,15 +353,15 @@ export default function AdminReports() {
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
               <h1 className="text-xl md:text-2xl font-semibold text-gray-900">
-                Report Library
+                Approved Reports
               </h1>
               <p className="text-gray-600">
-                Search and filter reports. View who created them and when.
+                Search and filter approved reports. View who created them and when.
               </p>
             </div>
             <div className="flex items-center gap-4">
               <div className="rounded-xl border border-rose-200 bg-white/70 px-4 py-2 shadow-sm">
-                <div className="text-xs text-gray-600">Results</div>
+                <div className="text-xs text-gray-600">Approved</div>
                 <div className="text-lg font-semibold text-gray-900">
                   {data?.total ?? 0}
                 </div>
@@ -217,254 +378,235 @@ export default function AdminReports() {
 
         {/* Filters */}
         <section className="admin-glass-surface rounded-3xl p-4 md:p-6">
-          <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Search
-              </label>
-              <input
+          <Grid container spacing={2}>
+            <Grid size={{ xs: 12, md: 4 }}>
+              <TextField
+                fullWidth
+                size="small"
+                label="Search"
                 value={q}
                 onChange={(e) => {
                   setQ(e.target.value);
                   setPage(1);
                 }}
                 placeholder="Filename or address"
-                className="mt-1 w-full rounded-xl border border-gray-300 hover:border-gray-400 focus:border-rose-400 focus:ring-rose-400 shadow-sm px-3 py-2.5"
               />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Type
-              </label>
-              <select
-                value={reportType}
-                onChange={(e) => {
-                  setReportType(e.target.value);
-                  setPage(1);
-                }}
-                className="mt-1 w-full rounded-xl border border-gray-300 hover:border-gray-400 focus:border-rose-400 focus:ring-rose-400 shadow-sm px-3 py-2.5"
-              >
-                <option value="">All</option>
-                <option value="RealEstate">Real Estate</option>
-                <option value="Salvage">Salvage</option>
-                <option value="Asset">Asset</option>
-                <option value="LotListing">Lot Listing</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                From
-              </label>
-              <input
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 2 }}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Type</InputLabel>
+                <Select
+                  value={reportType}
+                  label="Type"
+                  onChange={(e) => {
+                    setReportType(e.target.value);
+                    setPage(1);
+                  }}
+                >
+                  <MenuItem value="">All</MenuItem>
+                  <MenuItem value="RealEstate">Real Estate</MenuItem>
+                  <MenuItem value="Salvage">Salvage</MenuItem>
+                  <MenuItem value="Asset">Asset</MenuItem>
+                  <MenuItem value="LotListing">Lot Listing</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 2 }}>
+              <TextField
+                fullWidth
+                size="small"
                 type="date"
+                label="From"
                 value={from}
                 onChange={(e) => {
                   setFrom(e.target.value);
                   setPage(1);
                 }}
-                className="mt-1 w-full rounded-xl border border-gray-300 hover:border-gray-400 focus:border-rose-400 focus:ring-rose-400 shadow-sm px-3 py-2.5"
+                InputLabelProps={{ shrink: true }}
               />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                To
-              </label>
-              <input
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 2 }}>
+              <TextField
+                fullWidth
+                size="small"
                 type="date"
+                label="To"
                 value={to}
                 onChange={(e) => {
                   setTo(e.target.value);
                   setPage(1);
                 }}
-                className="mt-1 w-full rounded-xl border border-gray-300 hover:border-gray-400 focus:border-rose-400 focus:ring-rose-400 shadow-sm px-3 py-2.5"
+                InputLabelProps={{ shrink: true }}
               />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Created By (email)
-              </label>
-              <input
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 2 }}>
+              <TextField
+                fullWidth
+                size="small"
+                label="Created By"
                 value={userEmail}
                 onChange={(e) => {
                   setUserEmail(e.target.value);
                   setPage(1);
                 }}
                 placeholder="user@example.com"
-                className="mt-1 w-full rounded-xl border border-gray-300 hover:border-gray-400 focus:border-rose-400 focus:ring-rose-400 shadow-sm px-3 py-2.5"
               />
-            </div>
-          </div>
-          <div className="mt-4 flex items-center gap-3">
-            <button
-              onClick={() => load()}
-              className="cursor-pointer inline-flex items-center px-4 py-2 rounded-xl bg-rose-500 hover:bg-rose-600 active:bg-rose-700 text-white font-medium shadow-md hover:shadow-lg active:shadow-sm transition-all"
-            >
-              Apply
-            </button>
-            <button
-              onClick={onReset}
-              className="cursor-pointer inline-flex items-center px-4 py-2 rounded-xl border border-rose-300 text-rose-700 bg-white hover:bg-rose-50 active:bg-rose-100 shadow-sm hover:shadow transition-all"
-            >
-              Reset
-            </button>
-          </div>
+            </Grid>
+          </Grid>
+          <Stack direction="row" spacing={1.5} sx={{ mt: 2 }}>
+            <Button variant="contained" onClick={() => load()}>Apply</Button>
+            <Button variant="outlined" color="secondary" onClick={onReset}>Reset</Button>
+          </Stack>
         </section>
 
         {/* List */}
         <section className="admin-glass-surface rounded-3xl p-4 md:p-6">
           {loading ? (
-            <div className="text-gray-500">Loading...</div>
+            <Typography color="text.secondary">Loading...</Typography>
           ) : error ? (
-            <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md p-2">
-              {error}
-            </div>
+            <Alert severity="error">{error}</Alert>
           ) : (
             <>
               {/* Table on md+ */}
-              <div className="overflow-x-auto hidden md:block">
-                <table className="min-w-full text-left text-sm">
-                  <thead>
-                    <tr className="text-gray-600">
-                      <th className="py-2 pr-4">Report</th>
-                      <th className="py-2 pr-4">Contract No</th>
-                      <th className="py-2 pr-4">FMV</th>
-                      <th className="py-2 pr-4">Type</th>
-                      <th className="py-2 pr-4">Created At</th>
-                      <th className="py-2 pr-4">Created By</th>
-                      <th className="py-2 pr-4">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {groups.map((g) => (
-                      <tr key={g.key} className="border-t border-rose-100/70 hover:bg-rose-50/40">
-                        <td className="py-2 pr-4 text-gray-900">{g.title}</td>
-                        <td className="py-2 pr-4 text-gray-700">{g.contract_no || "-"}</td>
-                        <td className="py-2 pr-4">{formatFMV(g.fairMarketValue)}</td>
-                        <td className="py-2 pr-4">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${g.reportType === "RealEstate" ? "bg-emerald-50 text-emerald-800 border-emerald-200" : g.reportType === "Salvage" ? "bg-amber-50 text-amber-800 border-amber-200" : g.reportType === "LotListing" ? "bg-purple-50 text-purple-800 border-purple-200" : "bg-sky-50 text-sky-800 border-sky-200"}`}>{g.reportType === "LotListing" ? "Lot Listing" : g.reportType}</span>
-                        </td>
-                        <td className="py-2 pr-4 text-gray-700">{new Date(g.createdAt).toLocaleString()}</td>
-                        <td className="py-2 pr-4 text-gray-700">{g.userEmail || "-"}</td>
-                        <td className="py-2 pr-4">
-                          <div className="flex items-center gap-2">
-                            {g.isLotListingReport && g.preview_files ? (
-                              // LotListing with preview files (Excel and Images only, no DOCX)
-                              <>
-                                <a href={g.preview_files.excel} target="_blank" rel="noopener noreferrer" className={`cursor-pointer inline-flex items-center justify-center rounded-xl px-2.5 py-1.5 text-xs font-semibold shadow-sm ${g.preview_files.excel ? 'bg-purple-600 text-white hover:bg-purple-500 hover:shadow' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>Excel</a>
-                                <a href={g.preview_files.images} target="_blank" rel="noopener noreferrer" className={`cursor-pointer inline-flex items-center justify-center rounded-xl px-2.5 py-1.5 text-xs font-semibold shadow-sm ${g.preview_files.images ? 'bg-purple-600 text-white hover:bg-purple-500 hover:shadow' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>Images</a>
-                              </>
-                            ) : (g.isAssetReport || g.isRealEstateReport) && g.preview_files ? (
-                              // AssetReport or RealEstateReport with preview files (direct R2 links)
-                              <>
-                                <a href={g.preview_files.docx} target="_blank" rel="noopener noreferrer" className={`cursor-pointer inline-flex items-center justify-center rounded-xl px-2.5 py-1.5 text-xs font-semibold shadow-sm ${g.preview_files.docx ? (g.isRealEstateReport ? 'bg-emerald-600 text-white hover:bg-emerald-500 hover:shadow' : 'bg-blue-600 text-white hover:bg-blue-500 hover:shadow') : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>DOCX</a>
-                                <a href={g.preview_files.excel} target="_blank" rel="noopener noreferrer" className={`cursor-pointer inline-flex items-center justify-center rounded-xl px-2.5 py-1.5 text-xs font-semibold shadow-sm ${g.preview_files.excel ? (g.isRealEstateReport ? 'bg-emerald-600 text-white hover:bg-emerald-500 hover:shadow' : 'bg-blue-600 text-white hover:bg-blue-500 hover:shadow') : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>Excel</a>
-                                <a href={g.preview_files.images} target="_blank" rel="noopener noreferrer" className={`cursor-pointer inline-flex items-center justify-center rounded-xl px-2.5 py-1.5 text-xs font-semibold shadow-sm ${g.preview_files.images ? (g.isRealEstateReport ? 'bg-emerald-600 text-white hover:bg-emerald-500 hover:shadow' : 'bg-blue-600 text-white hover:bg-blue-500 hover:shadow') : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>Images</a>
-                              </>
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} justifyContent="space-between" sx={{ mb: 2 }}>
+                <Typography variant="h6" fontWeight={700}>Approved Reports</Typography>
+                <Chip size="small" color="secondary" variant="outlined" label={`${rows.length} visible`} />
+              </Stack>
+              <TableContainer className="hidden md:block">
+                <Table size="small" sx={{ minWidth: 980 }}>
+                  <TableHead>
+                    {table.getHeaderGroups().map((headerGroup) => (
+                      <TableRow key={headerGroup.id}>
+                        {headerGroup.headers.map((header) => (
+                          <TableCell
+                            key={header.id}
+                            align={header.column.id === "actions" ? "right" : "left"}
+                            sx={{ fontWeight: 700 }}
+                          >
+                            {header.isPlaceholder ? null : header.column.getCanSort() ? (
+                              <TableSortLabel
+                                active={!!header.column.getIsSorted()}
+                                direction={header.column.getIsSorted() === "desc" ? "desc" : "asc"}
+                                onClick={header.column.getToggleSortingHandler()}
+                              >
+                                {flexRender(header.column.columnDef.header, header.getContext())}
+                              </TableSortLabel>
                             ) : (
-                              // Legacy PdfReport with backend download
-                              <>
-                                <a href={g.variants.docx ? `/api/admin/reports/${g.variants.docx._id}/download` : undefined} className={`cursor-pointer inline-flex items-center justify-center rounded-xl px-2.5 py-1.5 text-xs font-semibold shadow-sm ${g.variants.docx ? 'bg-blue-600 text-white hover:bg-blue-500 hover:shadow' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>DOCX</a>
-                                <a href={g.variants.xlsx && g.variants.xlsx.approvalStatus === 'approved' ? `/api/admin/reports/${g.variants.xlsx._id}/download` : undefined} className={`cursor-pointer inline-flex items-center justify-center rounded-xl px-2.5 py-1.5 text-xs font-semibold shadow-sm ${g.variants.xlsx && g.variants.xlsx.approvalStatus === 'approved' ? 'bg-blue-600 text-white hover:bg-blue-500 hover:shadow' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>Excel</a>
-                                <a href={g.variants.images && g.variants.images.approvalStatus === 'approved' ? `/api/admin/reports/${g.variants.images._id}/download` : undefined} className={`cursor-pointer inline-flex items-center justify-center rounded-xl px-2.5 py-1.5 text-xs font-semibold shadow-sm ${g.variants.images && g.variants.images.approvalStatus === 'approved' ? 'bg-blue-600 text-white hover:bg-blue-500 hover:shadow' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>Images</a>
-                              </>
+                              flexRender(header.column.columnDef.header, header.getContext())
                             )}
-                            <button onClick={() => openDelete(g.key)} className="cursor-pointer inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-red-300 text-red-700 bg-white hover:bg-red-50 active:bg-red-100 shadow-sm hover:shadow transition-all">
-                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /></svg>
-                              Delete
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
+                          </TableCell>
+                        ))}
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
-              </div>
+                  </TableHead>
+                  <TableBody>
+                    {rows.length ? (
+                      rows.map((row) => (
+                        <TableRow key={row.id} hover>
+                          {row.getVisibleCells().map((cell) => (
+                            <TableCell key={cell.id} align={cell.column.id === "actions" ? "right" : "left"}>
+                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={columns.length}>
+                          <Typography color="text.secondary">No approved reports match the current filters.</Typography>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
 
               {/* Cards on mobile */}
-              <div className="grid grid-cols-1 gap-4 md:hidden">
-                {groups.map((g) => (
-                  <div key={g.key} className="rounded-xl border border-rose-200 bg-white/90 backdrop-blur p-4 shadow-md">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="font-semibold text-gray-900">{g.title}</div>
-                        <div className="text-xs text-gray-600 mt-1"><span className="text-gray-500">Contract: </span>{g.contract_no || "-"}</div>
-                      </div>
-                      <span className={`shrink-0 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${g.reportType === "RealEstate" ? "bg-emerald-50 text-emerald-800 border-emerald-200" : g.reportType === "Salvage" ? "bg-amber-50 text-amber-800 border-amber-200" : g.reportType === "LotListing" ? "bg-purple-50 text-purple-800 border-purple-200" : "bg-sky-50 text-sky-800 border-sky-200"}`}>{g.reportType === "LotListing" ? "Lot Listing" : g.reportType}</span>
-                    </div>
-                    <div className="mt-2 grid grid-cols-2 gap-3 text-sm">
-                      <div>
-                        <div className="text-gray-500">FMV</div>
-                        <div className="font-medium text-gray-900">{formatFMV(g.fairMarketValue)}</div>
-                      </div>
-                      <div>
-                        <div className="text-gray-500">Created</div>
-                        <div className="font-medium text-gray-900">{new Date(g.createdAt).toLocaleString()}</div>
-                      </div>
-                      <div className="col-span-2">
-                        <div className="text-gray-500">Created By</div>
-                        <div className="font-medium text-gray-900">{g.userEmail || '-'}</div>
-                      </div>
-                    </div>
-                    <div className="mt-3 flex items-center gap-2 flex-wrap">
-                      {g.isLotListingReport && g.preview_files ? (
-                        // LotListing with preview files (Excel and Images only, no DOCX)
-                        <>
-                          <a href={g.preview_files.excel} target="_blank" rel="noopener noreferrer" className={`cursor-pointer inline-flex items-center justify-center rounded-xl px-3 py-1.5 text-xs font-semibold shadow-sm ${g.preview_files.excel ? 'bg-purple-600 text-white hover:bg-purple-500 hover:shadow' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>Excel</a>
-                          <a href={g.preview_files.images} target="_blank" rel="noopener noreferrer" className={`cursor-pointer inline-flex items-center justify-center rounded-xl px-3 py-1.5 text-xs font-semibold shadow-sm ${g.preview_files.images ? 'bg-purple-600 text-white hover:bg-purple-500 hover:shadow' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>Images</a>
-                        </>
-                      ) : (g.isAssetReport || g.isRealEstateReport) && g.preview_files ? (
-                        // AssetReport or RealEstateReport with preview files (direct R2 links)
-                        <>
-                          <a href={g.preview_files.docx} target="_blank" rel="noopener noreferrer" className={`cursor-pointer inline-flex items-center justify-center rounded-xl px-3 py-1.5 text-xs font-semibold shadow-sm ${g.preview_files.docx ? (g.isRealEstateReport ? 'bg-emerald-600 text-white hover:bg-emerald-500 hover:shadow' : 'bg-blue-600 text-white hover:bg-blue-500 hover:shadow') : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>DOCX</a>
-                          <a href={g.preview_files.excel} target="_blank" rel="noopener noreferrer" className={`cursor-pointer inline-flex items-center justify-center rounded-xl px-3 py-1.5 text-xs font-semibold shadow-sm ${g.preview_files.excel ? (g.isRealEstateReport ? 'bg-emerald-600 text-white hover:bg-emerald-500 hover:shadow' : 'bg-blue-600 text-white hover:bg-blue-500 hover:shadow') : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>Excel</a>
-                          <a href={g.preview_files.images} target="_blank" rel="noopener noreferrer" className={`cursor-pointer inline-flex items-center justify-center rounded-xl px-3 py-1.5 text-xs font-semibold shadow-sm ${g.preview_files.images ? (g.isRealEstateReport ? 'bg-emerald-600 text-white hover:bg-emerald-500 hover:shadow' : 'bg-blue-600 text-white hover:bg-blue-500 hover:shadow') : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>Images</a>
-                        </>
-                      ) : (
-                        // Legacy PdfReport with backend download
-                        <>
-                          <a href={g.variants.docx ? `/api/admin/reports/${g.variants.docx._id}/download` : undefined} className={`cursor-pointer inline-flex items-center justify-center rounded-xl px-3 py-1.5 text-xs font-semibold shadow-sm ${g.variants.docx ? 'bg-blue-600 text-white hover:bg-blue-500 hover:shadow' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>DOCX</a>
-                          <a href={g.variants.xlsx && g.variants.xlsx.approvalStatus === 'approved' ? `/api/admin/reports/${g.variants.xlsx._id}/download` : undefined} className={`cursor-pointer inline-flex items-center justify-center rounded-xl px-3 py-1.5 text-xs font-semibold shadow-sm ${g.variants.xlsx && g.variants.xlsx.approvalStatus === 'approved' ? 'bg-blue-600 text-white hover:bg-blue-500 hover:shadow' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>Excel</a>
-                          <a href={g.variants.images && g.variants.images.approvalStatus === 'approved' ? `/api/admin/reports/${g.variants.images._id}/download` : undefined} className={`cursor-pointer inline-flex items-center justify-center rounded-xl px-3 py-1.5 text-xs font-semibold shadow-sm ${g.variants.images && g.variants.images.approvalStatus === 'approved' ? 'bg-blue-600 text-white hover:bg-blue-500 hover:shadow' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>Images</a>
-                        </>
-                      )}
-                      <button onClick={() => openDelete(g.key)} className="cursor-pointer inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-red-300 text-red-700 bg-white hover:bg-red-50 active:bg-red-100 shadow-sm hover:shadow transition-all">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /></svg>
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <Stack spacing={2} className="md:hidden">
+                {rows.length ? (
+                  rows.map((row) => {
+                    const g = row.original;
+                    return (
+                      <Card key={g.key} variant="outlined">
+                        <CardContent>
+                          <Stack spacing={1.5}>
+                            <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1.5}>
+                              <Stack spacing={0.5} minWidth={0}>
+                                <Typography variant="subtitle2" sx={{ wordBreak: "break-word" }}>{g.title}</Typography>
+                                <Typography variant="body2" color="text.secondary">Contract: {g.contract_no || "-"}</Typography>
+                              </Stack>
+                              <Chip size="small" variant="outlined" color="secondary" label={getReportTypeLabel(g.reportType)} />
+                            </Stack>
+                            <Grid container spacing={1.5}>
+                              <Grid size={{ xs: 12, sm: 6 }}>
+                                <Typography variant="caption" color="text.secondary">FMV</Typography>
+                                <Stack sx={{ mt: 0.5 }}>
+                                  <Chip size="small" color="success" label={formatFMV(g.fairMarketValue)} sx={{ alignSelf: "flex-start" }} />
+                                </Stack>
+                              </Grid>
+                              <Grid size={{ xs: 12, sm: 6 }}>
+                                <Typography variant="caption" color="text.secondary">Created</Typography>
+                                <Typography variant="body2">{new Date(g.createdAt).toLocaleString()}</Typography>
+                              </Grid>
+                              <Grid size={{ xs: 12 }}>
+                                <Typography variant="caption" color="text.secondary">Created By</Typography>
+                                <Typography variant="body2">{g.userEmail || "-"}</Typography>
+                              </Grid>
+                            </Grid>
+                            <Stack direction="row" spacing={1} flexWrap="wrap">
+                              {buildDownloadLinks(g).map((link) => (
+                                <Button
+                                  key={`${g.key}-${link.label}`}
+                                  size="small"
+                                  variant="contained"
+                                  color="primary"
+                                  href={link.href || undefined}
+                                  target={link.href ? "_blank" : undefined}
+                                  rel={link.href ? "noopener noreferrer" : undefined}
+                                  disabled={!link.href}
+                                >
+                                  {link.label}
+                                </Button>
+                              ))}
+                              <Button size="small" variant="outlined" color="error" onClick={() => openDelete(g.key)}>
+                                Delete
+                              </Button>
+                            </Stack>
+                          </Stack>
+                        </CardContent>
+                      </Card>
+                    );
+                  })
+                ) : (
+                  <Card variant="outlined">
+                    <CardContent>
+                      <Typography color="text.secondary">No approved reports match the current filters.</Typography>
+                    </CardContent>
+                  </Card>
+                )}
+              </Stack>
 
               {/* Pagination */}
-              <div className="mt-4 flex items-center justify-between">
-                <div className="text-sm text-gray-600">
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={2} justifyContent="space-between" alignItems={{ xs: "flex-start", sm: "center" }} sx={{ mt: 3 }}>
+                <Typography variant="body2" color="text.secondary">
                   {data ? (
                     <>
-                      Showing {data.items?.length || 0} of {data.total} reports
+                      Showing {data.items?.length || 0} of {data.total} approved reports
                     </>
                   ) : null}
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    className="cursor-pointer px-3 py-1.5 rounded-xl border border-rose-300 text-rose-700 bg-white hover:bg-rose-50 active:bg-rose-100 shadow-sm hover:shadow transition-all disabled:opacity-50"
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    disabled={page <= 1}
-                  >
+                </Typography>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Button variant="outlined" color="secondary" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>
                     Prev
-                  </button>
-                  <span className="text-sm text-gray-700 tabular-nums">
+                  </Button>
+                  <Typography variant="body2" sx={{ minWidth: 100, textAlign: "center" }}>
                     Page {page} of {totalPages}
-                  </span>
-                  <button
-                    className="cursor-pointer px-3 py-1.5 rounded-xl border border-rose-300 text-rose-700 bg-white hover:bg-rose-50 active:bg-rose-100 shadow-sm hover:shadow transition-all disabled:opacity-50"
-                    onClick={() => setPage((p) => p + 1)}
-                    disabled={page >= totalPages}
-                  >
+                  </Typography>
+                  <Button variant="outlined" color="secondary" onClick={() => setPage((p) => p + 1)} disabled={page >= totalPages}>
                     Next
-                  </button>
-                </div>
-              </div>
+                  </Button>
+                </Stack>
+              </Stack>
             </>
           )}
         </section>

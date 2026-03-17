@@ -202,11 +202,11 @@ export default function AdminApprovals() {
         <section className="admin-glass-surface rounded-3xl p-4 md:p-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-              <h1 className="text-xl md:text-2xl font-semibold text-gray-900">Report Approvals</h1>
-              <p className="text-gray-600">Approve or reject newly created reports. Users will be notified by email.</p>
+              <h1 className="text-xl md:text-2xl font-semibold text-gray-900">Pending Approval</h1>
+              <p className="text-gray-600">Review pending reports and approve or reject them. Users will be notified by email.</p>
             </div>
             <div className="rounded-xl border border-rose-200 bg-white/70 px-4 py-2 shadow-sm">
-              <div className="text-xs text-gray-600">Pending</div>
+              <div className="text-xs text-gray-600">Awaiting Review</div>
               <div className="text-lg font-semibold text-gray-900">{data?.total ?? 0}</div>
             </div>
           </div>
