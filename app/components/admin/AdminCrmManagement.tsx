@@ -1575,15 +1575,15 @@ export default function AdminCrmManagement() {
             {loadingLeads && <LinearProgress sx={{ mt: 2, borderRadius: 1 }} />}
 
             <TableContainer sx={{ maxHeight: 420, mt: 2 }}>
-              <Table size="small" stickyHeader>
+              <Table size="small" stickyHeader sx={{ tableLayout: "fixed", minWidth: 760 }}>
                 <TableHead>
                   <TableRow>
                     <TableCell sx={{ fontWeight: 700 }}>Lead</TableCell>
                     <TableCell sx={{ fontWeight: 700 }}>Assigned To</TableCell>
                     <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
                     <TableCell sx={{ fontWeight: 700 }}>Dates</TableCell>
-                    <TableCell sx={{ fontWeight: 700 }}>Latest Comment</TableCell>
-                    <TableCell sx={{ fontWeight: 700 }}>Actions</TableCell>
+                    <TableCell sx={{ fontWeight: 700, width: 240 }}>Latest Comment</TableCell>
+                    <TableCell sx={{ fontWeight: 700, width: 130 }}>Actions</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -1613,10 +1613,21 @@ export default function AdminCrmManagement() {
                         <Typography variant="caption" display="block">Start: {toIsoDateValue(lead.taskStartDate) || "-"}</Typography>
                         <Typography variant="caption" display="block">Due: {toIsoDateValue(lead.dueDate) || "-"}</Typography>
                       </TableCell>
-                      <TableCell sx={{ maxWidth: 280 }}>
-                        <Typography variant="caption" noWrap>{lead.latestComment || "-"}</Typography>
+                      <TableCell sx={{ width: 240 }}>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            display: "block",
+                            width: "100%",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {lead.latestComment || "-"}
+                        </Typography>
                       </TableCell>
-                      <TableCell>
+                      <TableCell sx={{ width: 130 }}>
                         <Stack direction="row" spacing={0.5}>
                           <Button
                             size="small"
