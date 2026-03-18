@@ -460,4 +460,3 @@ export default function AdminNavbarV2({ children }: { children?: ReactNode }) {
     </Box>
   );
 }
- 

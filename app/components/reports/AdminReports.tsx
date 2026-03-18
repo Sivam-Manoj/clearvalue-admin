@@ -320,7 +320,16 @@ export default function AdminReports() {
         enableSorting: false,
         header: "Actions",
         cell: ({ row }) => (
-          <Stack direction="row" spacing={0.75} flexWrap="wrap" justifyContent="flex-start" useFlexGap>
+          <Stack
+            direction="row"
+            sx={{
+              display: "grid",
+              gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+              gap: 0.6,
+              width: "100%",
+              alignItems: "stretch",
+            }}
+          >
             {buildDownloadLinks(row.original).map((link) => (
               <Button
                 key={`${row.original.key}-${link.label}`}
@@ -328,7 +337,7 @@ export default function AdminReports() {
                 variant="contained"
                 color="primary"
                 disabled={!link.href}
-                sx={{ minWidth: 0, px: 1.1, py: 0.45, fontSize: "0.7rem", lineHeight: 1.1, borderRadius: 1.75 }}
+                sx={{ minWidth: 0, width: "100%", px: 0.5, py: 0.45, fontSize: "0.66rem", lineHeight: 1.1, borderRadius: 1.75, whiteSpace: "nowrap" }}
                 {...(link.href
                   ? {
                       href: link.href,
@@ -344,7 +353,7 @@ export default function AdminReports() {
               size="small"
               variant="outlined"
               color="error"
-              sx={{ minWidth: 0, px: 1.1, py: 0.45, fontSize: "0.7rem", lineHeight: 1.1, borderRadius: 1.75 }}
+              sx={{ minWidth: 0, width: "100%", px: 0.5, py: 0.45, fontSize: "0.66rem", lineHeight: 1.1, borderRadius: 1.75, whiteSpace: "nowrap" }}
               onClick={() => openDelete(row.original.key)}
             >
               Delete
@@ -520,15 +529,15 @@ export default function AdminReports() {
                               whiteSpace: "nowrap",
                               width:
                                 header.column.id === "title"
-                                  ? "34%"
+                                  ? "30%"
                                   : header.column.id === "fairMarketValue"
                                   ? "13%"
                                   : header.column.id === "reportType"
                                   ? "11%"
                                   : header.column.id === "createdAt"
-                                  ? "20%"
+                                  ? "18%"
                                   : header.column.id === "actions"
-                                  ? "17%"
+                                  ? "24%"
                                   : "auto",
                             }}
                           >
@@ -604,10 +613,13 @@ export default function AdminReports() {
                             </Grid>
                             <Stack
                               direction="row"
-                              spacing={1}
-                              flexWrap="wrap"
-                              useFlexGap
-                              sx={{ justifyContent: "flex-start", alignItems: "center" }}
+                              sx={{
+                                display: "grid",
+                                gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+                                gap: 0.9,
+                                width: "100%",
+                                alignItems: "stretch",
+                              }}
                             >
                               {buildDownloadLinks(g).map((link) => (
                                 <Button
@@ -616,7 +628,7 @@ export default function AdminReports() {
                                   variant="contained"
                                   color="primary"
                                   disabled={!link.href}
-                                  sx={{ minWidth: 0, px: 1.5, whiteSpace: "nowrap" }}
+                                  sx={{ minWidth: 0, width: "100%", px: 0.5, py: 0.55, fontSize: "0.66rem", lineHeight: 1.1, borderRadius: 1.75, whiteSpace: "nowrap" }}
                                   {...(link.href
                                     ? {
                                         href: link.href,
@@ -632,7 +644,7 @@ export default function AdminReports() {
                                 size="small"
                                 variant="outlined"
                                 color="error"
-                                sx={{ minWidth: 0, px: 1.5, whiteSpace: "nowrap" }}
+                                sx={{ minWidth: 0, width: "100%", px: 0.5, py: 0.55, fontSize: "0.66rem", lineHeight: 1.1, borderRadius: 1.75, whiteSpace: "nowrap" }}
                                 onClick={() => openDelete(g.key)}
                               >
                                 Delete
