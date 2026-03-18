@@ -6,6 +6,7 @@ import {
   flexRender,
   getCoreRowModel,
   getSortedRowModel,
+  type PaginationState,
   type SortingState,
   useReactTable,
 } from "@tanstack/react-table";
@@ -75,6 +76,8 @@ type ReportGroup = {
   preview_files?: { docx?: string; excel?: string; images?: string };
 };
 
+const ALL_PAGE_SIZE = 100000;
+
 function formatFMV(value: string) {
   return value || "N/A";
 }
@@ -128,9 +131,10 @@ export default function AdminReports() {
   const [from, setFrom] = useState<string>("");
   const [to, setTo] = useState<string>("");
   const [userEmail, setUserEmail] = useState<string>("");
-  const [page, setPage] = useState<number>(1);
-  const [limit] = useState<number>(200);
   const [sorting, setSorting] = useState<SortingState>([{ id: "createdAt", desc: true }]);
+  const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 20 });
+  const [pageSizeMode, setPageSizeMode] = useState<"20" | "50" | "100" | "all" | "custom">("20");
+  const [customPageSizeInput, setCustomPageSizeInput] = useState("150");
 
   // Data
   const [data, setData] = useState<ApiResponse | null>(null);
@@ -148,10 +152,10 @@ export default function AdminReports() {
     if (from) p.set("from", from);
     if (to) p.set("to", to);
     if (userEmail) p.set("userEmail", userEmail.trim());
-    p.set("page", String(page));
-    p.set("limit", String(limit));
+    p.set("page", String(pagination.pageIndex + 1));
+    p.set("limit", String(pagination.pageSize));
     return p.toString();
-  }, [q, reportType, from, to, userEmail, page, limit]);
+  }, [q, reportType, from, to, userEmail, pagination.pageIndex, pagination.pageSize]);
 
   async function load() {
     setLoading(true);
@@ -209,14 +213,30 @@ export default function AdminReports() {
     setFrom("");
     setTo("");
     setUserEmail("");
-    setPage(1);
+    setPagination((prev) => ({ ...prev, pageIndex: 0 }));
   }
 
   const totalPages = useMemo(() => {
     return data
-      ? Math.max(1, Math.ceil((data.total || 0) / (data.limit || limit)))
+      ? Math.max(1, Math.ceil((data.total || 0) / pagination.pageSize))
       : 1;
-  }, [data, limit]);
+  }, [data, pagination.pageSize]);
+
+  function applyPageSize(nextSize: number, nextMode: "20" | "50" | "100" | "all" | "custom") {
+    const safeSize = Math.max(1, Math.floor(nextSize));
+    setPageSizeMode(nextMode);
+    setPagination((prev) => ({
+      ...prev,
+      pageIndex: 0,
+      pageSize: safeSize,
+    }));
+  }
+
+  function commitCustomPageSize() {
+    const parsed = Number(customPageSizeInput);
+    if (!Number.isFinite(parsed) || parsed <= 0) return;
+    applyPageSize(parsed, "custom");
+  }
 
   const groups = useMemo<ReportGroup[]>(() => {
     const map = new Map<string, ReportGroup>();
@@ -368,10 +388,14 @@ export default function AdminReports() {
   const table = useReactTable({
     data: groups,
     columns,
-    state: { sorting },
+    state: { sorting, pagination },
     onSortingChange: setSorting,
+    onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    manualPagination: true,
+    pageCount: totalPages,
+    rowCount: data?.total ?? groups.length,
   });
 
   const rows = table.getRowModel().rows;
@@ -400,7 +424,7 @@ export default function AdminReports() {
               <div className="rounded-xl border border-rose-200 bg-white/70 px-4 py-2 shadow-sm hidden sm:block">
                 <div className="text-xs text-gray-600">Page</div>
                 <div className="text-lg font-semibold text-gray-900">
-                  {page}
+                  {pagination.pageIndex + 1}
                 </div>
               </div>
             </div>
@@ -418,7 +442,7 @@ export default function AdminReports() {
                 value={q}
                 onChange={(e) => {
                   setQ(e.target.value);
-                  setPage(1);
+                  setPagination((prev) => ({ ...prev, pageIndex: 0 }));
                 }}
                 placeholder="Filename or address"
               />
@@ -431,7 +455,7 @@ export default function AdminReports() {
                   label="Type"
                   onChange={(e) => {
                     setReportType(e.target.value);
-                    setPage(1);
+                    setPagination((prev) => ({ ...prev, pageIndex: 0 }));
                   }}
                 >
                   <MenuItem value="">All</MenuItem>
@@ -451,7 +475,7 @@ export default function AdminReports() {
                 value={from}
                 onChange={(e) => {
                   setFrom(e.target.value);
-                  setPage(1);
+                  setPagination((prev) => ({ ...prev, pageIndex: 0 }));
                 }}
                 InputLabelProps={{ shrink: true }}
               />
@@ -465,7 +489,7 @@ export default function AdminReports() {
                 value={to}
                 onChange={(e) => {
                   setTo(e.target.value);
-                  setPage(1);
+                  setPagination((prev) => ({ ...prev, pageIndex: 0 }));
                 }}
                 InputLabelProps={{ shrink: true }}
               />
@@ -478,15 +502,82 @@ export default function AdminReports() {
                 value={userEmail}
                 onChange={(e) => {
                   setUserEmail(e.target.value);
-                  setPage(1);
+                  setPagination((prev) => ({ ...prev, pageIndex: 0 }));
                 }}
                 placeholder="user@example.com"
               />
             </Grid>
           </Grid>
-          <Stack direction="row" spacing={1.5} sx={{ mt: 2 }}>
-            <Button variant="contained" onClick={() => load()}>Apply</Button>
-            <Button variant="outlined" color="secondary" onClick={onReset}>Reset</Button>
+          <Stack
+            direction={{ xs: "column", xl: "row" }}
+            spacing={1.5}
+            justifyContent="space-between"
+            alignItems={{ xs: "stretch", xl: "center" }}
+            sx={{ mt: 2 }}
+          >
+            <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
+              <Button variant="contained" onClick={() => load()}>Apply</Button>
+              <Button variant="outlined" color="secondary" onClick={onReset}>Reset</Button>
+            </Stack>
+
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.25} alignItems={{ xs: "stretch", sm: "center" }}>
+              <FormControl size="small" sx={{ minWidth: { xs: "100%", sm: 150 } }}>
+                <InputLabel>Rows</InputLabel>
+                <Select
+                  value={pageSizeMode}
+                  label="Rows"
+                  onChange={(e) => {
+                    const value = e.target.value as "20" | "50" | "100" | "all" | "custom";
+                    if (value === "20" || value === "50" || value === "100") {
+                      applyPageSize(Number(value), value);
+                      return;
+                    }
+                    if (value === "all") {
+                      applyPageSize(ALL_PAGE_SIZE, "all");
+                      return;
+                    }
+                    setPageSizeMode("custom");
+                    commitCustomPageSize();
+                  }}
+                >
+                  <MenuItem value="20">20</MenuItem>
+                  <MenuItem value="50">50</MenuItem>
+                  <MenuItem value="100">100</MenuItem>
+                  <MenuItem value="all">All</MenuItem>
+                  <MenuItem value="custom">Custom</MenuItem>
+                </Select>
+              </FormControl>
+
+              {pageSizeMode === "custom" ? (
+                <TextField
+                  size="small"
+                  label="Custom rows"
+                  value={customPageSizeInput}
+                  onChange={(e) => setCustomPageSizeInput(e.target.value)}
+                  onBlur={commitCustomPageSize}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      commitCustomPageSize();
+                    }
+                  }}
+                  inputProps={{ inputMode: "numeric", min: 1 }}
+                  sx={{ width: { xs: "100%", sm: 132 } }}
+                />
+              ) : null}
+
+              <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                <Button variant="outlined" color="secondary" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>
+                  Prev
+                </Button>
+                <Typography variant="body2" sx={{ minWidth: 112, textAlign: "center" }}>
+                  Page {pagination.pageIndex + 1} of {table.getPageCount()}
+                </Typography>
+                <Button variant="outlined" color="secondary" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>
+                  Next
+                </Button>
+              </Stack>
+            </Stack>
           </Stack>
         </section>
 
@@ -503,7 +594,7 @@ export default function AdminReports() {
                 <Typography variant="h6" fontWeight={700}>Approved Reports</Typography>
                 <Chip size="small" color="secondary" variant="outlined" label={`${rows.length} visible`} />
               </Stack>
-              <TableContainer className="hidden md:block">
+              <TableContainer sx={{ display: { xs: "none", md: "block" } }}>
                 <Table
                   size="small"
                   sx={{
@@ -580,7 +671,7 @@ export default function AdminReports() {
               </TableContainer>
 
               {/* Cards on mobile */}
-              <Stack spacing={2} className="md:hidden">
+              <Stack spacing={2} sx={{ display: { xs: "flex", md: "none" } }}>
                 {rows.length ? (
                   rows.map((row) => {
                     const g = row.original;
@@ -669,18 +760,18 @@ export default function AdminReports() {
                 <Typography variant="body2" color="text.secondary">
                   {data ? (
                     <>
-                      Showing {data.items?.length || 0} of {data.total} approved reports
+                      Showing {rows.length} of {data.total} approved reports
                     </>
                   ) : null}
                 </Typography>
                 <Stack direction="row" spacing={1} alignItems="center">
-                  <Button variant="outlined" color="secondary" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>
+                  <Button variant="outlined" color="secondary" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>
                     Prev
                   </Button>
                   <Typography variant="body2" sx={{ minWidth: 100, textAlign: "center" }}>
-                    Page {page} of {totalPages}
+                    Page {pagination.pageIndex + 1} of {table.getPageCount()}
                   </Typography>
-                  <Button variant="outlined" color="secondary" onClick={() => setPage((p) => p + 1)} disabled={page >= totalPages}>
+                  <Button variant="outlined" color="secondary" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>
                     Next
                   </Button>
                 </Stack>
