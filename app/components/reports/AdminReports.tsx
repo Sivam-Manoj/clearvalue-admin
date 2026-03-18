@@ -320,7 +320,7 @@ export default function AdminReports() {
         enableSorting: false,
         header: "Actions",
         cell: ({ row }) => (
-          <Stack direction="row" spacing={0.75} flexWrap="wrap" justifyContent="flex-end" useFlexGap>
+          <Stack direction="row" spacing={0.75} flexWrap="wrap" justifyContent="flex-start" useFlexGap>
             {buildDownloadLinks(row.original).map((link) => (
               <Button
                 key={`${row.original.key}-${link.label}`}
@@ -514,7 +514,7 @@ export default function AdminReports() {
                         {headerGroup.headers.map((header) => (
                           <TableCell
                             key={header.id}
-                            align={header.column.id === "actions" ? "right" : "left"}
+                            align="left"
                             sx={{
                               fontWeight: 700,
                               whiteSpace: "nowrap",
@@ -528,7 +528,7 @@ export default function AdminReports() {
                                   : header.column.id === "createdAt"
                                   ? "20%"
                                   : header.column.id === "actions"
-                                  ? "22%"
+                                  ? "17%"
                                   : "auto",
                             }}
                           >
@@ -553,11 +553,7 @@ export default function AdminReports() {
                       rows.map((row) => (
                         <TableRow key={row.id} hover>
                           {row.getVisibleCells().map((cell) => (
-                            <TableCell
-                              key={cell.id}
-                              align={cell.column.id === "actions" ? "right" : "left"}
-                              sx={{ overflow: "hidden" }}
-                            >
+                            <TableCell key={cell.id} align="left" sx={{ overflow: "hidden" }}>
                               {flexRender(cell.column.columnDef.cell, cell.getContext())}
                             </TableCell>
                           ))}
@@ -606,7 +602,13 @@ export default function AdminReports() {
                                 <Typography variant="body2">{g.userEmail || "-"}</Typography>
                               </Grid>
                             </Grid>
-                            <Stack direction="row" spacing={1} flexWrap="wrap">
+                            <Stack
+                              direction="row"
+                              spacing={1}
+                              flexWrap="wrap"
+                              useFlexGap
+                              sx={{ justifyContent: "flex-start", alignItems: "center" }}
+                            >
                               {buildDownloadLinks(g).map((link) => (
                                 <Button
                                   key={`${g.key}-${link.label}`}
@@ -614,6 +616,7 @@ export default function AdminReports() {
                                   variant="contained"
                                   color="primary"
                                   disabled={!link.href}
+                                  sx={{ minWidth: 0, px: 1.5, whiteSpace: "nowrap" }}
                                   {...(link.href
                                     ? {
                                         href: link.href,
@@ -625,7 +628,13 @@ export default function AdminReports() {
                                   {link.label}
                                 </Button>
                               ))}
-                              <Button size="small" variant="outlined" color="error" onClick={() => openDelete(g.key)}>
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                color="error"
+                                sx={{ minWidth: 0, px: 1.5, whiteSpace: "nowrap" }}
+                                onClick={() => openDelete(g.key)}
+                              >
                                 Delete
                               </Button>
                             </Stack>

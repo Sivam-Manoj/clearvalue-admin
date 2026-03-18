@@ -74,7 +74,7 @@ export default function LoginFormV2({ embedded = false }: { embedded?: boolean }
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             disabled={loading}
-            placeholder="admin@assetinsightvaluation.com"
+            placeholder="admin@clearvalue.com"
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">

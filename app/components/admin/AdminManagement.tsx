@@ -429,7 +429,7 @@ export default function AdminManagement() {
             <Alert severity="error">{error}</Alert>
           ) : (
             <>
-              <TableContainer className="hidden md:block">
+              <TableContainer sx={{ display: { xs: "none", md: "block" } }}>
                 <Table size="small" sx={{ minWidth: 760 }}>
                   <TableHead>
                     {table.getHeaderGroups().map((headerGroup) => (
@@ -478,12 +478,12 @@ export default function AdminManagement() {
                 </Table>
               </TableContainer>
 
-              <Stack spacing={2} className="md:hidden">
+              <Stack spacing={2} sx={{ display: { xs: "flex", md: "none" } }}>
                 {rows.length ? (
                   rows.map((row) => {
                     const u = row.original;
                     return (
-                      <Card key={u._id} variant="outlined">
+                      <Card key={u._id} variant="outlined" sx={{ borderRadius: 3 }}>
                         <CardContent>
                           <Stack spacing={1.5}>
                             <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1.5}>
@@ -520,7 +520,7 @@ export default function AdminManagement() {
                                 </Typography>
                               </Grid>
                             </Grid>
-                            <Stack direction="row" spacing={1} flexWrap="wrap">
+                            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ alignItems: "center" }}>
                               <Button
                                 size="small"
                                 variant="outlined"

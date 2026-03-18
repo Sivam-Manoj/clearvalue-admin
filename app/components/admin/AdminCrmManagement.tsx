@@ -1369,6 +1369,17 @@ export default function AdminCrmManagement() {
     };
   }, [leads?.items]);
 
+  const leadStatusLegendItems = useMemo(
+    () =>
+      CRM_STATUSES.map((status, index) => ({
+        key: status,
+        label: statusLabel(status),
+        count: Number(leadStatusPieData.datasets[0]?.data?.[index] || 0),
+        color: String(leadStatusPieData.datasets[0]?.borderColor?.[index] || "#64748B"),
+      })),
+    [leadStatusPieData]
+  );
+
   const leadsPerAgentData = useMemo(() => {
     const agentMap = new Map<string, number>();
     (leads?.items || []).forEach((lead) => {
@@ -1514,12 +1525,36 @@ export default function AdminCrmManagement() {
               <CardContent>
                 <Typography variant="subtitle2" fontWeight={700}>Lead Status Distribution</Typography>
                 <Typography variant="caption" color="text.secondary">Breakdown of all leads by current status.</Typography>
-                <Box sx={{ height: 220, mt: 1.5 }}>
-                  <Pie
-                    data={leadStatusPieData}
-                    options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "right", labels: { boxWidth: 10, font: { size: 11 }, padding: 8 } } } }}
-                  />
-                </Box>
+                <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems={{ xs: "stretch", sm: "center" }} sx={{ mt: 1.5 }}>
+                  <Box sx={{ height: 220, flex: { xs: "0 0 auto", sm: 1 }, minWidth: 0 }}>
+                    <Pie
+                      data={leadStatusPieData}
+                      options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }}
+                    />
+                  </Box>
+                  <Stack spacing={1} sx={{ width: { xs: "100%", sm: 190 }, flexShrink: 0 }}>
+                    {leadStatusLegendItems.map((item) => (
+                      <Stack
+                        key={item.key}
+                        direction="row"
+                        spacing={1}
+                        alignItems="center"
+                        justifyContent="space-between"
+                        sx={{ borderRadius: 2, px: 1.25, py: 0.85, bgcolor: "rgba(148,163,184,0.08)" }}
+                      >
+                        <Stack direction="row" spacing={1} alignItems="center" minWidth={0}>
+                          <Box sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: item.color, flexShrink: 0 }} />
+                          <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.78rem" }} noWrap>
+                            {item.label}
+                          </Typography>
+                        </Stack>
+                        <Typography variant="subtitle2" fontWeight={800} sx={{ minWidth: 20, textAlign: "right" }}>
+                          {item.count}
+                        </Typography>
+                      </Stack>
+                    ))}
+                  </Stack>
+                </Stack>
               </CardContent>
             </Card>
           </Grid>
